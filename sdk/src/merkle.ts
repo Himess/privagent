@@ -1,15 +1,24 @@
 import { hash2 } from "./poseidon.js";
 import { MerkleProof, MERKLE_DEPTH } from "./types.js";
 
+/**
+ * Incremental Merkle tree that mirrors the on-chain contract.
+ * Uses sparse computation — O(depth) per insert, O(N * depth) for proof.
+ * Safe for depth 20 (1M capacity) unlike the naive 2^depth approach.
+ */
 export class MerkleTree {
   private leaves: bigint[];
   private zeroValues: bigint[];
   private depth: number;
+  private filledSubtrees: bigint[];
+  private currentRoot: bigint;
 
   constructor(depth: number = MERKLE_DEPTH) {
     this.depth = depth;
     this.leaves = [];
     this.zeroValues = this.computeZeroValues();
+    this.filledSubtrees = this.zeroValues.slice(0, depth);
+    this.currentRoot = this.zeroValues[depth];
   }
 
   private computeZeroValues(): bigint[] {
@@ -27,11 +36,35 @@ export class MerkleTree {
   addLeaf(commitment: bigint): number {
     const index = this.leaves.length;
     this.leaves.push(commitment);
+    this.updateRoot(commitment, index);
     return index;
   }
 
+  private updateRoot(commitment: bigint, index: number): void {
+    let currentHash = commitment;
+    let currentIndex = index;
+
+    for (let i = 0; i < this.depth; i++) {
+      if (currentIndex % 2 === 0) {
+        this.filledSubtrees[i] = currentHash;
+        currentHash = hash2(currentHash, this.zeroValues[i]);
+      } else {
+        currentHash = hash2(this.filledSubtrees[i], currentHash);
+      }
+      currentIndex = Math.floor(currentIndex / 2);
+    }
+
+    this.currentRoot = currentHash;
+  }
+
   setLeaves(leaves: bigint[]): void {
-    this.leaves = [...leaves];
+    this.leaves = [];
+    this.filledSubtrees = this.zeroValues.slice(0, this.depth);
+    this.currentRoot = this.zeroValues[this.depth];
+
+    for (const leaf of leaves) {
+      this.addLeaf(leaf);
+    }
   }
 
   getLeaves(): bigint[] {
@@ -43,49 +76,29 @@ export class MerkleTree {
   }
 
   getRoot(): bigint {
-    if (this.leaves.length === 0) {
-      return this.zeroValues[this.depth];
+    return this.currentRoot;
+  }
+
+  /**
+   * Compute a node hash at (level, index) using sparse zero-pruning.
+   * Subtrees beyond the last leaf return precomputed zero hashes.
+   */
+  private getNode(level: number, index: number): bigint {
+    const subtreeStart = index * (2 ** level);
+    if (subtreeStart >= this.leaves.length) {
+      return this.zeroValues[level];
     }
-
-    const numLeaves = 2 ** this.depth;
-    let currentLevel: bigint[] = [];
-
-    for (let i = 0; i < numLeaves; i++) {
-      currentLevel.push(i < this.leaves.length ? this.leaves[i] : this.zeroValues[0]);
+    if (level === 0) {
+      return this.leaves[index];
     }
-
-    for (let level = 0; level < this.depth; level++) {
-      const nextLevel: bigint[] = [];
-      for (let i = 0; i < currentLevel.length; i += 2) {
-        nextLevel.push(hash2(currentLevel[i], currentLevel[i + 1]));
-      }
-      currentLevel = nextLevel;
-    }
-
-    return currentLevel[0];
+    const left = this.getNode(level - 1, index * 2);
+    const right = this.getNode(level - 1, index * 2 + 1);
+    return hash2(left, right);
   }
 
   getProof(leafIndex: number): MerkleProof {
     if (leafIndex < 0 || leafIndex >= this.leaves.length) {
       throw new Error(`Invalid leaf index: ${leafIndex}`);
-    }
-
-    const numLeaves = 2 ** this.depth;
-    const tree: bigint[][] = [];
-
-    const level0: bigint[] = [];
-    for (let i = 0; i < numLeaves; i++) {
-      level0.push(i < this.leaves.length ? this.leaves[i] : this.zeroValues[0]);
-    }
-    tree.push(level0);
-
-    for (let level = 1; level <= this.depth; level++) {
-      const prevLevel = tree[level - 1];
-      const currentLevel: bigint[] = [];
-      for (let i = 0; i < prevLevel.length; i += 2) {
-        currentLevel.push(hash2(prevLevel[i], prevLevel[i + 1]));
-      }
-      tree.push(currentLevel);
     }
 
     const pathElements: bigint[] = [];
@@ -96,7 +109,7 @@ export class MerkleTree {
       const isLeft = currentIndex % 2 === 0;
       const siblingIndex = isLeft ? currentIndex + 1 : currentIndex - 1;
 
-      pathElements.push(tree[level][siblingIndex]);
+      pathElements.push(this.getNode(level, siblingIndex));
       pathIndices.push(isLeft ? 0 : 1);
 
       currentIndex = Math.floor(currentIndex / 2);
@@ -105,7 +118,7 @@ export class MerkleTree {
     return {
       pathElements,
       pathIndices,
-      root: tree[this.depth][0],
+      root: this.currentRoot,
       leafIndex,
     };
   }

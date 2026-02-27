@@ -9,10 +9,12 @@
     "demo": "concurrently \"pnpm seller\" \"sleep 2 && pnpm buyer\""
   },
   "dependencies": {
+    "circomlibjs": "^0.1.7",
     "ethers": "^6.13.0",
     "express": "^5.0.0",
+    "ghostpay-relayer": "workspace:*",
     "ghostpay-sdk": "workspace:*",
-    "ghostpay-relayer": "workspace:*"
+    "snarkjs": "^0.7.6"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

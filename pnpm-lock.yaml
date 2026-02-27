@@ -10,6 +10,9 @@ importers:
 
   demo:
     dependencies:
+      circomlibjs:
+        specifier: ^0.1.7
+        version: 0.1.7
       ethers:
         specifier: ^6.13.0
         version: 6.16.0
@@ -22,6 +25,9 @@ importers:
       ghostpay-sdk:
         specifier: workspace:*
         version: link:../sdk
+      snarkjs:
+        specifier: ^0.7.6
+        version: 0.7.6
     devDependencies:
       '@types/express':
         specifier: ^5.0.0
