@@ -1,3 +1,8 @@
+/**
+ * @deprecated V3 uses server-as-relayer middleware (ghostPaywall in sdk/src/x402/middleware.ts).
+ * This standalone relayer is kept for reference but is not used in the V3 flow.
+ * The seller server now submits withdraw() on-chain directly.
+ */
 import express from "express";
 import { ethers } from "ethers";
 

@@ -5,28 +5,30 @@ Privacy-preserving x402 payment protocol on Base. AI agents pay for API access u
 ## Architecture
 
 ```
-Agent deposits USDC → ShieldedPool (Merkle tree)
+Agent deposits USDC → ShieldedPool (Poseidon Merkle tree)
                           ↓
 Agent requests API → 402 (zk-exact scheme)
                           ↓
-Agent creates ZK proof → Payment header
+Agent creates ZK proof → Payment header (raw proof, no TX)
                           ↓
-Relayer submits withdraw TX → USDC to seller
+Server calls withdraw() → USDC to stealth address
                           ↓
-Agent gets API response ← 200 OK
+Agent gets API response ← 200 OK + X-Payment-TxHash
 ```
 
-**Core stack:** Poseidon hashing + Groth16 ZK proofs + ECDH stealth addresses + x402 HTTP payment protocol
+**Core stack:** Poseidon(3) commitments + Groth16 ZK proofs + secp256k1 ECDH stealth addresses + x402 HTTP payment protocol
+
+**Server-as-relayer:** The buyer generates a ZK proof client-side and sends it in the `Payment` header. The server (seller) submits `ShieldedPool.withdraw()` on-chain — buyers don't need ETH for gas.
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| `contracts/` | Foundry — ShieldedPool, PoseidonHasher, StealthRegistry, Groth16Verifier |
-| `circuits/` | Circom — privatePayment circuit (depth 20 Merkle tree) |
-| `sdk/` | TypeScript SDK — poseidon, merkle, proof, notes, stealth, pool client, x402 modules |
-| `relayer/` | Express 5 relayer — accepts proofs, submits withdrawals on-chain |
-| `demo/` | Two-agent demo — seller (paywall) + buyer (ghostFetch) |
+| `contracts/` | Foundry — ShieldedPool (ReentrancyGuard + Pausable + Ownable), PoseidonHasher, StealthRegistry, Groth16Verifier |
+| `circuits/` | Circom — privatePayment circuit (Poseidon(3), depth 20, conditional newCommitment) |
+| `sdk/` | TypeScript SDK — poseidon, merkle, proof, notes, stealth (secp256k1 ECDH), pool client, x402 modules |
+| `demo/` | Two-agent demo — seller (ghostPaywall) + buyer (ghostFetch) + E2E test |
+| `relayer/` | **Deprecated** — standalone relayer replaced by server-as-relayer middleware |
 
 ## Quick Start
 
@@ -37,33 +39,28 @@ pnpm install
 # Build circuits (requires circom + snarkjs)
 cd circuits && bash scripts/build.sh
 
-# Build & test contracts
+# Build & test contracts (31 tests)
 cd contracts && forge build && forge test -vvv
 
-# Test SDK
+# Test SDK (63 tests)
 cd sdk && pnpm test
 
-# Test relayer
-cd relayer && pnpm test
-
-# Deploy to Base Sepolia
-cd contracts && forge script script/Deploy.s.sol --rpc-url base-sepolia --broadcast --verify
+# Run E2E on Base Sepolia
+PRIVATE_KEY_SELLER=0x... PRIVATE_KEY_BUYER=0x... npx tsx demo/e2e-test.ts
 ```
 
-## Deployed Contracts (Base Sepolia)
+## Deployed Contracts (Base Sepolia — V3)
 
 | Contract | Address |
 |----------|---------|
-| PoseidonHasher | `0x56c52A3b621346DC47B7B2A4bE0230721EE48c12` |
-| Groth16Verifier | `0x98CaD63B1B703A64F2B8Ce471f079AEdf66598ab` |
-| ShieldedPool | `0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f` |
-| StealthRegistry | `0x81b7E46702d68E037d72fb998c1B5BC13c09e560` |
+| PoseidonHasher | `0x27d2b5247949606f913Db8c314EABB917fcffd96` |
+| Groth16Verifier | `0x605002BbB689457101104e8Ee3C76a8d5D23e5c8` |
+| ShieldedPool | `0xdc794e8314f45D337B4aefBc45D098c3ed172E4a` |
+| StealthRegistry | `0x5E3ef9A91AD33270f84B32ACFF91068Eea44c5ee` |
 
-Verified on [Blockscout](https://base-sepolia.blockscout.com/address/0x11c8ebc9a95b2a1da4155b167dada9b5925dde8f).
+Deploy block: `38229334`
 
 ## x402 `zk-exact` Scheme
-
-GhostPay extends the x402 HTTP payment protocol with a ZK-native scheme:
 
 ```
 GET /api/weather HTTP/1.1
@@ -76,45 +73,92 @@ GET /api/weather HTTP/1.1
     "amount": "1000000",
     "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     "payTo": "0xSeller...",
-    "poolAddress": "0xPool..."
+    "poolAddress": "0xPool...",
+    "stealthMetaAddress": { "spendingPubKey": "0x04...", "viewingPubKey": "0x04..." }
   }]
 }
 
-→ Agent creates ZK proof, relayer submits withdraw TX
-→ Retry with Payment header
-→ 200 OK + data
+→ Agent generates ZK proof client-side (no TX)
+→ Retry with Payment header (base64 encoded, proof as string[8])
+→ Server calls withdraw() on-chain as relayer
+→ 200 OK + X-Payment-TxHash header
 ```
+
+## Commitment Scheme (V3)
+
+```
+commitment = Poseidon(amount, nullifierSecret, randomness)    // 3-input
+nullifierHash = Poseidon(nullifierSecret, commitment)
+newCommitment = change > 0 ? Poseidon(change, newSecret, newRandom) : 0
+```
+
+Amount is bound to the commitment — the circuit enforces `balance >= amount + fee` where `balance` is the preimage of the Merkle leaf.
+
+## Stealth Addresses (V3 — secp256k1 ECDH)
+
+Seller publishes a stealth meta-address (spending + viewing public keys). Buyer derives a one-time stealth address using ECDH:
+
+```
+ephemeralKey = random secp256k1 private key
+sharedSecret = ECDH(ephemeralKey, viewingPubKey)
+stealthPubKey = spendingPubKey + hash(sharedSecret) * G
+stealthAddress = keccak256(stealthPubKey)[12:]
+```
+
+Only the seller can recover the stealth private key using their spending + viewing private keys.
 
 ## Gas Costs (Measured on Base Sepolia)
 
 | Operation | Gas |
 |-----------|-----|
-| Deposit | 851K (Poseidon Merkle insert, depth 20) |
-| Withdraw | 1.03M (Groth16 verify + Merkle insert + USDC transfer) |
-| Proof Gen | ~1.2s (Node.js, snarkjs) |
+| Deposit | ~851K (Poseidon Merkle insert, depth 20) |
+| Withdraw | ~1.03M (Groth16 verify + Merkle insert + USDC transfer) |
+| Proof Gen | ~3.5s (Node.js, snarkjs, incl. network) |
 
 ## Test Results
 
-- **Contracts:** 14 tests passing (Foundry)
-- **SDK:** 30 tests passing (vitest)
-- **Relayer:** 5 tests passing (vitest + supertest)
-- **Circuit:** 2 tests (requires build artifacts)
+- **Contracts:** 31 tests passing (Foundry)
+- **SDK:** 63 tests passing (vitest)
+- **E2E:** Full flow on Base Sepolia (deposit → 402 → ZK proof → server withdraw → 200)
+
+## Circuit Constraints
+
+| Component | Non-linear | Linear |
+|-----------|-----------|--------|
+| Total | 5,762 | 6,442 |
+
+Uses `powersOfTau28_hez_final_14.ptau` (Hermez, 54 contributors). See `circuits/CEREMONY.md`.
 
 ## Key Design Decisions
 
 - **Variable amounts** — x402 needs arbitrary payment amounts (not fixed denominations)
+- **Poseidon(3) commitment** — amount + nullifierSecret + randomness binding (C6+C7 fix)
 - **Depth 20** — ~1M deposit anonymity set, Groth16 verify still constant ~224K gas
-- **30-root history** — compact ring buffer for recent Merkle roots
-- **Change commitments** — partial withdrawal support via circuit-computed `newCommitment`
-- **Relayer model** — gas abstraction, agents don't need ETH for withdrawals
+- **100-root history** — ring buffer for recent Merkle roots (M1 fix)
+- **Conditional newCommitment** — IsZero circuit gate: full-spend outputs 0 (C2 fix)
+- **Server-as-relayer** — buyer sends raw proof, server submits TX (gas abstraction)
+- **secp256k1 ECDH stealth** — real EC keypairs with recoverable private keys (C1 fix)
+- **Note locking** — pendingNullifiers Set prevents concurrent double-spend (C4 fix)
 
 ## Security Model
 
 - On-chain Groth16 proof verification prevents invalid withdrawals
+- ReentrancyGuard on deposit/withdraw (H1)
+- Pausable by owner for emergency circuit break (H3)
 - Nullifier tracking prevents double-spending
-- Poseidon commitments hide balance + randomness
-- Stealth addresses enable private receiving
-- Root history prevents front-running with stale roots
+- Poseidon(3) commitments bind amount + nullifierSecret + randomness
+- secp256k1 ECDH stealth addresses enable private receiving with recoverable keys
+- Pre-flight root + nullifier checks prevent gas griefing (H2)
+- Field bounds validation on Poseidon inputs (H9)
+- Generic error messages prevent information leakage (L6)
+
+## Documentation
+
+- [Protocol Specification](docs/PROTOCOL.md)
+- [Circuit Documentation](docs/CIRCUITS.md)
+- [Stealth Address Design](docs/STEALTH.md)
+- [Trusted Setup Ceremony](circuits/CEREMONY.md)
+- [Audit Report](AUDIT.md)
 
 ## License
 
