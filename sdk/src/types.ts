@@ -85,6 +85,13 @@ export interface StealthMetaAddress {
   viewingPubKeyY: bigint;
 }
 
+export interface SerializedStealthMetaAddress {
+  spendingPubKeyX: string;
+  spendingPubKeyY: string;
+  viewingPubKeyX: string;
+  viewingPubKeyY: string;
+}
+
 export interface StealthPaymentData {
   ephemeralPrivKey: bigint;
   ephemeralPubKeyX: bigint;
@@ -116,6 +123,24 @@ export interface WithdrawResult {
   newNote?: PrivateNote;
 }
 
+export interface GenerateProofResult {
+  proof: bigint[];
+  nullifierHash: bigint;
+  newCommitment: bigint;
+  merkleRoot: bigint;
+  amount: bigint;
+  recipient: string;
+  relayer: string;
+  fee: bigint;
+  changeNote?: {
+    commitment: bigint;
+    balance: bigint;
+    randomness: bigint;
+    nullifierSecret: bigint;
+  };
+  spentNoteCommitment: bigint;
+}
+
 // ============================================================================
 // x402 Types
 // ============================================================================
@@ -130,6 +155,7 @@ export interface ZkPaymentRequirements {
   poolAddress: string;
   relayer?: string;
   relayerFee?: string;
+  stealthMetaAddress?: SerializedStealthMetaAddress;
 }
 
 export interface ZkExactPayload {
@@ -137,9 +163,13 @@ export interface ZkExactPayload {
   nullifierHash: string;
   newCommitment: string;
   merkleRoot: string;
-  proof: string;
+  proof: string[];
+  recipient: string;
+  amount: string;
   relayer: string;
   fee: string;
+  ephemeralPubKeyX: string;
+  ephemeralPubKeyY: string;
 }
 
 export interface V2PaymentPayload {
@@ -166,6 +196,30 @@ export interface PaymentResult {
   nullifierHash: string;
   paymentHeader: string;
   requirements: ZkPaymentRequirements;
+  _proofResult?: GenerateProofResult;
+}
+
+export interface PaymentInfo {
+  nullifierHash: string;
+  from: string;
+  amount: string;
+  asset: string;
+  recipient: string;
+  txHash: string;
+  blockNumber: number;
+}
+
+export interface GhostPaywallConfig {
+  price: string;
+  asset: string;
+  recipient: string;
+  network?: string;
+  poolAddress: string;
+  relayer?: string;
+  relayerFee?: string;
+  maxTimeoutSeconds?: number;
+  signer: Signer;
+  stealthMetaAddress?: SerializedStealthMetaAddress;
 }
 
 export interface GhostFetchOptions extends RequestInit {

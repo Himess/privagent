@@ -8,6 +8,7 @@ import {
   PrivateNote,
   DepositResult,
   WithdrawResult,
+  GenerateProofResult,
   MERKLE_DEPTH,
 } from "./types.js";
 
@@ -63,24 +64,30 @@ export class ShieldedPoolClient {
   }
 
   /**
-   * Sync local Merkle tree from on-chain deposit events
+   * Sync local Merkle tree from on-chain deposit events.
+   * Paginates in 9000-block chunks to stay within public RPC limits (10K).
    */
   async syncTree(): Promise<void> {
+    const currentBlock = await this.provider.getBlockNumber();
     const filter = this.poolContract.filters.Deposited();
-    const events = await this.poolContract.queryFilter(filter, 0, "latest");
 
-    const leaves: bigint[] = [];
-    for (const event of events) {
-      const parsed = this.poolIface.parseLog({
-        topics: event.topics as string[],
-        data: event.data,
-      });
-      if (parsed) {
-        leaves.push(BigInt(parsed.args.commitment));
+    const allLeaves: bigint[] = [];
+    for (let from = 0; from <= currentBlock; from += 9000) {
+      const to = Math.min(from + 8999, currentBlock);
+      const events = await this.poolContract.queryFilter(filter, from, to);
+
+      for (const event of events) {
+        const parsed = this.poolIface.parseLog({
+          topics: event.topics as string[],
+          data: event.data,
+        });
+        if (parsed) {
+          allLeaves.push(BigInt(parsed.args.commitment));
+        }
       }
     }
 
-    this.merkleTree.setLeaves(leaves);
+    this.merkleTree.setLeaves(allLeaves);
   }
 
   /**
@@ -138,6 +145,106 @@ export class ShieldedPoolClient {
       leafIndex,
       note,
     };
+  }
+
+  /**
+   * Generate a ZK withdraw proof WITHOUT submitting a transaction.
+   * Returns the raw proof and metadata needed for the server to call withdraw().
+   */
+  async generateWithdrawProof(
+    recipient: string,
+    amount: bigint,
+    relayer: string = ethers.ZeroAddress,
+    fee: bigint = 0n
+  ): Promise<GenerateProofResult> {
+    if (!this.proofGenerator) {
+      throw new Error("Circuit paths not configured");
+    }
+
+    // Find suitable note
+    const note = this.notes.find((n) => n.balance >= amount + fee);
+    if (!note) {
+      throw new Error(`No note with sufficient balance (need ${amount + fee})`);
+    }
+
+    // Compute proof inputs
+    const nullifierHash = getNullifierHash(note);
+    const change = note.balance - amount - fee;
+    const newRandomness = randomFieldElement();
+    const newNullifierSecret = randomFieldElement();
+    const newCommitment = change > 0n ? computeCommitment(change, newRandomness) : 0n;
+
+    const merkleProof = this.merkleTree.getProof(note.leafIndex);
+
+    const circuitInput = {
+      balance: note.balance.toString(),
+      randomness: note.randomness.toString(),
+      nullifierSecret: note.nullifierSecret.toString(),
+      newRandomness: newRandomness.toString(),
+      pathElements: merkleProof.pathElements.map((e) => e.toString()),
+      pathIndices: merkleProof.pathIndices.map((i) => i.toString()),
+      root: merkleProof.root.toString(),
+      nullifierHash: nullifierHash.toString(),
+      recipient: BigInt(recipient).toString(),
+      amount: amount.toString(),
+      relayer: BigInt(relayer).toString(),
+      fee: fee.toString(),
+    };
+
+    const { proofData } = await this.proofGenerator.generateProof(circuitInput);
+
+    // Flatten proof to uint256[8]
+    const proofArray = ProofGenerator.proofToArray(proofData);
+
+    return {
+      proof: proofArray,
+      nullifierHash,
+      newCommitment,
+      merkleRoot: merkleProof.root,
+      amount,
+      recipient,
+      relayer,
+      fee,
+      changeNote: change > 0n
+        ? {
+            commitment: newCommitment,
+            balance: change,
+            randomness: newRandomness,
+            nullifierSecret: newNullifierSecret,
+          }
+        : undefined,
+      spentNoteCommitment: note.commitment,
+    };
+  }
+
+  /**
+   * Consume a spent note and optionally add the change note.
+   * Called AFTER the server confirms the on-chain withdrawal succeeded.
+   */
+  consumeNote(
+    spentCommitment: bigint,
+    changeNote?: {
+      commitment: bigint;
+      balance: bigint;
+      randomness: bigint;
+      nullifierSecret: bigint;
+    }
+  ): void {
+    const noteIndex = this.notes.findIndex(
+      (n) => n.commitment === spentCommitment
+    );
+    if (noteIndex === -1) return;
+
+    if (changeNote) {
+      const newNote: PrivateNote = {
+        ...changeNote,
+        leafIndex: this.merkleTree.getLeafCount(),
+      };
+      this.notes[noteIndex] = newNote;
+      this.merkleTree.addLeaf(changeNote.commitment);
+    } else {
+      this.notes.splice(noteIndex, 1);
+    }
   }
 
   /**

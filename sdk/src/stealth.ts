@@ -1,6 +1,12 @@
 import { randomBytes } from "crypto";
+import { ethers } from "ethers";
 import { hash2 } from "./poseidon.js";
-import { StealthMetaAddress, StealthPaymentData, FIELD_SIZE } from "./types.js";
+import {
+  StealthMetaAddress,
+  SerializedStealthMetaAddress,
+  StealthPaymentData,
+  FIELD_SIZE,
+} from "./types.js";
 
 /**
  * Agent stealth keypair for private receiving
@@ -93,5 +99,49 @@ export function generateStealthPayment(
     stealthAddressY,
     viewTag,
     sharedSecret,
+  };
+}
+
+/**
+ * Derive an Ethereum address from stealth point coordinates.
+ * keccak256(abi.encodePacked(x, y)) → take last 20 bytes
+ */
+export function deriveStealthEthAddress(
+  stealthX: bigint,
+  stealthY: bigint
+): string {
+  const packed = ethers.solidityPacked(
+    ["uint256", "uint256"],
+    [stealthX, stealthY]
+  );
+  const hash = ethers.keccak256(packed);
+  return ethers.getAddress("0x" + hash.slice(-40));
+}
+
+/**
+ * Serialize a StealthMetaAddress to string form for JSON transport
+ */
+export function serializeStealthMetaAddress(
+  meta: StealthMetaAddress
+): SerializedStealthMetaAddress {
+  return {
+    spendingPubKeyX: meta.spendingPubKeyX.toString(),
+    spendingPubKeyY: meta.spendingPubKeyY.toString(),
+    viewingPubKeyX: meta.viewingPubKeyX.toString(),
+    viewingPubKeyY: meta.viewingPubKeyY.toString(),
+  };
+}
+
+/**
+ * Deserialize a StealthMetaAddress from string form
+ */
+export function deserializeStealthMetaAddress(
+  data: SerializedStealthMetaAddress
+): StealthMetaAddress {
+  return {
+    spendingPubKeyX: BigInt(data.spendingPubKeyX),
+    spendingPubKeyY: BigInt(data.spendingPubKeyY),
+    viewingPubKeyX: BigInt(data.viewingPubKeyX),
+    viewingPubKeyY: BigInt(data.viewingPubKeyY),
   };
 }

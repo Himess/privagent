@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { initPoseidon } from "./poseidon.js";
-import { AgentStealthKeypair, generateStealthPayment } from "./stealth.js";
+import {
+  AgentStealthKeypair,
+  generateStealthPayment,
+  deriveStealthEthAddress,
+  serializeStealthMetaAddress,
+  deserializeStealthMetaAddress,
+} from "./stealth.js";
 
 describe("stealth", () => {
   beforeAll(async () => {
@@ -76,5 +82,43 @@ describe("stealth", () => {
 
     const viewTag = recipient.computeViewTag(payment.ephemeralPubKeyX);
     expect(viewTag).toBe(payment.viewTag);
+  });
+
+  // New tests for deriveStealthEthAddress
+
+  it("deriveStealthEthAddress should return valid Ethereum address", () => {
+    const addr = deriveStealthEthAddress(12345n, 67890n);
+    expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
+  });
+
+  it("deriveStealthEthAddress should be deterministic", () => {
+    const addr1 = deriveStealthEthAddress(12345n, 67890n);
+    const addr2 = deriveStealthEthAddress(12345n, 67890n);
+    expect(addr1).toBe(addr2);
+  });
+
+  it("deriveStealthEthAddress should produce different addresses for different inputs", () => {
+    const addr1 = deriveStealthEthAddress(12345n, 67890n);
+    const addr2 = deriveStealthEthAddress(99999n, 11111n);
+    expect(addr1).not.toBe(addr2);
+  });
+
+  // New tests for serialize/deserialize
+
+  it("should serialize and deserialize StealthMetaAddress", () => {
+    const kp = AgentStealthKeypair.generate();
+    const meta = kp.getMetaAddress();
+
+    const serialized = serializeStealthMetaAddress(meta);
+    expect(typeof serialized.spendingPubKeyX).toBe("string");
+    expect(typeof serialized.spendingPubKeyY).toBe("string");
+    expect(typeof serialized.viewingPubKeyX).toBe("string");
+    expect(typeof serialized.viewingPubKeyY).toBe("string");
+
+    const deserialized = deserializeStealthMetaAddress(serialized);
+    expect(deserialized.spendingPubKeyX).toBe(meta.spendingPubKeyX);
+    expect(deserialized.spendingPubKeyY).toBe(meta.spendingPubKeyY);
+    expect(deserialized.viewingPubKeyX).toBe(meta.viewingPubKeyX);
+    expect(deserialized.viewingPubKeyY).toBe(meta.viewingPubKeyY);
   });
 });

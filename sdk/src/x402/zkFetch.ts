@@ -6,6 +6,7 @@ import type { GhostFetchOptions, PaymentResult } from "../types.js";
  * Creates an x402-aware fetch function bound to a ShieldedPoolClient.
  *
  * Automatically handles 402 responses by creating ZK proofs and retrying.
+ * After server confirms payment (2xx), updates local note state.
  */
 export function createGhostFetch(
   client: ShieldedPoolClient,
@@ -17,6 +18,13 @@ export function createGhostFetch(
 
 /**
  * Performs an HTTP request with automatic x402 ZK payment handling.
+ *
+ * Flow:
+ * 1. Fetch URL → get 402 with payment requirements
+ * 2. Generate ZK proof client-side (no TX)
+ * 3. Retry with proof in Payment header
+ * 4. Server submits withdraw() on-chain
+ * 5. On 2xx, consume the spent note locally
  */
 export async function ghostFetch(
   client: ShieldedPoolClient,
@@ -43,10 +51,20 @@ export async function ghostFetch(
   const retryHeaders = new Headers(fetchOptions.headers);
   retryHeaders.set("Payment", result.paymentHeader);
 
-  return fetch(url, {
+  const retryResponse = await fetch(url, {
     ...fetchOptions,
     headers: retryHeaders,
   });
+
+  // After server confirms payment, update local note state
+  if (retryResponse.ok && result._proofResult) {
+    client.consumeNote(
+      result._proofResult.spentNoteCommitment,
+      result._proofResult.changeNote
+    );
+  }
+
+  return retryResponse;
 }
 
 export type PaymentCallback = (result: PaymentResult) => void;
@@ -81,5 +99,15 @@ export async function ghostFetchWithCallback(
   const retryHeaders = new Headers(fetchOptions.headers);
   retryHeaders.set("Payment", result.paymentHeader);
 
-  return fetch(url, { ...fetchOptions, headers: retryHeaders });
+  const retryResponse = await fetch(url, { ...fetchOptions, headers: retryHeaders });
+
+  // After server confirms payment, update local note state
+  if (retryResponse.ok && result._proofResult) {
+    client.consumeNote(
+      result._proofResult.spentNoteCommitment,
+      result._proofResult.changeNote
+    );
+  }
+
+  return retryResponse;
 }

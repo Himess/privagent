@@ -1,4 +1,9 @@
 import { ShieldedPoolClient } from "../pool.js";
+import {
+  generateStealthPayment,
+  deriveStealthEthAddress,
+  deserializeStealthMetaAddress,
+} from "../stealth.js";
 import type {
   ZkPaymentRequirements,
   ZkExactPayload,
@@ -15,6 +20,9 @@ export interface ZkPaymentHandlerOptions {
 
 /**
  * Handles x402 payment flows using ZK proofs from GhostPay's ShieldedPool.
+ *
+ * New flow: buyer generates proof client-side, sends raw proof in Payment header.
+ * Server acts as relayer and calls withdraw() on-chain.
  */
 export class ZkPaymentHandler {
   private client: ShieldedPoolClient;
@@ -71,9 +79,32 @@ export class ZkPaymentHandler {
     const relayer = requirements.relayer ?? "0x0000000000000000000000000000000000000000";
     const fee = BigInt(requirements.relayerFee ?? "0");
 
-    // Execute withdrawal through pool client
-    const result = await this.client.withdraw(
-      requirements.payTo,
+    // Determine recipient: stealth address or direct payTo
+    let recipient: string;
+    let ephemeralPubKeyX = "0";
+    let ephemeralPubKeyY = "0";
+
+    if (requirements.stealthMetaAddress) {
+      const meta = deserializeStealthMetaAddress(requirements.stealthMetaAddress);
+      const stealthPayment = generateStealthPayment(
+        meta.spendingPubKeyX,
+        meta.spendingPubKeyY,
+        meta.viewingPubKeyX,
+        meta.viewingPubKeyY
+      );
+      recipient = deriveStealthEthAddress(
+        stealthPayment.stealthAddressX,
+        stealthPayment.stealthAddressY
+      );
+      ephemeralPubKeyX = stealthPayment.ephemeralPubKeyX.toString();
+      ephemeralPubKeyY = stealthPayment.ephemeralPubKeyY.toString();
+    } else {
+      recipient = requirements.payTo;
+    }
+
+    // Generate proof only (no on-chain TX)
+    const proofResult = await this.client.generateWithdrawProof(
+      recipient,
       amount,
       relayer,
       fee
@@ -81,12 +112,16 @@ export class ZkPaymentHandler {
 
     const zkPayload: ZkExactPayload = {
       from: "shielded",
-      nullifierHash: result.nullifierHash.toString(),
-      newCommitment: result.newNote?.commitment.toString() ?? "0",
-      merkleRoot: this.client.getLocalRoot().toString(),
-      proof: result.txHash, // TX hash serves as proof of on-chain settlement
+      nullifierHash: proofResult.nullifierHash.toString(),
+      newCommitment: proofResult.newCommitment.toString(),
+      merkleRoot: proofResult.merkleRoot.toString(),
+      proof: proofResult.proof.map((p) => p.toString()),
+      recipient,
+      amount: amount.toString(),
       relayer,
       fee: fee.toString(),
+      ephemeralPubKeyX,
+      ephemeralPubKeyY,
     };
 
     const v2Payload: V2PaymentPayload = {
@@ -102,9 +137,10 @@ export class ZkPaymentHandler {
     const paymentHeader = encodePaymentHeader(v2Payload);
 
     return {
-      nullifierHash: result.nullifierHash.toString(),
+      nullifierHash: proofResult.nullifierHash.toString(),
       paymentHeader,
       requirements,
+      _proofResult: proofResult,
     };
   }
 
