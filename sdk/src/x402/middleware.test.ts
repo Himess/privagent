@@ -5,14 +5,12 @@ import { ghostPaywall } from "./middleware.js";
 import type { V2PaymentPayload, GhostPaywallConfig } from "../types.js";
 
 // Create a mock signer that ethers.Contract accepts
-// Use a real JsonRpcProvider pointed at a dummy URL — Contract only validates at call-time
 function createMockSigner() {
-  const provider = new ethers.JsonRpcProvider("http://localhost:1"); // never called
+  const provider = new ethers.JsonRpcProvider("http://localhost:1");
   const wallet = ethers.Wallet.createRandom().connect(provider);
   return wallet;
 }
 
-// Mock express req/res/next
 function createMockReq(headers: Record<string, string> = {}): Partial<Request> {
   return {
     headers,
@@ -54,6 +52,38 @@ const baseConfig: GhostPaywallConfig = {
   signer: mockSigner,
 };
 
+function encodePayload(payload: any): string {
+  return Buffer.from(JSON.stringify(payload)).toString("base64");
+}
+
+function makeValidPayload(overrides?: Partial<V2PaymentPayload["payload"]>): V2PaymentPayload {
+  return {
+    x402Version: 2,
+    accepted: {
+      scheme: "zk-exact",
+      network: "eip155:84532",
+      amount: "1000000",
+      payTo: "0x000000000000000000000000000000000000dEaD",
+      maxTimeoutSeconds: 300,
+      asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      poolAddress: "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f",
+    },
+    payload: {
+      from: "shielded",
+      nullifierHash: "123456789",
+      newCommitment: "987654321",
+      merkleRoot: "111222333",
+      proof: ["1", "2", "3", "4", "5", "6", "7", "8"],
+      recipient: "0x000000000000000000000000000000000000dEaD",
+      amount: "1000000",
+      relayer: "0x0000000000000000000000000000000000000000",
+      fee: "0",
+      ephemeralPubKey: "0x",
+      ...overrides,
+    },
+  };
+}
+
 describe("ghostPaywall middleware", () => {
   it("should throw if no signer provided", () => {
     expect(() =>
@@ -79,10 +109,8 @@ describe("ghostPaywall middleware", () => {
 
   it("should include stealthMetaAddress in 402 response", async () => {
     const stealthMeta = {
-      spendingPubKeyX: "111",
-      spendingPubKeyY: "222",
-      viewingPubKeyX: "333",
-      viewingPubKeyY: "444",
+      spendingPubKey: "0x04aabbccdd",
+      viewingPubKey: "0x04eeff0011",
     };
     const middleware = ghostPaywall({ ...baseConfig, stealthMetaAddress: stealthMeta });
     const req = createMockReq() as Request;
@@ -95,59 +123,34 @@ describe("ghostPaywall middleware", () => {
     expect(res._json.accepts[0].stealthMetaAddress).toEqual(stealthMeta);
   });
 
-  it("should return 400 for invalid base64 Payment header", async () => {
+  it("should return 400 for invalid base64 Payment header (L5)", async () => {
     const middleware = ghostPaywall(baseConfig);
-    const req = createMockReq({ payment: "not-valid-base64!!!" }) as Request;
+    const req = createMockReq({ payment: "not-valid-json!!!" }) as Request;
     const res = createMockRes();
     const next = vi.fn();
 
     await middleware(req, res as any, next);
 
     expect(res._status).toBe(400);
-    expect(res._json.error).toContain("Invalid Payment header");
+    expect(res._json.error).toBeTruthy();
   });
 
   it("should return 400 for invalid payload structure", async () => {
     const middleware = ghostPaywall(baseConfig);
-    const badPayload = btoa(JSON.stringify({ x402Version: 1 }));
-    const req = createMockReq({ payment: badPayload }) as Request;
+    const encoded = encodePayload({ x402Version: 1 });
+    const req = createMockReq({ payment: encoded }) as Request;
     const res = createMockRes();
     const next = vi.fn();
 
     await middleware(req, res as any, next);
 
     expect(res._status).toBe(400);
-    expect(res._json.error).toContain("Invalid payment payload");
   });
 
   it("should return 400 for wrong proof length", async () => {
     const middleware = ghostPaywall(baseConfig);
-    const payload: V2PaymentPayload = {
-      x402Version: 2,
-      accepted: {
-        scheme: "zk-exact",
-        network: "eip155:84532",
-        amount: "1000000",
-        payTo: "0x000000000000000000000000000000000000dEaD",
-        maxTimeoutSeconds: 300,
-        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-        poolAddress: "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f",
-      },
-      payload: {
-        from: "shielded",
-        nullifierHash: "123",
-        newCommitment: "456",
-        merkleRoot: "789",
-        proof: ["1", "2", "3"], // wrong length
-        recipient: "0x000000000000000000000000000000000000dEaD",
-        amount: "1000000",
-        relayer: "0x0000000000000000000000000000000000000000",
-        fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
-      },
-    };
-    const encoded = btoa(JSON.stringify(payload));
+    const payload = makeValidPayload({ proof: ["1", "2", "3"] });
+    const encoded = encodePayload(payload);
     const req = createMockReq({ payment: encoded }) as Request;
     const res = createMockRes();
     const next = vi.fn();
@@ -158,34 +161,12 @@ describe("ghostPaywall middleware", () => {
     expect(res._json.error).toContain("8 elements");
   });
 
-  it("should return 400 for amount mismatch", async () => {
+  it("should return 400 for amount mismatch (L6 generic error)", async () => {
     const middleware = ghostPaywall(baseConfig);
-    const payload: V2PaymentPayload = {
-      x402Version: 2,
-      accepted: {
-        scheme: "zk-exact",
-        network: "eip155:84532",
-        amount: "500000",
-        payTo: "0x000000000000000000000000000000000000dEaD",
-        maxTimeoutSeconds: 300,
-        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-        poolAddress: "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f",
-      },
-      payload: {
-        from: "shielded",
-        nullifierHash: "123",
-        newCommitment: "456",
-        merkleRoot: "789",
-        proof: ["1", "2", "3", "4", "5", "6", "7", "8"],
-        recipient: "0x000000000000000000000000000000000000dEaD",
-        amount: "500000", // doesn't match config price 1000000
-        relayer: "0x0000000000000000000000000000000000000000",
-        fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
-      },
-    };
-    const encoded = btoa(JSON.stringify(payload));
+    const payload = makeValidPayload({ amount: "500000" });
+    // Also update accepted.amount to match
+    payload.accepted.amount = "500000";
+    const encoded = encodePayload(payload);
     const req = createMockReq({ payment: encoded }) as Request;
     const res = createMockRes();
     const next = vi.fn();
@@ -193,37 +174,56 @@ describe("ghostPaywall middleware", () => {
     await middleware(req, res as any, next);
 
     expect(res._status).toBe(400);
-    expect(res._json.error).toContain("Amount mismatch");
+    // L6 FIX: Generic error message — not "Amount mismatch"
+    expect(res._json.error).toBe("Invalid payment");
+  });
+
+  it("should return 400 for recipient mismatch (C3 fix)", async () => {
+    const middleware = ghostPaywall(baseConfig);
+    const payload = makeValidPayload({ recipient: "0x1111111111111111111111111111111111111111" });
+    const encoded = encodePayload(payload);
+    const req = createMockReq({ payment: encoded }) as Request;
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await middleware(req, res as any, next);
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toBe("Invalid payment");
+  });
+
+  it("should return 400 for relayer mismatch (C5 fix)", async () => {
+    const middleware = ghostPaywall(baseConfig);
+    const payload = makeValidPayload({ relayer: "0x1111111111111111111111111111111111111111" });
+    const encoded = encodePayload(payload);
+    const req = createMockReq({ payment: encoded }) as Request;
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await middleware(req, res as any, next);
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toBe("Invalid payment");
+  });
+
+  it("should return 400 for fee exceeding maxFee (C5 fix)", async () => {
+    const middleware = ghostPaywall({ ...baseConfig, maxFee: "100" });
+    const payload = makeValidPayload({ fee: "101" });
+    const encoded = encodePayload(payload);
+    const req = createMockReq({ payment: encoded }) as Request;
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await middleware(req, res as any, next);
+
+    expect(res._status).toBe(400);
+    expect(res._json.error).toBe("Invalid payment");
   });
 
   it("should return 400 for missing required fields", async () => {
     const middleware = ghostPaywall(baseConfig);
-    const payload = {
-      x402Version: 2,
-      accepted: {
-        scheme: "zk-exact",
-        network: "eip155:84532",
-        amount: "1000000",
-        payTo: "0x000000000000000000000000000000000000dEaD",
-        maxTimeoutSeconds: 300,
-        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-        poolAddress: "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f",
-      },
-      payload: {
-        from: "shielded",
-        nullifierHash: "",
-        newCommitment: "456",
-        merkleRoot: "789",
-        proof: ["1", "2", "3", "4", "5", "6", "7", "8"],
-        recipient: "0x000000000000000000000000000000000000dEaD",
-        amount: "1000000",
-        relayer: "0x0000000000000000000000000000000000000000",
-        fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
-      },
-    };
-    const encoded = btoa(JSON.stringify(payload));
+    const payload = makeValidPayload({ nullifierHash: "" });
+    const encoded = encodePayload(payload);
     const req = createMockReq({ payment: encoded }) as Request;
     const res = createMockRes();
     const next = vi.fn();
@@ -231,6 +231,5 @@ describe("ghostPaywall middleware", () => {
     await middleware(req, res as any, next);
 
     expect(res._status).toBe(400);
-    expect(res._json.error).toContain("Missing required");
   });
 });

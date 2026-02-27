@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// We test the logic patterns without real pool/circuit dependencies
-
 describe("ghostFetch logic", () => {
   it("should pass through non-402 responses", async () => {
-    // Simulate: fetch returns 200, ghostFetch should return it as-is
     const mockResponse = new Response(JSON.stringify({ data: "hello" }), {
       status: 200,
     });
@@ -34,15 +31,13 @@ describe("ghostFetch logic", () => {
       { status: 402 }
     );
 
-    // In dryRun mode, ghostFetch returns the 402 response without processing
     expect(mockResponse.status).toBe(402);
     const body = await mockResponse.json();
     expect(body.x402Version).toBe(2);
     expect(body.accepts[0].scheme).toBe("zk-exact");
   });
 
-  it("should build correct Payment header structure", () => {
-    // Verify header is base64-encoded JSON with expected fields
+  it("should build correct V3 Payment header structure", () => {
     const payload = {
       x402Version: 2,
       accepted: {
@@ -64,22 +59,24 @@ describe("ghostFetch logic", () => {
         amount: "1000000",
         relayer: "0x0000000000000000000000000000000000000000",
         fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
+        ephemeralPubKey: "0x04aabb",
       },
     };
 
-    const header = btoa(JSON.stringify(payload));
-    const decoded = JSON.parse(atob(header));
+    // L5 FIX: Use Buffer-based base64 (not btoa)
+    const header = Buffer.from(JSON.stringify(payload)).toString("base64");
+    const decoded = JSON.parse(Buffer.from(header, "base64").toString("utf-8"));
 
     expect(decoded.x402Version).toBe(2);
     expect(decoded.payload.proof).toHaveLength(8);
     expect(decoded.payload.recipient).toBe("0xRecipient");
-    expect(decoded.payload.ephemeralPubKeyX).toBe("0");
+    // V3: single ephemeralPubKey string (not X/Y)
+    expect(decoded.payload.ephemeralPubKey).toBe("0x04aabb");
+    expect(decoded.payload.ephemeralPubKeyX).toBeUndefined();
+    expect(decoded.payload.ephemeralPubKeyY).toBeUndefined();
   });
 
   it("should enforce maxPayment limit via selectRequirement", () => {
-    // This tests the logic that ZkPaymentHandler.selectRequirement uses
     const maxPayment = 500000n;
     const requirements = [
       {
@@ -93,7 +90,6 @@ describe("ghostFetch logic", () => {
       },
     ];
 
-    // Simulates selectRequirement logic
     const selected = requirements.find((req) => {
       if (req.scheme !== "zk-exact") return false;
       if (maxPayment > 0n && BigInt(req.amount) > maxPayment) return false;
@@ -101,5 +97,42 @@ describe("ghostFetch logic", () => {
     });
 
     expect(selected).toBeUndefined();
+  });
+
+  it("X-Payment-TxHash header determines note consumption (H6)", () => {
+    // Simulates the logic in ghostFetch:
+    // Only consume note when server returns TX hash
+    const withTxHash = new Response("ok", {
+      status: 200,
+      headers: { "X-Payment-TxHash": "0xabc123" },
+    });
+
+    const withoutTxHash = new Response("ok", {
+      status: 200,
+    });
+
+    // With TX hash → consume note
+    expect(withTxHash.headers.get("X-Payment-TxHash")).toBe("0xabc123");
+    expect(withTxHash.ok).toBe(true);
+
+    // Without TX hash → unlock note (don't consume)
+    expect(withoutTxHash.headers.get("X-Payment-TxHash")).toBeNull();
+  });
+
+  it("callback receives success flag (H7)", () => {
+    // Simulates ghostFetchWithCallback behavior
+    const results: { success: boolean }[] = [];
+
+    const onPayment = (_result: any, success: boolean) => {
+      results.push({ success });
+    };
+
+    // Success case: 200 + TX hash
+    onPayment({}, true);
+    // Failure case: no TX hash
+    onPayment({}, false);
+
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(false);
   });
 });

@@ -15,10 +15,13 @@ describe("note", () => {
     await initPoseidon();
   });
 
-  it("createNote should produce valid commitment", () => {
+  it("createNote should produce valid 3-input commitment (V3)", () => {
     const note = createNote(1_000_000n);
     expect(note.balance).toBe(1_000_000n);
-    expect(note.commitment).toBe(computeCommitment(note.balance, note.randomness));
+    // V3: commitment = Poseidon(balance, nullifierSecret, randomness)
+    expect(note.commitment).toBe(
+      computeCommitment(note.balance, note.nullifierSecret, note.randomness)
+    );
     expect(note.leafIndex).toBe(-1);
   });
 
@@ -27,6 +30,13 @@ describe("note", () => {
     expect(getNullifierHash(note)).toBe(
       computeNullifierHash(note.nullifierSecret, note.commitment)
     );
+  });
+
+  it("different nullifierSecret should produce different commitment (C6 fix)", () => {
+    const note1 = createNote(1_000_000n);
+    const note2 = createNote(1_000_000n);
+    // Even with same balance, different secrets = different commitments
+    expect(note1.commitment).not.toBe(note2.commitment);
   });
 
   it("selectNoteForPayment should find smallest sufficient note", () => {
@@ -45,7 +55,6 @@ describe("note", () => {
     const notes = [createNote(5_000_000n), createNote(1_000_000n)];
 
     const selected = selectNoteForPayment(notes, 4_000_000n, 1_000_001n);
-    // 4M + 1.000001M = 5.000001M > 5M, so no note is sufficient
     expect(selected).toBeNull();
   });
 

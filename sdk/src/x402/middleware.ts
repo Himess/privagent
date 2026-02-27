@@ -30,7 +30,7 @@ declare global {
  * Server acts as relayer: receives raw ZK proof in Payment header,
  * calls ShieldedPool.withdraw() on-chain, then forwards the request.
  *
- * Requires a signer with ETH for gas.
+ * V3: C3 (recipient validation), C5 (relayer/fee validation), H2 (pre-flight checks)
  */
 export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
   if (!config.signer) {
@@ -75,7 +75,7 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
     // Decode payment header
     let payload: V2PaymentPayload;
     try {
-      const json = atob(paymentHeader);
+      const json = Buffer.from(paymentHeader, "base64").toString("utf-8"); // L5 FIX
       payload = JSON.parse(json) as V2PaymentPayload;
     } catch {
       res.status(400).json({ error: "Invalid Payment header encoding" });
@@ -97,7 +97,7 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
     }
 
     // Validate required fields
-    if (!p.nullifierHash || !p.newCommitment || !p.merkleRoot || !p.recipient || !p.amount) {
+    if (!p.nullifierHash || !p.newCommitment === undefined || !p.merkleRoot || !p.recipient || !p.amount) {
       res.status(400).json({ error: "Missing required payment fields" });
       return;
     }
@@ -105,8 +105,28 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
     // Validate amount matches price
     if (p.amount !== config.price) {
       res.status(400).json({
-        error: `Amount mismatch: expected ${config.price}, got ${p.amount}`,
+        error: "Invalid payment",
       });
+      return;
+    }
+
+    // C3 FIX: Validate recipient matches config
+    if (p.recipient.toLowerCase() !== config.recipient.toLowerCase()) {
+      res.status(400).json({ error: "Invalid payment" });
+      return;
+    }
+
+    // C5 FIX: Validate relayer
+    const expectedRelayer = config.relayer ?? ethers.ZeroAddress;
+    if (p.relayer.toLowerCase() !== expectedRelayer.toLowerCase()) {
+      res.status(400).json({ error: "Invalid payment" });
+      return;
+    }
+
+    // C5 FIX: Validate fee
+    const expectedFee = config.relayerFee ?? "0";
+    if (BigInt(p.fee) > BigInt(config.maxFee ?? expectedFee)) {
+      res.status(400).json({ error: "Invalid payment" });
       return;
     }
 
@@ -133,6 +153,27 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       32
     );
 
+    // H2 FIX: Pre-flight checks to prevent gas griefing
+    try {
+      const [rootKnown, nullifierUsed] = await Promise.all([
+        poolContract.isKnownRoot(merkleRootBytes32),
+        poolContract.nullifiers(nullifierHashBytes32),
+      ]);
+
+      if (!rootKnown) {
+        res.status(402).json({ error: "Stale payment, retry", x402Version: 2 });
+        return;
+      }
+
+      if (nullifierUsed) {
+        res.status(402).json({ error: "Payment already processed", x402Version: 2 });
+        return;
+      }
+    } catch {
+      res.status(500).json({ error: "Payment verification failed" });
+      return;
+    }
+
     // Submit withdrawal on-chain
     try {
       const tx = await poolContract.withdraw(
@@ -149,7 +190,7 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       const receipt = await tx.wait();
 
       if (!receipt || receipt.status === 0) {
-        res.status(500).json({ error: "Withdrawal transaction reverted" });
+        res.status(500).json({ error: "Payment processing failed" });
         return;
       }
 
@@ -168,21 +209,9 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       res.setHeader("X-Payment-TxHash", tx.hash);
 
       next();
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : String(err);
-
-      // Parse common on-chain revert reasons
-      if (message.includes("nullifier")) {
-        res.status(402).json({ error: "Nullifier already used (double-spend)", x402Version: 2 });
-      } else if (message.includes("root")) {
-        res.status(402).json({ error: "Unknown merkle root (stale proof)", x402Version: 2 });
-      } else if (message.includes("proof") || message.includes("verify")) {
-        res.status(402).json({ error: "Invalid ZK proof", x402Version: 2 });
-      } else {
-        res.status(500).json({ error: `Withdrawal failed: ${message}` });
-      }
+    } catch {
+      // L6 FIX: Generic error message — no internal details
+      res.status(500).json({ error: "Payment processing failed" });
     }
   };
 }
-

@@ -2,7 +2,6 @@ import { ShieldedPoolClient } from "../pool.js";
 import { initPoseidon } from "../poseidon.js";
 import {
   generateStealthPayment,
-  deriveStealthEthAddress,
   deserializeStealthMetaAddress,
 } from "../stealth.js";
 import type {
@@ -22,7 +21,8 @@ export interface ZkPaymentHandlerOptions {
 /**
  * Handles x402 payment flows using ZK proofs from GhostPay's ShieldedPool.
  *
- * New flow: buyer generates proof client-side, sends raw proof in Payment header.
+ * V3: Uses secp256k1 ECDH for stealth addresses.
+ * Flow: buyer generates proof client-side, sends raw proof in Payment header.
  * Server acts as relayer and calls withdraw() on-chain.
  */
 export class ZkPaymentHandler {
@@ -76,7 +76,7 @@ export class ZkPaymentHandler {
     requirements: ZkPaymentRequirements,
     resource?: ResourceInfo
   ): Promise<PaymentResult> {
-    // Ensure Poseidon is initialized (needed for stealth address derivation)
+    // Ensure Poseidon is initialized (needed for proof generation)
     await initPoseidon();
 
     const amount = BigInt(requirements.amount);
@@ -85,23 +85,13 @@ export class ZkPaymentHandler {
 
     // Determine recipient: stealth address or direct payTo
     let recipient: string;
-    let ephemeralPubKeyX = "0";
-    let ephemeralPubKeyY = "0";
+    let ephemeralPubKey = "0x";
 
     if (requirements.stealthMetaAddress) {
       const meta = deserializeStealthMetaAddress(requirements.stealthMetaAddress);
-      const stealthPayment = generateStealthPayment(
-        meta.spendingPubKeyX,
-        meta.spendingPubKeyY,
-        meta.viewingPubKeyX,
-        meta.viewingPubKeyY
-      );
-      recipient = deriveStealthEthAddress(
-        stealthPayment.stealthAddressX,
-        stealthPayment.stealthAddressY
-      );
-      ephemeralPubKeyX = stealthPayment.ephemeralPubKeyX.toString();
-      ephemeralPubKeyY = stealthPayment.ephemeralPubKeyY.toString();
+      const stealthPayment = generateStealthPayment(meta);
+      recipient = stealthPayment.stealthAddress;
+      ephemeralPubKey = stealthPayment.ephemeralPubKey;
     } else {
       recipient = requirements.payTo;
     }
@@ -124,8 +114,7 @@ export class ZkPaymentHandler {
       amount: amount.toString(),
       relayer,
       fee: fee.toString(),
-      ephemeralPubKeyX,
-      ephemeralPubKeyY,
+      ephemeralPubKey,
     };
 
     const v2Payload: V2PaymentPayload = {
@@ -140,11 +129,22 @@ export class ZkPaymentHandler {
 
     const paymentHeader = encodePaymentHeader(v2Payload);
 
+    // H5 FIX: Only expose commitment and balance for consumeNote, not secrets
     return {
       nullifierHash: proofResult.nullifierHash.toString(),
       paymentHeader,
       requirements,
-      _proofResult: proofResult,
+      _proofResult: {
+        spentNoteCommitment: proofResult.spentNoteCommitment,
+        changeNote: proofResult.changeNote
+          ? {
+              commitment: proofResult.changeNote.commitment,
+              balance: proofResult.changeNote.balance,
+              nullifierSecret: proofResult.changeNote.nullifierSecret,
+              randomness: proofResult.changeNote.randomness,
+            }
+          : undefined,
+      },
     };
   }
 
@@ -163,10 +163,10 @@ function encodePaymentHeader(payload: V2PaymentPayload): string {
   const json = JSON.stringify(payload, (_key, value) =>
     typeof value === "bigint" ? value.toString() : (value as unknown)
   );
-  return btoa(json);
+  return Buffer.from(json).toString("base64"); // L5 FIX
 }
 
 export function decodePaymentHeader(header: string): V2PaymentPayload {
-  const json = atob(header);
+  const json = Buffer.from(header, "base64").toString("utf-8"); // L5 FIX
   return JSON.parse(json) as V2PaymentPayload;
 }

@@ -11,17 +11,18 @@ export function randomFieldElement(): bigint {
 
 /**
  * Create a new private note
+ * V3: commitment = Poseidon(balance, nullifierSecret, randomness) — 3-input
  */
 export function createNote(balance: bigint): PrivateNote {
-  const randomness = randomFieldElement();
   const nullifierSecret = randomFieldElement();
-  const commitment = computeCommitment(balance, randomness);
+  const randomness = randomFieldElement();
+  const commitment = computeCommitment(balance, nullifierSecret, randomness);
 
   return {
     commitment,
     balance,
-    randomness,
     nullifierSecret,
+    randomness,
     leafIndex: -1, // Set after deposit
   };
 }
@@ -36,6 +37,7 @@ export function getNullifierHash(note: PrivateNote): bigint {
 /**
  * Select the best note for a payment amount.
  * Prefers the smallest note that covers the amount.
+ * M5: Integrated — pool.ts uses this instead of Array.find()
  */
 export function selectNoteForPayment(
   notes: PrivateNote[],
@@ -47,7 +49,6 @@ export function selectNoteForPayment(
   const eligible = notes
     .filter((n) => n.balance >= required)
     .sort((a, b) => {
-      // Smallest sufficient note first
       const diff = a.balance - b.balance;
       if (diff < 0n) return -1;
       if (diff > 0n) return 1;
@@ -64,8 +65,8 @@ export function serializeNote(note: PrivateNote): object {
   return {
     commitment: note.commitment.toString(),
     balance: note.balance.toString(),
-    randomness: note.randomness.toString(),
     nullifierSecret: note.nullifierSecret.toString(),
+    randomness: note.randomness.toString(),
     leafIndex: note.leafIndex,
   };
 }
@@ -76,15 +77,15 @@ export function serializeNote(note: PrivateNote): object {
 export function deserializeNote(data: {
   commitment: string;
   balance: string;
-  randomness: string;
   nullifierSecret: string;
+  randomness: string;
   leafIndex: number;
 }): PrivateNote {
   return {
     commitment: BigInt(data.commitment),
     balance: BigInt(data.balance),
-    randomness: BigInt(data.randomness),
     nullifierSecret: BigInt(data.nullifierSecret),
+    randomness: BigInt(data.randomness),
     leafIndex: data.leafIndex,
   };
 }

@@ -12,9 +12,11 @@ export class MerkleTree {
   private depth: number;
   private filledSubtrees: bigint[];
   private currentRoot: bigint;
+  private maxCapacity: number; // M10 FIX
 
   constructor(depth: number = MERKLE_DEPTH) {
     this.depth = depth;
+    this.maxCapacity = 2 ** depth; // M10 FIX
     this.leaves = [];
     this.zeroValues = this.computeZeroValues();
     this.filledSubtrees = this.zeroValues.slice(0, depth);
@@ -34,6 +36,12 @@ export class MerkleTree {
   }
 
   addLeaf(commitment: bigint): number {
+    // M10 FIX: capacity check
+    if (this.leaves.length >= this.maxCapacity) {
+      throw new Error(
+        `Merkle tree is full (max ${this.maxCapacity} leaves)`
+      );
+    }
     const index = this.leaves.length;
     this.leaves.push(commitment);
     this.updateRoot(commitment, index);
@@ -84,7 +92,7 @@ export class MerkleTree {
    * Subtrees beyond the last leaf return precomputed zero hashes.
    */
   private getNode(level: number, index: number): bigint {
-    const subtreeStart = index * (2 ** level);
+    const subtreeStart = index * 2 ** level;
     if (subtreeStart >= this.leaves.length) {
       return this.zeroValues[level];
     }

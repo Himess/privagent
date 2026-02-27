@@ -34,8 +34,8 @@ export interface GhostPayConfig {
 export interface PrivateNote {
   commitment: bigint;
   balance: bigint;
-  randomness: bigint;
   nullifierSecret: bigint;
+  randomness: bigint;
   leafIndex: number;
 }
 
@@ -63,8 +63,10 @@ export interface ProofData {
 
 export interface CircuitInput {
   balance: string;
-  randomness: string;
   nullifierSecret: string;
+  randomness: string;
+  newBalance: string;
+  newNullifierSecret: string;
   newRandomness: string;
   pathElements: string[];
   pathIndices: string[];
@@ -77,31 +79,23 @@ export interface CircuitInput {
 }
 
 // ============================================================================
-// Stealth
+// Stealth (V3 — secp256k1 ECDH)
 // ============================================================================
 
 export interface StealthMetaAddress {
-  spendingPubKeyX: bigint;
-  spendingPubKeyY: bigint;
-  viewingPubKeyX: bigint;
-  viewingPubKeyY: bigint;
+  spendingPubKey: string; // hex-encoded uncompressed secp256k1 public key
+  viewingPubKey: string;  // hex-encoded uncompressed secp256k1 public key
 }
 
 export interface SerializedStealthMetaAddress {
-  spendingPubKeyX: string;
-  spendingPubKeyY: string;
-  viewingPubKeyX: string;
-  viewingPubKeyY: string;
+  spendingPubKey: string;
+  viewingPubKey: string;
 }
 
 export interface StealthPaymentData {
-  ephemeralPrivKey: bigint;
-  ephemeralPubKeyX: bigint;
-  ephemeralPubKeyY: bigint;
-  stealthAddressX: bigint;
-  stealthAddressY: bigint;
-  viewTag: bigint;
-  sharedSecret: bigint;
+  ephemeralPubKey: string;  // hex-encoded uncompressed public key
+  stealthAddress: string;   // Ethereum address (has recoverable private key)
+  viewTag: number;          // 1-byte scanning optimization
 }
 
 // ============================================================================
@@ -137,8 +131,8 @@ export interface GenerateProofResult {
   changeNote?: {
     commitment: bigint;
     balance: bigint;
-    randomness: bigint;
     nullifierSecret: bigint;
+    randomness: bigint;
   };
   spentNoteCommitment: bigint;
 }
@@ -170,8 +164,7 @@ export interface ZkExactPayload {
   amount: string;
   relayer: string;
   fee: string;
-  ephemeralPubKeyX: string;
-  ephemeralPubKeyY: string;
+  ephemeralPubKey: string;
 }
 
 export interface V2PaymentPayload {
@@ -198,7 +191,16 @@ export interface PaymentResult {
   nullifierHash: string;
   paymentHeader: string;
   requirements: ZkPaymentRequirements;
-  _proofResult?: GenerateProofResult;
+  /** Internal — only contains spentNoteCommitment and changeNote.commitment for consumeNote */
+  _proofResult?: {
+    spentNoteCommitment: bigint;
+    changeNote?: {
+      commitment: bigint;
+      balance: bigint;
+      nullifierSecret: bigint;
+      randomness: bigint;
+    };
+  };
 }
 
 export interface PaymentInfo {
@@ -219,6 +221,7 @@ export interface GhostPaywallConfig {
   poolAddress: string;
   relayer?: string;
   relayerFee?: string;
+  maxFee?: string;
   maxTimeoutSeconds?: number;
   signer: Signer;
   stealthMetaAddress?: SerializedStealthMetaAddress;

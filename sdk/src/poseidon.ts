@@ -1,12 +1,19 @@
 import { buildPoseidon, Poseidon } from "circomlibjs";
+import { FIELD_SIZE } from "./types.js";
 
 let poseidonInstance: Poseidon | null = null;
 let F: any = null;
+let initPromise: Promise<void> | null = null;
 
-export async function initPoseidon(): Promise<void> {
-  if (poseidonInstance) return;
-  poseidonInstance = await buildPoseidon();
-  F = poseidonInstance.F;
+// H4 FIX: Promise-based singleton lock — no race condition
+export function initPoseidon(): Promise<void> {
+  if (!initPromise) {
+    initPromise = buildPoseidon().then((p) => {
+      poseidonInstance = p;
+      F = p.F;
+    });
+  }
+  return initPromise;
 }
 
 function ensureInitialized(): void {
@@ -15,13 +22,34 @@ function ensureInitialized(): void {
   }
 }
 
+// H9 FIX: Field bounds check
+function requireFieldBounds(...values: bigint[]): void {
+  for (const v of values) {
+    if (v < 0n || v >= FIELD_SIZE) {
+      throw new Error(`Value out of field bounds: ${v}`);
+    }
+  }
+}
+
 export function hash2(a: bigint, b: bigint): bigint {
   ensureInitialized();
+  requireFieldBounds(a, b);
   return F.toObject(poseidonInstance!([a, b]));
 }
 
-export function computeCommitment(balance: bigint, randomness: bigint): bigint {
-  return hash2(balance, randomness);
+// V3: Poseidon(3) for 3-input commitment (C6+C7 fix)
+export function hash3(a: bigint, b: bigint, c: bigint): bigint {
+  ensureInitialized();
+  requireFieldBounds(a, b, c);
+  return F.toObject(poseidonInstance!([a, b, c]));
+}
+
+export function computeCommitment(
+  balance: bigint,
+  nullifierSecret: bigint,
+  randomness: bigint
+): bigint {
+  return hash3(balance, nullifierSecret, randomness);
 }
 
 export function computeNullifierHash(

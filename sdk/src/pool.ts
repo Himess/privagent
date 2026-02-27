@@ -2,7 +2,7 @@ import { Contract, Interface, Signer, Provider, ethers } from "ethers";
 import { initPoseidon, computeCommitment, computeNullifierHash } from "./poseidon.js";
 import { MerkleTree } from "./merkle.js";
 import { ProofGenerator } from "./proof.js";
-import { createNote, randomFieldElement, getNullifierHash } from "./note.js";
+import { createNote, selectNoteForPayment, randomFieldElement, getNullifierHash } from "./note.js";
 import {
   GhostPayConfig,
   PrivateNote,
@@ -20,8 +20,9 @@ const POOL_ABI = [
   "function getBalance() external view returns (uint256)",
   "function nextLeafIndex() external view returns (uint256)",
   "function isKnownRoot(bytes32 root) external view returns (bool)",
-  "event Deposited(address indexed depositor, uint256 amount, bytes32 indexed commitment, uint256 leafIndex)",
-  "event Withdrawn(address indexed recipient, uint256 amount, bytes32 indexed nullifierHash, bytes32 newCommitment, uint256 newLeafIndex, address relayer, uint256 fee)",
+  "event Deposited(bytes32 indexed commitment, uint256 indexed leafIndex, uint256 amount, uint256 timestamp)",
+  "event NewCommitment(bytes32 indexed commitment, uint256 indexed leafIndex)",
+  "event Withdrawn(bytes32 indexed nullifierHash, address indexed recipient, address relayer, uint256 fee)",
 ];
 
 const ERC20_ABI = [
@@ -40,6 +41,8 @@ export class ShieldedPoolClient {
   private notes: PrivateNote[] = [];
   private poolAddress: string;
   private deployBlock?: number;
+  // C4 FIX: pending nullifiers to prevent concurrent double-spend
+  private pendingNullifiers: Set<string> = new Set();
 
   constructor(config: GhostPayConfig) {
     this.provider = config.provider;
@@ -67,14 +70,11 @@ export class ShieldedPoolClient {
   }
 
   /**
-   * Sync local Merkle tree from on-chain deposit events.
+   * Sync local Merkle tree from on-chain events.
    * Paginates in 9000-block chunks to stay within public RPC limits (10K).
-   * Starts from recent blocks, expands backwards if leaf count doesn't match on-chain.
-   * @param fromBlock - Starting block number (overrides auto-detection)
    */
   async syncTree(fromBlock?: number): Promise<void> {
     const currentBlock = await this.provider.getBlockNumber();
-    const filter = this.poolContract.filters.Deposited();
 
     // Find expected leaf count from on-chain
     const expectedLeaves = Number(await this.poolContract.nextLeafIndex());
@@ -83,38 +83,40 @@ export class ShieldedPoolClient {
     const hasHint = fromBlock !== undefined || this.deployBlock !== undefined;
     let startBlock = fromBlock ?? this.deployBlock ?? Math.max(0, currentBlock - 50000);
 
-    let allLeaves: bigint[] = [];
-    allLeaves = await this.scanEvents(filter, startBlock, currentBlock);
+    let allLeaves = await this.scanEvents(startBlock, currentBlock);
 
-    // If we didn't find all leaves and no explicit start was given, expand backwards
+    // M7 FIX: expand backwards only if needed, reuse results
     if (allLeaves.length < expectedLeaves && !hasHint && startBlock > 0) {
-      startBlock = Math.max(0, currentBlock - 500000);
-      allLeaves = await this.scanEvents(filter, startBlock, currentBlock);
+      const expandedStart = Math.max(0, currentBlock - 500000);
+      if (expandedStart < startBlock) {
+        const earlier = await this.scanEvents(expandedStart, startBlock - 1);
+        allLeaves = [...earlier, ...allLeaves];
+        allLeaves.sort((a, b) => a.index - b.index);
+      }
     }
 
-    if (allLeaves.length < expectedLeaves && !hasHint && startBlock > 0) {
-      allLeaves = await this.scanEvents(filter, 0, currentBlock);
+    if (allLeaves.length < expectedLeaves && !hasHint) {
+      allLeaves = await this.scanEvents(0, currentBlock);
     }
 
-    this.merkleTree.setLeaves(allLeaves);
+    this.merkleTree.setLeaves(allLeaves.map((l) => l.commitment));
   }
 
   private async scanEvents(
-    _filter: any,
     startBlock: number,
     endBlock: number
-  ): Promise<bigint[]> {
+  ): Promise<{ index: number; commitment: bigint }[]> {
     const indexedLeaves: { index: number; commitment: bigint }[] = [];
     const depositFilter = this.poolContract.filters.Deposited();
-    const withdrawFilter = this.poolContract.filters.Withdrawn();
+    const changeFilter = this.poolContract.filters.NewCommitment();
 
     for (let from = startBlock; from <= endBlock; from += 9000) {
       const to = Math.min(from + 8999, endBlock);
 
-      // Query both Deposited and Withdrawn events
-      const [depositEvents, withdrawEvents] = await Promise.all([
+      // Query both Deposited and NewCommitment events
+      const [depositEvents, changeEvents] = await Promise.all([
         this.poolContract.queryFilter(depositFilter, from, to),
-        this.poolContract.queryFilter(withdrawFilter, from, to),
+        this.poolContract.queryFilter(changeFilter, from, to),
       ]);
 
       for (const event of depositEvents) {
@@ -130,27 +132,23 @@ export class ShieldedPoolClient {
         }
       }
 
-      for (const event of withdrawEvents) {
+      for (const event of changeEvents) {
         const parsed = this.poolIface.parseLog({
           topics: event.topics as string[],
           data: event.data,
         });
         if (parsed) {
-          const newCommitment = BigInt(parsed.args.newCommitment);
-          // Only include non-zero change commitments (full spends have 0)
-          if (newCommitment > 0n) {
-            indexedLeaves.push({
-              index: Number(parsed.args.newLeafIndex),
-              commitment: newCommitment,
-            });
-          }
+          indexedLeaves.push({
+            index: Number(parsed.args.leafIndex),
+            commitment: BigInt(parsed.args.commitment),
+          });
         }
       }
     }
 
-    // Sort by leaf index and extract commitments
+    // Sort by leaf index and deduplicate
     indexedLeaves.sort((a, b) => a.index - b.index);
-    return indexedLeaves.map((l) => l.commitment);
+    return indexedLeaves;
   }
 
   /**
@@ -213,6 +211,8 @@ export class ShieldedPoolClient {
   /**
    * Generate a ZK withdraw proof WITHOUT submitting a transaction.
    * Returns the raw proof and metadata needed for the server to call withdraw().
+   *
+   * V3: Uses Poseidon(3) for commitments, conditional newCommitment for full-spend.
    */
   async generateWithdrawProof(
     recipient: string,
@@ -224,60 +224,101 @@ export class ShieldedPoolClient {
       throw new Error("Circuit paths not configured");
     }
 
-    // Find suitable note
-    const note = this.notes.find((n) => n.balance >= amount + fee);
+    // M5: Use selectNoteForPayment for optimal selection
+    // C4: Skip notes with pending nullifiers
+    const availableNotes = this.notes.filter((n) => {
+      const nh = getNullifierHash(n).toString();
+      return !this.pendingNullifiers.has(nh);
+    });
+
+    const note = selectNoteForPayment(availableNotes, amount, fee);
     if (!note) {
       throw new Error(`No note with sufficient balance (need ${amount + fee})`);
     }
 
-    // Compute proof inputs
+    // C4: Lock this note
     const nullifierHash = getNullifierHash(note);
-    const change = note.balance - amount - fee;
-    const newRandomness = randomFieldElement();
-    const newNullifierSecret = randomFieldElement();
-    const newCommitment = change > 0n ? computeCommitment(change, newRandomness) : 0n;
+    this.pendingNullifiers.add(nullifierHash.toString());
 
-    const merkleProof = this.merkleTree.getProof(note.leafIndex);
+    try {
+      // Compute change
+      const change = note.balance - amount - fee;
 
-    const circuitInput = {
-      balance: note.balance.toString(),
-      randomness: note.randomness.toString(),
-      nullifierSecret: note.nullifierSecret.toString(),
-      newRandomness: newRandomness.toString(),
-      pathElements: merkleProof.pathElements.map((e) => e.toString()),
-      pathIndices: merkleProof.pathIndices.map((i) => i.toString()),
-      root: merkleProof.root.toString(),
-      nullifierHash: nullifierHash.toString(),
-      recipient: BigInt(recipient).toString(),
-      amount: amount.toString(),
-      relayer: BigInt(relayer).toString(),
-      fee: fee.toString(),
-    };
+      // C2 FIX: conditional newCommitment
+      let newNullifierSecret: bigint;
+      let newRandomness: bigint;
+      let newBalance: bigint;
+      let newCommitment: bigint;
 
-    const { proofData } = await this.proofGenerator.generateProof(circuitInput);
+      if (change > 0n) {
+        newNullifierSecret = randomFieldElement();
+        newRandomness = randomFieldElement();
+        newBalance = change;
+        newCommitment = computeCommitment(change, newNullifierSecret, newRandomness);
+      } else {
+        // Full-spend: circuit outputs 0 via IsZero conditional
+        newNullifierSecret = 0n;
+        newRandomness = 0n;
+        newBalance = 0n;
+        newCommitment = 0n;
+      }
 
-    // Flatten proof to uint256[8]
-    const proofArray = ProofGenerator.proofToArray(proofData);
+      const merkleProof = this.merkleTree.getProof(note.leafIndex);
 
-    return {
-      proof: proofArray,
-      nullifierHash,
-      newCommitment,
-      merkleRoot: merkleProof.root,
-      amount,
-      recipient,
-      relayer,
-      fee,
-      changeNote: change > 0n
-        ? {
-            commitment: newCommitment,
-            balance: change,
-            randomness: newRandomness,
-            nullifierSecret: newNullifierSecret,
-          }
-        : undefined,
-      spentNoteCommitment: note.commitment,
-    };
+      const circuitInput = {
+        balance: note.balance.toString(),
+        nullifierSecret: note.nullifierSecret.toString(),
+        randomness: note.randomness.toString(),
+        newBalance: newBalance.toString(),
+        newNullifierSecret: newNullifierSecret.toString(),
+        newRandomness: newRandomness.toString(),
+        pathElements: merkleProof.pathElements.map((e) => e.toString()),
+        pathIndices: merkleProof.pathIndices.map((i) => i.toString()),
+        root: merkleProof.root.toString(),
+        nullifierHash: nullifierHash.toString(),
+        recipient: BigInt(recipient).toString(),
+        amount: amount.toString(),
+        relayer: BigInt(relayer).toString(),
+        fee: fee.toString(),
+      };
+
+      const { proofData } = await this.proofGenerator.generateProof(circuitInput);
+
+      // Flatten proof to uint256[8]
+      const proofArray = ProofGenerator.proofToArray(proofData);
+
+      return {
+        proof: proofArray,
+        nullifierHash,
+        newCommitment,
+        merkleRoot: merkleProof.root,
+        amount,
+        recipient,
+        relayer,
+        fee,
+        changeNote: change > 0n
+          ? {
+              commitment: newCommitment,
+              balance: change,
+              nullifierSecret: newNullifierSecret,
+              randomness: newRandomness,
+            }
+          : undefined,
+        spentNoteCommitment: note.commitment,
+      };
+    } catch (err) {
+      // C4: Unlock note on failure
+      this.pendingNullifiers.delete(nullifierHash.toString());
+      throw err;
+    }
+  }
+
+  /**
+   * Unlock a note that was locked for proof generation but whose payment failed.
+   * C4: Called when server returns error or network failure.
+   */
+  unlockNote(nullifierHashStr: string): void {
+    this.pendingNullifiers.delete(nullifierHashStr);
   }
 
   /**
@@ -289,14 +330,18 @@ export class ShieldedPoolClient {
     changeNote?: {
       commitment: bigint;
       balance: bigint;
-      randomness: bigint;
       nullifierSecret: bigint;
+      randomness: bigint;
     }
   ): void {
     const noteIndex = this.notes.findIndex(
       (n) => n.commitment === spentCommitment
     );
     if (noteIndex === -1) return;
+
+    // Remove from pending nullifiers
+    const nh = getNullifierHash(this.notes[noteIndex]).toString();
+    this.pendingNullifiers.delete(nh);
 
     if (changeNote) {
       const newNote: PrivateNote = {
@@ -311,7 +356,8 @@ export class ShieldedPoolClient {
   }
 
   /**
-   * Withdraw USDC from the shielded pool with ZK proof
+   * Withdraw USDC from the shielded pool with ZK proof (direct call).
+   * M12: Requires signer.
    */
   async withdraw(
     recipient: string,
@@ -319,85 +365,56 @@ export class ShieldedPoolClient {
     relayer: string = ethers.ZeroAddress,
     fee: bigint = 0n
   ): Promise<WithdrawResult> {
+    if (!this.signer) throw new Error("Signer required for withdraw");
     if (!this.proofGenerator) {
       throw new Error("Circuit paths not configured");
     }
 
-    // Find suitable note
-    const note = this.notes.find((n) => n.balance >= amount + fee);
-    if (!note) {
-      throw new Error(`No note with sufficient balance (need ${amount + fee})`);
-    }
-
-    // Compute proof inputs
-    const nullifierHash = getNullifierHash(note);
-    const change = note.balance - amount - fee;
-    const newRandomness = randomFieldElement();
-    const newCommitment = change > 0n ? computeCommitment(change, newRandomness) : 0n;
-
-    const merkleProof = this.merkleTree.getProof(note.leafIndex);
-
-    const circuitInput = {
-      balance: note.balance.toString(),
-      randomness: note.randomness.toString(),
-      nullifierSecret: note.nullifierSecret.toString(),
-      newRandomness: newRandomness.toString(),
-      pathElements: merkleProof.pathElements.map((e) => e.toString()),
-      pathIndices: merkleProof.pathIndices.map((i) => i.toString()),
-      root: merkleProof.root.toString(),
-      nullifierHash: nullifierHash.toString(),
-      recipient: BigInt(recipient).toString(),
-      amount: amount.toString(),
-      relayer: BigInt(relayer).toString(),
-      fee: fee.toString(),
-    };
-
-    const { proofData } = await this.proofGenerator.generateProof(circuitInput);
-
-    // Submit withdrawal
-    const proofArray = ProofGenerator.proofToArray(proofData);
+    const proofResult = await this.generateWithdrawProof(
+      recipient, amount, relayer, fee
+    );
 
     const tx = await this.poolContract.withdraw(
       recipient,
       amount,
-      this.toBytes32(nullifierHash),
-      change > 0n ? this.toBytes32(newCommitment) : ethers.ZeroHash,
-      this.toBytes32(merkleProof.root),
+      this.toBytes32(proofResult.nullifierHash),
+      proofResult.newCommitment > 0n
+        ? this.toBytes32(proofResult.newCommitment)
+        : ethers.ZeroHash,
+      this.toBytes32(proofResult.merkleRoot),
       relayer,
       fee,
-      proofArray
+      proofResult.proof
     );
 
     const receipt = await tx.wait();
     if (!receipt || receipt.status === 0) {
+      // Unlock note on failure
+      this.unlockNote(proofResult.nullifierHash.toString());
       throw new Error("Withdraw transaction failed");
     }
 
-    // Update local state
-    const noteIndex = this.notes.indexOf(note);
-    let newNote: PrivateNote | undefined;
-
-    if (change > 0n) {
-      newNote = {
-        commitment: newCommitment,
-        balance: change,
-        randomness: newRandomness,
-        nullifierSecret: randomFieldElement(),
-        leafIndex: this.merkleTree.getLeafCount(),
-      };
-      this.notes[noteIndex] = newNote;
-      this.merkleTree.addLeaf(newCommitment);
-    } else {
-      this.notes.splice(noteIndex, 1);
-    }
+    // Consume the spent note
+    this.consumeNote(
+      proofResult.spentNoteCommitment,
+      proofResult.changeNote
+    );
 
     return {
       txHash: tx.hash,
       blockNumber: receipt.blockNumber,
-      nullifierHash,
+      nullifierHash: proofResult.nullifierHash,
       amount,
       recipient,
-      newNote,
+      newNote: proofResult.changeNote
+        ? {
+            commitment: proofResult.changeNote.commitment,
+            balance: proofResult.changeNote.balance,
+            nullifierSecret: proofResult.changeNote.nullifierSecret,
+            randomness: proofResult.changeNote.randomness,
+            leafIndex: this.merkleTree.getLeafCount() - 1,
+          }
+        : undefined,
     };
   }
 

@@ -25,12 +25,11 @@ describe("zkExactScheme", () => {
         amount: "1000000",
         relayer: "0x0000000000000000000000000000000000000000",
         fee: "0",
-        ephemeralPubKeyX: "99999",
-        ephemeralPubKeyY: "88888",
+        ephemeralPubKey: "0x04aabb",
       },
     };
 
-    const encoded = btoa(JSON.stringify(payload));
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
     const decoded = decodePaymentHeader(encoded);
 
     expect(decoded.x402Version).toBe(2);
@@ -39,8 +38,7 @@ describe("zkExactScheme", () => {
     expect(decoded.payload.nullifierHash).toBe("12345");
     expect(decoded.payload.proof).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
     expect(decoded.payload.recipient).toBe("0x000000000000000000000000000000000000dEaD");
-    expect(decoded.payload.ephemeralPubKeyX).toBe("99999");
-    expect(decoded.payload.ephemeralPubKeyY).toBe("88888");
+    expect(decoded.payload.ephemeralPubKey).toBe("0x04aabb");
   });
 
   it("should handle missing resource gracefully", () => {
@@ -65,12 +63,11 @@ describe("zkExactScheme", () => {
         amount: "500000",
         relayer: "0x0",
         fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
+        ephemeralPubKey: "0x",
       },
     };
 
-    const encoded = btoa(JSON.stringify(payload));
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
     const decoded = decodePaymentHeader(encoded);
     expect(decoded.resource).toBeUndefined();
   });
@@ -106,12 +103,11 @@ describe("zkExactScheme", () => {
         amount: "1000000",
         relayer: "0x0",
         fee: "0",
-        ephemeralPubKeyX: "0",
-        ephemeralPubKeyY: "0",
+        ephemeralPubKey: "0x",
       },
     };
 
-    const encoded = btoa(JSON.stringify(payload));
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
     const decoded = decodePaymentHeader(encoded);
 
     expect(Array.isArray(decoded.payload.proof)).toBe(true);
@@ -119,7 +115,7 @@ describe("zkExactScheme", () => {
     expect(decoded.payload.proof[0]).toBe("1111111111111111");
   });
 
-  it("should include stealthMetaAddress in requirements", () => {
+  it("should include stealthMetaAddress in requirements (V3)", () => {
     const payload: V2PaymentPayload = {
       x402Version: 2,
       accepted: {
@@ -131,10 +127,8 @@ describe("zkExactScheme", () => {
         asset: "0xusdc",
         poolAddress: "0xpool",
         stealthMetaAddress: {
-          spendingPubKeyX: "111",
-          spendingPubKeyY: "222",
-          viewingPubKeyX: "333",
-          viewingPubKeyY: "444",
+          spendingPubKey: "0x04aabb",
+          viewingPubKey: "0x04ccdd",
         },
       },
       payload: {
@@ -147,16 +141,47 @@ describe("zkExactScheme", () => {
         amount: "1000000",
         relayer: "0x0",
         fee: "0",
-        ephemeralPubKeyX: "555",
-        ephemeralPubKeyY: "666",
+        ephemeralPubKey: "0x04ephemeral",
       },
     };
 
-    const encoded = btoa(JSON.stringify(payload));
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
     const decoded = decodePaymentHeader(encoded);
 
     expect(decoded.accepted.stealthMetaAddress).toBeDefined();
-    expect(decoded.accepted.stealthMetaAddress!.spendingPubKeyX).toBe("111");
-    expect(decoded.payload.ephemeralPubKeyX).toBe("555");
+    expect(decoded.accepted.stealthMetaAddress!.spendingPubKey).toBe("0x04aabb");
+    expect(decoded.accepted.stealthMetaAddress!.viewingPubKey).toBe("0x04ccdd");
+    expect(decoded.payload.ephemeralPubKey).toBe("0x04ephemeral");
+  });
+
+  it("should handle zero newCommitment (full-spend case, C2)", () => {
+    const payload: V2PaymentPayload = {
+      x402Version: 2,
+      accepted: {
+        scheme: "zk-exact",
+        network: "eip155:84532",
+        amount: "1000000",
+        payTo: "0xrecipient",
+        maxTimeoutSeconds: 300,
+        asset: "0xusdc",
+        poolAddress: "0xpool",
+      },
+      payload: {
+        from: "shielded",
+        nullifierHash: "12345",
+        newCommitment: "0", // full spend, no change
+        merkleRoot: "11111",
+        proof: ["1", "2", "3", "4", "5", "6", "7", "8"],
+        recipient: "0xdead",
+        amount: "1000000",
+        relayer: "0x0",
+        fee: "0",
+        ephemeralPubKey: "0x",
+      },
+    };
+
+    const encoded = Buffer.from(JSON.stringify(payload)).toString("base64");
+    const decoded = decodePaymentHeader(encoded);
+    expect(decoded.payload.newCommitment).toBe("0");
   });
 });
