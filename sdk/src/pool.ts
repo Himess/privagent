@@ -21,6 +21,7 @@ const POOL_ABI = [
   "function nextLeafIndex() external view returns (uint256)",
   "function isKnownRoot(bytes32 root) external view returns (bool)",
   "event Deposited(address indexed depositor, uint256 amount, bytes32 indexed commitment, uint256 leafIndex)",
+  "event Withdrawn(address indexed recipient, uint256 amount, bytes32 indexed nullifierHash, bytes32 newCommitment, uint256 newLeafIndex, address relayer, uint256 fee)",
 ];
 
 const ERC20_ABI = [
@@ -38,11 +39,13 @@ export class ShieldedPoolClient {
   private proofGenerator?: ProofGenerator;
   private notes: PrivateNote[] = [];
   private poolAddress: string;
+  private deployBlock?: number;
 
   constructor(config: GhostPayConfig) {
     this.provider = config.provider;
     this.signer = config.signer;
     this.poolAddress = config.poolAddress;
+    this.deployBlock = config.deployBlock;
     this.poolIface = new Interface(POOL_ABI);
     this.merkleTree = new MerkleTree(MERKLE_DEPTH);
 
@@ -66,28 +69,88 @@ export class ShieldedPoolClient {
   /**
    * Sync local Merkle tree from on-chain deposit events.
    * Paginates in 9000-block chunks to stay within public RPC limits (10K).
+   * Starts from recent blocks, expands backwards if leaf count doesn't match on-chain.
+   * @param fromBlock - Starting block number (overrides auto-detection)
    */
-  async syncTree(): Promise<void> {
+  async syncTree(fromBlock?: number): Promise<void> {
     const currentBlock = await this.provider.getBlockNumber();
     const filter = this.poolContract.filters.Deposited();
 
-    const allLeaves: bigint[] = [];
-    for (let from = 0; from <= currentBlock; from += 9000) {
-      const to = Math.min(from + 8999, currentBlock);
-      const events = await this.poolContract.queryFilter(filter, from, to);
+    // Find expected leaf count from on-chain
+    const expectedLeaves = Number(await this.poolContract.nextLeafIndex());
 
-      for (const event of events) {
+    // Start scanning from provided block, deploy block, or recent blocks
+    const hasHint = fromBlock !== undefined || this.deployBlock !== undefined;
+    let startBlock = fromBlock ?? this.deployBlock ?? Math.max(0, currentBlock - 50000);
+
+    let allLeaves: bigint[] = [];
+    allLeaves = await this.scanEvents(filter, startBlock, currentBlock);
+
+    // If we didn't find all leaves and no explicit start was given, expand backwards
+    if (allLeaves.length < expectedLeaves && !hasHint && startBlock > 0) {
+      startBlock = Math.max(0, currentBlock - 500000);
+      allLeaves = await this.scanEvents(filter, startBlock, currentBlock);
+    }
+
+    if (allLeaves.length < expectedLeaves && !hasHint && startBlock > 0) {
+      allLeaves = await this.scanEvents(filter, 0, currentBlock);
+    }
+
+    this.merkleTree.setLeaves(allLeaves);
+  }
+
+  private async scanEvents(
+    _filter: any,
+    startBlock: number,
+    endBlock: number
+  ): Promise<bigint[]> {
+    const indexedLeaves: { index: number; commitment: bigint }[] = [];
+    const depositFilter = this.poolContract.filters.Deposited();
+    const withdrawFilter = this.poolContract.filters.Withdrawn();
+
+    for (let from = startBlock; from <= endBlock; from += 9000) {
+      const to = Math.min(from + 8999, endBlock);
+
+      // Query both Deposited and Withdrawn events
+      const [depositEvents, withdrawEvents] = await Promise.all([
+        this.poolContract.queryFilter(depositFilter, from, to),
+        this.poolContract.queryFilter(withdrawFilter, from, to),
+      ]);
+
+      for (const event of depositEvents) {
         const parsed = this.poolIface.parseLog({
           topics: event.topics as string[],
           data: event.data,
         });
         if (parsed) {
-          allLeaves.push(BigInt(parsed.args.commitment));
+          indexedLeaves.push({
+            index: Number(parsed.args.leafIndex),
+            commitment: BigInt(parsed.args.commitment),
+          });
+        }
+      }
+
+      for (const event of withdrawEvents) {
+        const parsed = this.poolIface.parseLog({
+          topics: event.topics as string[],
+          data: event.data,
+        });
+        if (parsed) {
+          const newCommitment = BigInt(parsed.args.newCommitment);
+          // Only include non-zero change commitments (full spends have 0)
+          if (newCommitment > 0n) {
+            indexedLeaves.push({
+              index: Number(parsed.args.newLeafIndex),
+              commitment: newCommitment,
+            });
+          }
         }
       }
     }
 
-    this.merkleTree.setLeaves(allLeaves);
+    // Sort by leaf index and extract commitments
+    indexedLeaves.sort((a, b) => a.index - b.index);
+    return indexedLeaves.map((l) => l.commitment);
   }
 
   /**

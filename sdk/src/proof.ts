@@ -18,7 +18,7 @@ export class ProofGenerator {
     publicSignals: string[];
   }> {
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-      input,
+      input as unknown as Record<string, snarkjs.NumericString>,
       this.wasmPath,
       this.zkeyPath
     );

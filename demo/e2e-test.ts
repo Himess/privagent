@@ -113,6 +113,7 @@ async function main() {
       circuitWasm: CIRCUIT_WASM,
       circuitZkey: CIRCUIT_ZKEY,
       circuitVkey: CIRCUIT_VKEY,
+      deployBlock: 38000000,
     });
     await buyerPool.initialize();
     console.log(`  Tree synced. Leaves: ${buyerPool.getMerkleTree().getLeafCount()}`);

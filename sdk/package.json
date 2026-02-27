@@ -25,9 +25,10 @@
     "snarkjs": "^0.7.5"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/snarkjs": "^0.7.9",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "@types/snarkjs": "^0.7.9"
+    "vitest": "^3.0.0"
   }
 }

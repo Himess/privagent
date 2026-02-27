@@ -53,6 +53,7 @@ async function main() {
     circuitWasm,
     circuitZkey,
     circuitVkey,
+    deployBlock: 38000000,
   });
   await client.initialize();
   console.log(`Tree synced. Local root: ${client.getLocalRoot().toString().slice(0, 20)}...\n`);

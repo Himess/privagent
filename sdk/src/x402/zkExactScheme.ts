@@ -1,4 +1,5 @@
 import { ShieldedPoolClient } from "../pool.js";
+import { initPoseidon } from "../poseidon.js";
 import {
   generateStealthPayment,
   deriveStealthEthAddress,
@@ -75,6 +76,9 @@ export class ZkPaymentHandler {
     requirements: ZkPaymentRequirements,
     resource?: ResourceInfo
   ): Promise<PaymentResult> {
+    // Ensure Poseidon is initialized (needed for stealth address derivation)
+    await initPoseidon();
+
     const amount = BigInt(requirements.amount);
     const relayer = requirements.relayer ?? "0x0000000000000000000000000000000000000000";
     const fee = BigInt(requirements.relayerFee ?? "0");

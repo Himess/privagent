@@ -23,6 +23,8 @@ export interface GhostPayConfig {
   circuitWasm?: string;
   circuitZkey?: string;
   circuitVkey?: string;
+  /** Block number from which to start scanning for deposit events */
+  deployBlock?: number;
 }
 
 // ============================================================================

@@ -88,6 +88,9 @@ importers:
         specifier: ^0.7.5
         version: 0.7.6
     devDependencies:
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
       '@types/snarkjs':
         specifier: ^0.7.9
         version: 0.7.9
