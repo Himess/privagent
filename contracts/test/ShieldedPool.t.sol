@@ -4,13 +4,13 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import "../src/ShieldedPool.sol";
 import "../src/PoseidonHasher.sol";
-import "../src/Groth16Verifier.sol";
+import "./mocks/MockVerifier.sol";
 import "./mocks/MockUSDC.sol";
 
 contract ShieldedPoolTest is Test {
     ShieldedPool public pool;
     PoseidonHasher public hasher;
-    Groth16Verifier public verifier;
+    MockVerifier public verifier;
     MockUSDC public usdc;
 
     address public alice = makeAddr("alice");
@@ -21,7 +21,7 @@ contract ShieldedPoolTest is Test {
 
     function setUp() public {
         hasher = new PoseidonHasher();
-        verifier = new Groth16Verifier();
+        verifier = new MockVerifier();
         usdc = new MockUSDC();
         pool = new ShieldedPool(address(verifier), address(hasher), address(usdc));
 

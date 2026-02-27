@@ -2,7 +2,15 @@
 pragma solidity ^0.8.24;
 
 import "./PoseidonHasher.sol";
-import "./Groth16Verifier.sol";
+
+interface IGroth16Verifier {
+    function verifyProof(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[7] calldata _pubSignals
+    ) external view returns (bool);
+}
 
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
