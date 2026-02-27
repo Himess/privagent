@@ -25,7 +25,7 @@ import { ghostPaywall, createGhostFetch } from "ghostpay-sdk/x402";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const RPC_URL = process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
-const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const POOL_ADDRESS = "0xdc794e8314f45D337B4aefBc45D098c3ed172E4a";
 const USDC_ADDRESS = BASE_SEPOLIA_USDC;
 
 const CIRCUIT_WASM = path.resolve(__dirname, "../circuits/build/privatePayment_js/privatePayment.wasm");
@@ -113,7 +113,7 @@ async function main() {
       circuitWasm: CIRCUIT_WASM,
       circuitZkey: CIRCUIT_ZKEY,
       circuitVkey: CIRCUIT_VKEY,
-      deployBlock: 38000000,
+      deployBlock: 38229334,
     });
     await buyerPool.initialize();
     console.log(`  Tree synced. Leaves: ${buyerPool.getMerkleTree().getLeafCount()}`);

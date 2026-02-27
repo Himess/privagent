@@ -31,7 +31,7 @@ async function main() {
   }
 
   const poolAddress =
-    process.env.SHIELDED_POOL_ADDRESS ?? "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+    process.env.SHIELDED_POOL_ADDRESS ?? "0xdc794e8314f45D337B4aefBc45D098c3ed172E4a";
 
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);
@@ -53,7 +53,7 @@ async function main() {
     circuitWasm,
     circuitZkey,
     circuitVkey,
-    deployBlock: 38000000,
+    deployBlock: 38229334,
   });
   await client.initialize();
   console.log(`Tree synced. Local root: ${client.getLocalRoot().toString().slice(0, 20)}...\n`);

@@ -110,8 +110,8 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       return;
     }
 
-    // C3 FIX: Validate recipient matches config
-    if (p.recipient.toLowerCase() !== config.recipient.toLowerCase()) {
+    // C3 FIX: Validate recipient matches config (skip when stealth enabled)
+    if (!config.stealthMetaAddress && p.recipient.toLowerCase() !== config.recipient.toLowerCase()) {
       res.status(400).json({ error: "Invalid payment" });
       return;
     }
