@@ -50,6 +50,17 @@ cd relayer && pnpm test
 cd contracts && forge script script/Deploy.s.sol --rpc-url base-sepolia --broadcast --verify
 ```
 
+## Deployed Contracts (Base Sepolia)
+
+| Contract | Address |
+|----------|---------|
+| PoseidonHasher | `0x56c52A3b621346DC47B7B2A4bE0230721EE48c12` |
+| Groth16Verifier | `0x98CaD63B1B703A64F2B8Ce471f079AEdf66598ab` |
+| ShieldedPool | `0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f` |
+| StealthRegistry | `0x81b7E46702d68E037d72fb998c1B5BC13c09e560` |
+
+Verified on [Blockscout](https://base-sepolia.blockscout.com/address/0x11c8ebc9a95b2a1da4155b167dada9b5925dde8f).
+
 ## x402 `zk-exact` Scheme
 
 GhostPay extends the x402 HTTP payment protocol with a ZK-native scheme:
@@ -74,12 +85,13 @@ GET /api/weather HTTP/1.1
 → 200 OK + data
 ```
 
-## Gas Costs (Estimates)
+## Gas Costs (Measured on Base Sepolia)
 
 | Operation | Gas |
 |-----------|-----|
-| Deposit | ~830K (Poseidon Merkle insert, depth 20) |
-| Withdraw | ~1.5M (Groth16 verify + Merkle insert + USDC transfer) |
+| Deposit | 851K (Poseidon Merkle insert, depth 20) |
+| Withdraw | 1.03M (Groth16 verify + Merkle insert + USDC transfer) |
+| Proof Gen | ~1.2s (Node.js, snarkjs) |
 
 ## Test Results
 
