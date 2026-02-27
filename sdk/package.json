@@ -1,0 +1,33 @@
+{
+  "name": "ghostpay-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./x402": {
+      "import": "./dist/x402/index.js",
+      "types": "./dist/x402/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "circomlibjs": "^0.1.7",
+    "ethers": "^6.13.0",
+    "snarkjs": "^0.7.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@types/snarkjs": "^0.7.9"
+  }
+}

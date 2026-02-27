@@ -1,0 +1,16 @@
+{
+  "name": "ghostpay-circuits",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5"
+  },
+  "devDependencies": {
+    "snarkjs": "^0.7.5",
+    "vitest": "^3.0.0"
+  }
+}

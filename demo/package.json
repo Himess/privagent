@@ -1,0 +1,23 @@
+{
+  "name": "ghostpay-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seller": "tsx agent-seller.ts",
+    "buyer": "tsx agent-buyer.ts",
+    "demo": "concurrently \"pnpm seller\" \"sleep 2 && pnpm buyer\""
+  },
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "express": "^5.0.0",
+    "ghostpay-sdk": "workspace:*",
+    "ghostpay-relayer": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "concurrently": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

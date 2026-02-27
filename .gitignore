@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.env
+.env.local
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Circuits
+circuits/build/
+circuits/powersOfTau28_hez_final_15.ptau
+
+# Coverage
+coverage/
+lcov.info
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
