@@ -55,7 +55,7 @@ PRIVATE_KEY_SELLER=0x... PRIVATE_KEY_BUYER=0x... npx tsx demo/e2e-test.ts
 |----------|---------|
 | PoseidonHasher | `0x27d2b5247949606f913Db8c314EABB917fcffd96` |
 | Groth16Verifier | `0x605002BbB689457101104e8Ee3C76a8d5D23e5c8` |
-| ShieldedPool | `0xdc794e8314f45D337B4aefBc45D098c3ed172E4a` |
+| ShieldedPool | `0xbA5c38093CefBbFA08577b08b0494D5c7738E4F6` |
 | StealthRegistry | `0x5E3ef9A91AD33270f84B32ACFF91068Eea44c5ee` |
 
 Deploy block: `38229334`

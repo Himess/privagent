@@ -225,6 +225,10 @@ export interface GhostPaywallConfig {
   maxTimeoutSeconds?: number;
   signer: Signer;
   stealthMetaAddress?: SerializedStealthMetaAddress;
+  /** Path to verification_key.json for off-chain proof verification (gas drain prevention) */
+  verificationKeyPath?: string;
+  /** Inline verification key object (alternative to verificationKeyPath) */
+  verificationKey?: Record<string, unknown>;
 }
 
 export interface GhostFetchOptions extends RequestInit {

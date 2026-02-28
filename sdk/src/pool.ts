@@ -165,7 +165,7 @@ export class ShieldedPoolClient {
     const allowance = await usdcContract.allowance(signerAddress, this.poolAddress);
 
     if (BigInt(allowance) < amount) {
-      const approveTx = await usdcContract.approve(this.poolAddress, ethers.MaxUint256);
+      const approveTx = await usdcContract.approve(this.poolAddress, amount);
       await approveTx.wait();
     }
 

@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { Contract, Signer, ethers } from "ethers";
+import * as snarkjs from "snarkjs";
+import { readFileSync } from "fs";
 import type {
   ZkPaymentRequirements,
   V2PaymentPayload,
@@ -39,6 +41,14 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
 
   const network = config.network ?? "eip155:84532"; // Base Sepolia default
   const poolContract = new Contract(config.poolAddress, POOL_ABI, config.signer);
+
+  // Load verification key for off-chain proof checking (gas drain prevention)
+  let vkey: Record<string, unknown> | undefined;
+  if (config.verificationKey) {
+    vkey = config.verificationKey;
+  } else if (config.verificationKeyPath) {
+    vkey = JSON.parse(readFileSync(config.verificationKeyPath, "utf-8")) as Record<string, unknown>;
+  }
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const paymentHeader = req.headers["payment"] as string | undefined;
@@ -97,7 +107,7 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
     }
 
     // Validate required fields
-    if (!p.nullifierHash || !p.newCommitment === undefined || !p.merkleRoot || !p.recipient || !p.amount) {
+    if (!p.nullifierHash || p.newCommitment === undefined || p.newCommitment === null || !p.merkleRoot || !p.recipient || !p.amount) {
       res.status(400).json({ error: "Missing required payment fields" });
       return;
     }
@@ -172,6 +182,42 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
     } catch {
       res.status(500).json({ error: "Payment verification failed" });
       return;
+    }
+
+    // Off-chain proof verification (gas drain prevention)
+    if (vkey) {
+      try {
+        const publicSignals = [
+          BigInt(p.newCommitment).toString(),
+          BigInt(p.merkleRoot).toString(),
+          BigInt(p.nullifierHash).toString(),
+          BigInt(p.recipient).toString(),
+          p.amount,
+          BigInt(p.relayer).toString(),
+          p.fee,
+        ];
+
+        const proofForVerify = {
+          pi_a: [p.proof[0], p.proof[1], "1"],
+          pi_b: [[p.proof[2], p.proof[3]], [p.proof[4], p.proof[5]], ["1", "0"]],
+          pi_c: [p.proof[6], p.proof[7], "1"],
+          protocol: "groth16",
+          curve: "bn128",
+        };
+
+        const isValid = await snarkjs.groth16.verify(
+          vkey,
+          publicSignals,
+          proofForVerify
+        );
+        if (!isValid) {
+          res.status(400).json({ error: "Invalid payment" });
+          return;
+        }
+      } catch {
+        res.status(400).json({ error: "Invalid payment" });
+        return;
+      }
     }
 
     // Submit withdrawal on-chain

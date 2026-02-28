@@ -4,10 +4,12 @@
 
 Full audit of GhostPay privacy x402 payment protocol. All findings fixed in V3.
 
-- **Total findings:** 28 (7 Critical, 9 High, 12 Medium, 8 Low)
+- **Total findings:** 28 (7 Critical, 9 High, 12 Medium, 8 Low) — all fixed in V3
+- **V3.1 fixes:** 5 additional (middleware validation, off-chain verify, duplicate commitment, fee trapping, exact approval)
 - **Status:** All FIXED
-- **Tests:** 94 (31 Foundry + 63 SDK)
+- **Tests:** 95 (32 Foundry + 63 SDK)
 - **E2E:** Verified on Base Sepolia
+- **ShieldedPool V3.1:** `0xbA5c38093CefBbFA08577b08b0494D5c7738E4F6` (redeployed)
 
 ---
 
@@ -179,3 +181,32 @@ Full audit of GhostPay privacy x402 payment protocol. All findings fixed in V3.
 - Custom errors in all Foundry tests (selector-based assertions)
 - initPoseidon() called in both SDK entry points (tsup split-bundle compatibility)
 - deployBlock config prevents scanning from block 0 on public RPCs
+
+---
+
+## V3.1 Post-Audit Fixes
+
+### P1: Middleware newCommitment validation bug
+**Status:** FIXED
+**Fix:** `!p.newCommitment === undefined` always evaluated to `false` due to operator precedence. Changed to `p.newCommitment === undefined || p.newCommitment === null`.
+**Files:** `sdk/src/x402/middleware.ts`
+
+### P2: Off-chain proof verification (gas drain prevention)
+**Status:** FIXED
+**Fix:** Added snarkjs.groth16.verify() before on-chain submit. Invalid proofs rejected without wasting gas. Requires `verificationKeyPath` or `verificationKey` in config.
+**Files:** `sdk/src/x402/middleware.ts`, `sdk/src/types.ts`
+
+### P3: Duplicate commitment check
+**Status:** FIXED
+**Fix:** `commitmentExists` mapping was written but never read. Added `if (commitmentExists[commitment]) revert DuplicateCommitment()` in deposit().
+**Files:** `contracts/src/ShieldedPool.sol`
+
+### P4: Fee + zero relayer fund trapping
+**Status:** FIXED
+**Fix:** `fee > 0 && relayer != address(0)` silently skipped fee transfer when relayer=0. Changed to `if (fee > 0) { require(relayer != 0); transfer(); }`.
+**Files:** `contracts/src/ShieldedPool.sol`
+
+### P5: Exact USDC approval
+**Status:** FIXED
+**Fix:** `approve(MaxUint256)` replaced with `approve(amount)`. Limits USDC exposure if pool has vulnerability.
+**Files:** `sdk/src/pool.ts`

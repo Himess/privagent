@@ -75,18 +75,27 @@ contract ShieldedPoolTest is Test {
         pool.deposit(maxDeposit + 1, bytes32(uint256(1)));
     }
 
-    function test_deposit_duplicateCommitment_doesNotRevert() public {
-        // Note: V3 contract does not check for duplicate commitments on deposit
-        // (commitmentExists is set but not checked before insert)
+    function test_deposit_duplicateCommitment_reverts() public {
         bytes32 commitment = bytes32(uint256(999));
 
         vm.prank(alice);
         pool.deposit(DEPOSIT_AMOUNT, commitment);
 
-        // Second deposit with same commitment succeeds (no on-chain duplicate check)
+        vm.prank(alice);
+        vm.expectRevert(ShieldedPool.DuplicateCommitment.selector);
+        pool.deposit(DEPOSIT_AMOUNT, commitment);
+    }
+
+    function test_withdraw_feeWithZeroRelayer_reverts() public {
+        bytes32 commitment = bytes32(uint256(100));
         vm.prank(alice);
         pool.deposit(DEPOSIT_AMOUNT, commitment);
-        assertEq(pool.nextLeafIndex(), 2);
+
+        bytes32 root = pool.getLastRoot();
+        uint256[8] memory proof;
+
+        vm.expectRevert(ShieldedPool.RelayerRequiredForFee.selector);
+        pool.withdraw(bob, 5_000_000, bytes32(uint256(200)), bytes32(uint256(300)), root, address(0), 50_000, proof);
     }
 
     function test_deposit_updatesRoot() public {

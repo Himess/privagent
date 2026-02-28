@@ -54,6 +54,8 @@ contract ShieldedPool is ReentrancyGuard, Pausable, Ownable {
     error InsufficientPoolBalance();
     error InvalidProof();
     error ExceedsMaxDeposit();
+    error DuplicateCommitment();
+    error RelayerRequiredForFee();
 
     // ============ Constants ============
     uint256 public constant TREE_DEPTH = 20;
@@ -122,6 +124,7 @@ contract ShieldedPool is ReentrancyGuard, Pausable, Ownable {
         if (amount == 0) revert ZeroAmount();
         if (amount > MAX_DEPOSIT) revert ExceedsMaxDeposit();
         if (commitment == bytes32(0)) revert InvalidCommitment();
+        if (commitmentExists[commitment]) revert DuplicateCommitment();
         if (nextLeafIndex >= MAX_TREE_SIZE) revert TreeFull();
 
         // C7: commitment = Poseidon(amount, nullifierSecret, randomness)
@@ -190,7 +193,8 @@ contract ShieldedPool is ReentrancyGuard, Pausable, Ownable {
         // Interactions (CEI pattern)
         if (!usdc.transfer(recipient, amount)) revert TransferFailed();
 
-        if (fee > 0 && relayer != address(0)) {
+        if (fee > 0) {
+            if (relayer == address(0)) revert RelayerRequiredForFee();
             if (!usdc.transfer(relayer, fee)) revert TransferFailed();
         }
 

@@ -25,7 +25,7 @@ import { ghostPaywall, createGhostFetch } from "ghostpay-sdk/x402";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const RPC_URL = process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
-const POOL_ADDRESS = "0xdc794e8314f45D337B4aefBc45D098c3ed172E4a";
+const POOL_ADDRESS = "0xbA5c38093CefBbFA08577b08b0494D5c7738E4F6";
 const USDC_ADDRESS = BASE_SEPOLIA_USDC;
 
 const CIRCUIT_WASM = path.resolve(__dirname, "../circuits/build/privatePayment_js/privatePayment.wasm");
