@@ -92,6 +92,10 @@ export class MerkleTree {
    * Subtrees beyond the last leaf return precomputed zero hashes.
    */
   private getNode(level: number, index: number): bigint {
+    // [SDK-H3] Depth limit check
+    if (level > this.depth || level < 0) {
+      throw new Error(`Invalid level: ${level} (depth: ${this.depth})`);
+    }
     const subtreeStart = index * 2 ** level;
     if (subtreeStart >= this.leaves.length) {
       return this.zeroValues[level];

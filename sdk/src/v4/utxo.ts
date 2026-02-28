@@ -80,6 +80,14 @@ export function computeNullifierV4(
  * Create a new UTXO with the given amount and public key
  */
 export function createUTXO(amount: bigint, pubkey: bigint): UTXO {
+  // [SDK-H1] Validate field bounds
+  if (amount < 0n || amount >= FIELD_SIZE) {
+    throw new Error("Amount out of field range");
+  }
+  if (pubkey < 0n || pubkey >= FIELD_SIZE) {
+    throw new Error("Pubkey out of field range");
+  }
+
   const blinding = randomFieldElement();
   const commitment = computeCommitmentV4(amount, pubkey, blinding);
 

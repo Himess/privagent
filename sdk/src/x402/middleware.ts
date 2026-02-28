@@ -82,10 +82,17 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       return;
     }
 
+    // [SDK-C1] Limit payload size to prevent DoS
+    const MAX_PAYLOAD_SIZE = 100 * 1024; // 100KB
+    if (paymentHeader.length > MAX_PAYLOAD_SIZE) {
+      res.status(400).json({ error: "Payment header too large" });
+      return;
+    }
+
     // Decode payment header
     let payload: V2PaymentPayload;
     try {
-      const json = Buffer.from(paymentHeader, "base64").toString("utf-8"); // L5 FIX
+      const json = Buffer.from(paymentHeader, "base64").toString("utf-8");
       payload = JSON.parse(json) as V2PaymentPayload;
     } catch {
       res.status(400).json({ error: "Invalid Payment header encoding" });
@@ -163,28 +170,7 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
       32
     );
 
-    // H2 FIX: Pre-flight checks to prevent gas griefing
-    try {
-      const [rootKnown, nullifierUsed] = await Promise.all([
-        poolContract.isKnownRoot(merkleRootBytes32),
-        poolContract.nullifiers(nullifierHashBytes32),
-      ]);
-
-      if (!rootKnown) {
-        res.status(402).json({ error: "Stale payment, retry", x402Version: 2 });
-        return;
-      }
-
-      if (nullifierUsed) {
-        res.status(402).json({ error: "Payment already processed", x402Version: 2 });
-        return;
-      }
-    } catch {
-      res.status(500).json({ error: "Payment verification failed" });
-      return;
-    }
-
-    // Off-chain proof verification (gas drain prevention)
+    // [SDK-H5] Off-chain proof verification FIRST (before state checks)
     if (vkey) {
       try {
         const publicSignals = [
@@ -218,6 +204,27 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
         res.status(400).json({ error: "Invalid payment" });
         return;
       }
+    }
+
+    // Pre-flight state checks (after proof verification) [SDK-H5]
+    try {
+      const [rootKnown, nullifierUsed] = await Promise.all([
+        poolContract.isKnownRoot(merkleRootBytes32),
+        poolContract.nullifiers(nullifierHashBytes32),
+      ]);
+
+      if (!rootKnown) {
+        res.status(402).json({ error: "Stale payment, retry", x402Version: 2 });
+        return;
+      }
+
+      if (nullifierUsed) {
+        res.status(402).json({ error: "Payment already processed", x402Version: 2 });
+        return;
+      }
+    } catch {
+      res.status(500).json({ error: "Payment verification failed" });
+      return;
     }
 
     // Submit withdrawal on-chain

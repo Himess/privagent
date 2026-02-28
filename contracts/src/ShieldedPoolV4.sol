@@ -54,6 +54,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     error TreeFull();
     error InvalidPublicAmount();
     error InsufficientPoolBalance();
+    error ZeroRecipientAmount();
+    error InvalidPublicAmountRange();
+    error MissingVerifiers();
 
     // ============ Constants ============
     uint32 public constant MERKLE_TREE_DEPTH = 16;
@@ -108,7 +111,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     );
     event NewNullifier(bytes32 indexed nullifier);
     event PublicDeposit(address indexed depositor, uint256 amount);
-    event PublicWithdraw(address indexed recipient, uint256 amount, address relayer, uint256 fee);
+    event PublicWithdraw(address indexed recipient, uint256 indexed amount, address relayer, uint256 fee); // [SC-L1]
 
     // ============ Constructor ============
     constructor(
@@ -120,9 +123,10 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         poseidonHasher = PoseidonHasher(_poseidonHasher);
         usdc = IERC20(_usdc);
 
-        // Register verifiers
-        if (_verifier1x2 != address(0)) verifiers[12] = _verifier1x2; // 1*10+2
-        if (_verifier2x2 != address(0)) verifiers[22] = _verifier2x2; // 2*10+2
+        // Register verifiers — both required [SC-H2]
+        if (_verifier1x2 == address(0) || _verifier2x2 == address(0)) revert MissingVerifiers();
+        verifiers[12] = _verifier1x2; // 1*10+2
+        verifiers[22] = _verifier2x2; // 2*10+2
 
         // Initialize Merkle tree zeros
         bytes32 currentZero = bytes32(0);
@@ -135,6 +139,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     }
 
     // ============ transact() — SINGLE ENTRY POINT ============
+    /// @notice Execute a deposit, transfer, or withdrawal via ZK proof.
+    /// @param args Proof data, root, publicAmount, nullifiers, and commitments
+    /// @param extData External data (recipient, relayer, fee, encrypted outputs)
     function transact(
         TransactArgs calldata args,
         ExtData calldata extData
@@ -190,6 +197,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             if (extData.fee > withdrawAmount) revert FeeExceedsAmount();
 
             uint256 recipientAmount = withdrawAmount - extData.fee;
+            if (recipientAmount == 0) revert ZeroRecipientAmount(); // [SC-H3]
             if (extData.recipient == address(0)) revert InvalidRecipient();
             if (!usdc.transfer(extData.recipient, recipientAmount)) revert TransferFailed();
 
@@ -211,9 +219,11 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             keccak256(extData.encryptedOutput1),
             keccak256(extData.encryptedOutput2)
         ));
+        // Modulo FIELD_SIZE ensures the hash fits in the BN254 scalar field [SC-L3]
         return bytes32(uint256(hash) % FIELD_SIZE);
     }
 
+    /// @notice Compute extDataHash for a given ExtData (public wrapper for testing)
     function hashExtData(ExtData calldata extData) external pure returns (bytes32) {
         return _hashExtData(extData);
     }
@@ -231,6 +241,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         if (args.publicAmount >= 0) {
             signals[1] = uint256(args.publicAmount);
         } else {
+            if (args.publicAmount == type(int256).min) revert InvalidPublicAmountRange(); // [SC-H4]
             signals[1] = FIELD_SIZE - uint256(-args.publicAmount);
         }
 
@@ -279,7 +290,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
                 pA, pB, pC, fixed7
             );
         } else {
-            return false;
+            revert UnsupportedCircuit(); // [SC-C1] explicit error instead of silent false
         }
 
         (bool success, bytes memory result) = verifierAddr.staticcall(callData);
@@ -320,23 +331,29 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         return bytes32(poseidonHasher.hash2(uint256(left), uint256(right)));
     }
 
+    /// @notice Check if a root is in the recent history ring buffer. [SC-M1] refactored
     function isKnownRoot(bytes32 root) public view returns (bool) {
         if (root == bytes32(0)) return false;
-        uint256 i = currentRootIndex;
-        do {
-            if (roots[i] == root) return true;
-            if (i == 0) i = ROOT_HISTORY_SIZE;
-            i--;
-        } while (i != currentRootIndex);
+        for (uint256 j = 0; j < ROOT_HISTORY_SIZE; j++) {
+            uint256 idx = (currentRootIndex + ROOT_HISTORY_SIZE - j) % ROOT_HISTORY_SIZE;
+            if (roots[idx] == root) return true;
+        }
         return false;
     }
 
+    /// @notice Return the most recent Merkle root
     function getLastRoot() external view returns (bytes32) {
         return roots[currentRootIndex];
     }
 
     // ============ Admin ============
+    /// @notice Update verifier for a circuit config. Pass address(0) to remove. [SC-M3]
     function setVerifier(uint256 nIns, uint256 nOuts, address verifierAddr) external onlyOwner {
+        if (verifierAddr != address(0)) {
+            uint256 size;
+            assembly { size := extcodesize(verifierAddr) }
+            require(size > 0, "Not a contract");
+        }
         verifiers[nIns * 10 + nOuts] = verifierAddr;
     }
 
@@ -344,11 +361,21 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     function unpause() external onlyOwner { _unpause(); }
 
     // ============ View ============
+    /// @notice Return (nextLeafIndex, maxLeaves, currentRoot)
     function getTreeInfo() external view returns (uint256, uint256, bytes32) {
         return (nextLeafIndex, MAX_LEAVES, roots[currentRootIndex]);
     }
 
     function getBalance() external view returns (uint256) {
         return usdc.balanceOf(address(this));
+    }
+
+    /// @notice Emergency withdrawal — only when paused. [SC-M4]
+    function emergencyWithdraw(address to) external onlyOwner whenPaused {
+        if (to == address(0)) revert InvalidRecipient();
+        uint256 balance = usdc.balanceOf(address(this));
+        if (balance > 0) {
+            if (!usdc.transfer(to, balance)) revert TransferFailed();
+        }
     }
 }

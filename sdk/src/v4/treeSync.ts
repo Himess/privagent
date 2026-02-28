@@ -39,6 +39,11 @@ export async function syncTreeFromEvents(
       const leafIndex = Number(log.args[1]);
       const encOutput = log.args[2] as string;
 
+      // [SDK-M2] Assert ordering — leafIndex must be >= current length
+      if (leafIndex < commitments.length) {
+        throw new Error(`Out-of-order leaf: index ${leafIndex}, expected >= ${commitments.length}`);
+      }
+
       // Ensure leaves are inserted in order
       while (commitments.length < leafIndex) {
         commitments.push(0n);

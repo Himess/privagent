@@ -678,9 +678,10 @@ contract ShieldedPoolV4Test is Test {
     // ============ 9. Admin ============
 
     function test_setVerifier() public {
-        address newVerifier = makeAddr("newVerifier");
-        pool.setVerifier(4, 2, newVerifier);
-        assertEq(pool.verifiers(42), newVerifier); // 4*10+2 = 42
+        // Use a real contract (mock verifier) for setVerifier [SC-M3]
+        MockVerifier1x2 newVerifier = new MockVerifier1x2();
+        pool.setVerifier(4, 2, address(newVerifier));
+        assertEq(pool.verifiers(42), address(newVerifier)); // 4*10+2 = 42
     }
 
     function test_setVerifier_onlyOwner() public {
@@ -822,5 +823,157 @@ contract ShieldedPoolV4Test is Test {
     function test_transferOwnership() public {
         pool.transferOwnership(alice);
         assertEq(pool.owner(), alice);
+    }
+
+    // ============ 13. Audit Fix Tests ============
+
+    // [SC-H2] Constructor requires both verifiers
+    function test_constructor_zeroVerifier1x2_reverts() public {
+        vm.expectRevert(ShieldedPoolV4.MissingVerifiers.selector);
+        new ShieldedPoolV4(address(hasher), address(usdc), address(0), address(verifier2x2));
+    }
+
+    function test_constructor_zeroVerifier2x2_reverts() public {
+        vm.expectRevert(ShieldedPoolV4.MissingVerifiers.selector);
+        new ShieldedPoolV4(address(hasher), address(usdc), address(verifier1x2), address(0));
+    }
+
+    // [SC-H3] Zero recipient amount after fee deduction
+    function test_withdraw_zeroRecipientAmount_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+
+        uint256 withdrawAmount = 1_000_000;
+        // fee == amount → recipientAmount = 0
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(bob, relayerAddr, withdrawAmount);
+        bytes32 nullifier = bytes32(uint256(0xaaab));
+        ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(withdrawAmount, nullifier, extData);
+
+        vm.expectRevert(ShieldedPoolV4.ZeroRecipientAmount.selector);
+        pool.transact(args, extData);
+    }
+
+    // [SC-M3] setVerifier validates contract address
+    function test_setVerifier_nonContract_reverts() public {
+        address eoa = makeAddr("eoa");
+        vm.expectRevert("Not a contract");
+        pool.setVerifier(3, 2, eoa);
+    }
+
+    function test_setVerifier_zeroAddress_allowed() public {
+        // Setting to zero removes the verifier
+        pool.setVerifier(1, 2, address(0));
+        assertEq(pool.verifiers(12), address(0));
+    }
+
+    // [SC-M4] Emergency withdrawal
+    function test_emergencyWithdraw_whenPaused() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+        assertEq(usdc.balanceOf(address(pool)), DEPOSIT_AMOUNT);
+
+        pool.pause();
+        pool.emergencyWithdraw(bob);
+
+        assertEq(usdc.balanceOf(address(pool)), 0);
+        assertEq(usdc.balanceOf(bob), DEPOSIT_AMOUNT);
+    }
+
+    function test_emergencyWithdraw_notPaused_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+        vm.expectRevert();
+        pool.emergencyWithdraw(bob);
+    }
+
+    function test_emergencyWithdraw_notOwner_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+        pool.pause();
+        vm.prank(alice);
+        vm.expectRevert();
+        pool.emergencyWithdraw(bob);
+    }
+
+    function test_emergencyWithdraw_zeroAddress_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+        pool.pause();
+        vm.expectRevert(ShieldedPoolV4.InvalidRecipient.selector);
+        pool.emergencyWithdraw(address(0));
+    }
+
+    // ============ 14. Fuzz Tests [TEST-H1] ============
+
+    function testFuzz_deposit_amounts(uint256 amount) public {
+        amount = bound(amount, 1, pool.MAX_DEPOSIT());
+        usdc.mint(alice, amount);
+        vm.prank(alice);
+        usdc.approve(address(pool), type(uint256).max);
+
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
+        bytes32[] memory nullifiers = new bytes32[](1);
+        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("fuzz_null", amount))));
+        bytes32[] memory commitments = new bytes32[](2);
+        commitments[0] = bytes32(uint256(keccak256(abi.encode("fuzz_c0", amount))));
+        commitments[1] = bytes32(uint256(keccak256(abi.encode("fuzz_c1", amount))));
+
+        ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
+            pA: [uint256(0), uint256(0)],
+            pB: [[uint256(0), uint256(0)], [uint256(0), uint256(0)]],
+            pC: [uint256(0), uint256(0)],
+            root: pool.getLastRoot(),
+            publicAmount: int256(amount),
+            extDataHash: _computeExtDataHash(extData),
+            inputNullifiers: nullifiers,
+            outputCommitments: commitments
+        });
+
+        vm.prank(alice);
+        pool.transact(args, extData);
+
+        assertEq(usdc.balanceOf(address(pool)), amount);
+    }
+
+    function testFuzz_withdraw_fee_split(uint256 amount, uint256 fee) public {
+        amount = bound(amount, 2, 100_000_000); // up to 100 USDC
+        fee = bound(fee, 0, amount - 1); // fee < amount (to avoid ZeroRecipientAmount)
+
+        // Deposit first
+        _doDeposit(amount);
+
+        ShieldedPoolV4.ExtData memory extData;
+        if (fee > 0) {
+            extData = _makeExtData(bob, relayerAddr, fee);
+        } else {
+            extData = _makeExtData(bob, address(0), 0);
+        }
+
+        bytes32 nullifier = bytes32(uint256(keccak256(abi.encode("fuzz_w", amount, fee))));
+        ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(amount, nullifier, extData);
+
+        pool.transact(args, extData);
+
+        assertEq(usdc.balanceOf(bob), amount - fee);
+        if (fee > 0) {
+            assertEq(usdc.balanceOf(relayerAddr), fee);
+        }
+    }
+
+    // ============ 15. Invariant Test [TEST-H2] ============
+
+    function test_invariant_balanceAfterDepositWithdraw() public {
+        // Deposit
+        uint256 depositAmount = 50_000_000; // 50 USDC
+        _doDeposit(depositAmount);
+        assertEq(usdc.balanceOf(address(pool)), depositAmount);
+
+        // Withdraw partial
+        uint256 withdrawAmount = 20_000_000;
+        uint256 fee = 100_000;
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(bob, relayerAddr, fee);
+        bytes32 nullifier = bytes32(uint256(0xfade));
+        ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(withdrawAmount, nullifier, extData);
+        pool.transact(args, extData);
+
+        // Invariant: pool balance = deposits - withdrawals
+        assertEq(usdc.balanceOf(address(pool)), depositAmount - withdrawAmount);
+        assertEq(usdc.balanceOf(bob), withdrawAmount - fee);
+        assertEq(usdc.balanceOf(relayerAddr), fee);
     }
 }

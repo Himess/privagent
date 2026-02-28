@@ -76,6 +76,13 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
     }
 
     // ===== Decode Payment header =====
+    // [SDK-C1] Limit payload size to prevent DoS
+    const MAX_PAYLOAD_SIZE = 100 * 1024; // 100KB
+    if (paymentHeader.length > MAX_PAYLOAD_SIZE) {
+      res.status(400).json({ error: "Payment header too large" });
+      return;
+    }
+
     let payload: V4PaymentPayload;
     try {
       const json = Buffer.from(paymentHeader, "base64").toString("utf-8");
@@ -170,6 +177,12 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
 
       if (decrypted.amount.toString() !== config.price) {
         res.status(400).json({ error: "Invalid payment amount" });
+        return;
+      }
+
+      // [SDK-H4] Validate recipient pubkey matches server config
+      if (decrypted.pubkey.toString() !== config.poseidonPubkey) {
+        res.status(400).json({ error: "Invalid payment recipient" });
         return;
       }
     } catch {

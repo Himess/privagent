@@ -277,9 +277,7 @@ export class ShieldedWallet {
     // Coin selection
     const selection = selectUTXOs(this.utxos, totalNeeded, 2);
     if (!selection) {
-      throw new Error(
-        `Insufficient balance. Need ${totalNeeded}, have ${this.getBalance()}`
-      );
+      throw new Error("Insufficient shielded balance"); // [SDK-M1] generic error
     }
 
     // Lock selected UTXOs
@@ -429,6 +427,9 @@ export class ShieldedWallet {
       // Only track UTXOs that belong to us (pubkey matches)
       if (outUTXO.pubkey === this.keypair.publicKey && outUTXO.amount > 0n) {
         this.utxos.push(outUTXO);
+      } else if (outUTXO.amount > 0n) {
+        // [SDK-M5] Warn about untracked UTXO (sent to different pubkey)
+        console.warn(`Untracked UTXO at leaf ${outUTXO.leafIndex}: pubkey mismatch`);
       }
     }
 

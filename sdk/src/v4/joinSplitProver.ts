@@ -9,7 +9,7 @@ import {
   derivePublicKey,
   V4_MERKLE_DEPTH,
 } from "./utxo.js";
-import { ProofData } from "../types.js";
+import { ProofData, FIELD_SIZE } from "../types.js";
 
 // ============================================================================
 // Circuit Artifact Paths
@@ -182,14 +182,11 @@ function buildCircuitInput(
     outputCommitments.push(utxo.commitment.toString());
   }
 
-  // Handle publicAmount — field-wrap negatives for the circuit
+  // Handle publicAmount — field-wrap negatives for the circuit [SDK-H2]
   let publicAmountStr: string;
   if (publicAmount >= 0n) {
     publicAmountStr = publicAmount.toString();
   } else {
-    const FIELD_SIZE = BigInt(
-      "21888242871839275222246405745257275088548364400416034343698204186575808495617"
-    );
     publicAmountStr = (FIELD_SIZE + publicAmount).toString();
   }
 

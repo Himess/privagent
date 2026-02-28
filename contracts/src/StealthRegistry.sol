@@ -23,10 +23,12 @@ contract StealthRegistry {
         uint256 timestamp;
     }
 
+    uint256 public constant MAX_ANNOUNCEMENTS_PER_CALLER = 1000; // [SC-H5]
     mapping(address => StealthMetaAddress) public stealthAddresses;
     mapping(address => bool) public isRegistered;
     Announcement[] public announcements;
     mapping(uint256 => uint256[]) public announcementsByViewTag;
+    mapping(address => uint256) public announcementCount; // [SC-H5]
 
     event StealthMetaAddressRegistered(
         address indexed registrant,
@@ -80,6 +82,8 @@ contract StealthRegistry {
         uint256 viewTag,
         bytes calldata metadata
     ) external {
+        require(announcementCount[msg.sender] < MAX_ANNOUNCEMENTS_PER_CALLER, "Rate limit exceeded"); // [SC-H5]
+        announcementCount[msg.sender]++;
         uint256 index = announcements.length;
 
         announcements.push(Announcement({

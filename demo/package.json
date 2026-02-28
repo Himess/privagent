@@ -13,7 +13,7 @@
     "demo-v4": "concurrently \"pnpm seller-v4\" \"sleep 4 && pnpm buyer-v4\""
   },
   "dependencies": {
-    "@noble/curves": "^1.4.0",
+    "@noble/curves": "^2.0.1",
     "circomlibjs": "^0.1.7",
     "ethers": "^6.13.0",
     "express": "^5.0.0",

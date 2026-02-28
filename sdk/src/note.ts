@@ -14,6 +14,11 @@ export function randomFieldElement(): bigint {
  * V3: commitment = Poseidon(balance, nullifierSecret, randomness) — 3-input
  */
 export function createNote(balance: bigint): PrivateNote {
+  // [SDK-H1] Validate field bounds
+  if (balance < 0n || balance >= FIELD_SIZE) {
+    throw new Error("Balance out of field range");
+  }
+
   const nullifierSecret = randomFieldElement();
   const randomness = randomFieldElement();
   const commitment = computeCommitment(balance, nullifierSecret, randomness);

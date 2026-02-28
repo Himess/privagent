@@ -171,8 +171,10 @@ template JoinSplit(nIns, nOuts, levels) {
     sumIns + publicAmount === sumOuts;
 
     // === BIND EXTERNAL DATA ===
-    // extDataHash prevents front-running and binds recipient/fee to proof
-    // Constraint: extDataHash is used in a quadratic constraint so it can't be optimized away
+    // extDataHash prevents front-running and binds recipient/fee/encrypted notes to proof.
+    // IMPORTANT: This quadratic constraint is REQUIRED. Without it, extDataHash would be an
+    // unconstrained public input — any value would satisfy the proof, breaking the binding.
+    // Pattern from Tornado Cash Nova: forces the optimizer to keep extDataHash constrained.
     signal extDataHashSquare;
     extDataHashSquare <== extDataHash * extDataHash;
 }
