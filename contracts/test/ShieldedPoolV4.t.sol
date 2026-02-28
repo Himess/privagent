@@ -955,7 +955,59 @@ contract ShieldedPoolV4Test is Test {
         }
     }
 
-    // ============ 15. Invariant Test [TEST-H2] ============
+    // ============ 15. Extended Fuzz Tests ============
+
+    function testFuzz_publicAmountBounds(int256 publicAmount) public {
+        // Ensure int256.min is rejected
+        vm.assume(publicAmount != type(int256).min);
+
+        // Only test deposit range for non-reverting path
+        if (publicAmount > 0) {
+            uint256 depositAmt = uint256(publicAmount);
+            vm.assume(depositAmt <= pool.MAX_DEPOSIT());
+
+            usdc.mint(alice, depositAmt);
+            vm.prank(alice);
+            usdc.approve(address(pool), type(uint256).max);
+
+            ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
+            bytes32[] memory nullifiers = new bytes32[](1);
+            nullifiers[0] = bytes32(uint256(keccak256(abi.encode("fuzz_pa", publicAmount))));
+            bytes32[] memory commitments = new bytes32[](2);
+            commitments[0] = bytes32(uint256(keccak256(abi.encode("fuzz_pac0", publicAmount))));
+            commitments[1] = bytes32(uint256(keccak256(abi.encode("fuzz_pac1", publicAmount))));
+
+            ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
+                pA: [uint256(0), uint256(0)],
+                pB: [[uint256(0), uint256(0)], [uint256(0), uint256(0)]],
+                pC: [uint256(0), uint256(0)],
+                root: pool.getLastRoot(),
+                publicAmount: publicAmount,
+                extDataHash: _computeExtDataHash(extData),
+                inputNullifiers: nullifiers,
+                outputCommitments: commitments
+            });
+
+            vm.prank(alice);
+            pool.transact(args, extData);
+            assertEq(usdc.balanceOf(address(pool)), depositAmt);
+        }
+    }
+
+    function testFuzz_extDataHash_deterministic(address recipient, address relayer, uint256 fee) public view {
+        ShieldedPoolV4.ExtData memory ext1 = _makeExtData(recipient, relayer, fee);
+        ShieldedPoolV4.ExtData memory ext2 = _makeExtData(recipient, relayer, fee);
+        assertEq(pool.hashExtData(ext1), pool.hashExtData(ext2));
+    }
+
+    function testFuzz_extDataHash_differentInputs(address r1, address r2) public view {
+        vm.assume(r1 != r2);
+        ShieldedPoolV4.ExtData memory ext1 = _makeExtData(r1, address(0), 0);
+        ShieldedPoolV4.ExtData memory ext2 = _makeExtData(r2, address(0), 0);
+        assertTrue(pool.hashExtData(ext1) != pool.hashExtData(ext2));
+    }
+
+    // ============ 16. Invariant Test [TEST-H2] ============
 
     function test_invariant_balanceAfterDepositWithdraw() public {
         // Deposit

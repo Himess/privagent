@@ -60,7 +60,7 @@ cd circuits && bash scripts/build-v4.sh
 # Build & test contracts
 cd contracts && forge build && forge test -vvv
 
-# Test SDK (192 tests)
+# Test SDK (116 tests)
 cd sdk && pnpm test
 
 # Run E2E on Base Sepolia
@@ -146,9 +146,9 @@ output = iv(12) + tag(16) + ciphertext(72) = 100 bytes
 
 ## Test Results
 
-- **Contracts:** 76 tests passing (Foundry)
+- **Contracts:** 125 tests passing (Foundry — V3 + V4 + StealthRegistry + Edge Cases + Invariants + Fuzz)
 - **SDK:** 116 tests passing (vitest)
-- **Total:** 192 tests
+- **Total:** 241 tests
 - **E2E:** Full flow on Base Sepolia (deposit → 402 → JoinSplit proof → server decrypt → transact → 200)
 
 ## Circuit Constraints (V4)
@@ -158,7 +158,7 @@ output = iv(12) + tag(16) + ciphertext(72) = 100 bytes
 | joinSplit_1x2 | 5,572 | ~11K |
 | joinSplit_2x2 | 10,375 | ~20K |
 
-Uses `powersOfTau28_hez_final_16.ptau` (Hermez, 54 contributors). See `circuits/CEREMONY.md`.
+Uses `powersOfTau28_hez_final_17.ptau` (Hermez, 54 contributors). See `circuits/CEREMONY.md`.
 
 ## Key Design Decisions
 
@@ -193,6 +193,21 @@ Uses `powersOfTau28_hez_final_16.ptau` (Hermez, 54 contributors). See `circuits/
 - [Stealth Address Design](docs/STEALTH.md)
 - [Trusted Setup Ceremony](circuits/CEREMONY.md)
 - [Audit Report](AUDIT.md)
+
+## Roadmap
+
+| Version | Feature | Status |
+|---------|---------|--------|
+| V3 | Single-note privacy + x402 | Complete |
+| V4.0 | UTXO JoinSplit + encrypted amounts | Live on Base Sepolia |
+| V4.1 | Multi-tree rollover + 4x2 circuit | Planned |
+| V4.2 | Proof of Innocence (OFAC compliance) | Planned |
+| V4.3 | Rapidsnark + production optimization | Planned |
+| V5.0 | Base Mainnet + professional audit | Planned |
+
+### POI (Proof of Innocence)
+GhostPay's UTXO architecture supports adding POI as an additive circuit
+constraint without breaking existing deposits. See [POI Roadmap](docs/POI-ROADMAP.md).
 
 ## License
 

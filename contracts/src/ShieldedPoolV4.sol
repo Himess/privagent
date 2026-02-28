@@ -6,6 +6,13 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PoseidonHasher.sol";
 
+/// @notice V4.2 TODO: Proof of Innocence
+/// - Add SanctionsList oracle integration
+/// - Add transactWithPOI() with dual-proof verification
+/// - Add compliantDeposits tracking
+/// - Add POI circuit verifier
+/// See docs/POI-ROADMAP.md for full design
+
 /**
  * @title ShieldedPool V4 — JoinSplit UTXO Privacy Pool
  * @notice Single entry point for deposits, transfers, and withdrawals.

@@ -1,5 +1,9 @@
 # GhostPay Stealth Address Design (V3)
 
+> **LEGACY V3 DOCUMENT**
+> This document describes V3 stealth addresses, which are NOT used in V4.
+> V4 uses ECDH note encryption instead. See [PROTOCOL.md](PROTOCOL.md) for the V4 design.
+
 ## Overview
 
 GhostPay V3 uses secp256k1 ECDH stealth addresses for private receiving. Each payment goes to a fresh one-time address that only the recipient can identify and spend from.

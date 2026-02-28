@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --ghost-green: #00ff88;
+  --ghost-red: #ff4444;
+  --ghost-dark: #0a0a0f;
+}
+
+body {
+  background: var(--ghost-dark);
+  color: #e0e0e8;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.pulse-hidden {
+  animation: pulse-red 2s ease-in-out infinite;
+  color: var(--ghost-red);
+}
+
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.log-entry {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriter 0.5s steps(40) forwards;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111118;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}

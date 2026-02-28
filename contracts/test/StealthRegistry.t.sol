@@ -133,6 +133,56 @@ contract StealthRegistryTest is Test {
         registry.announce(1, bob, hex"ff", 0, hex"");
     }
 
+    // ============ Additional Tests ============
+
+    function test_stealth_differentSchemeIds() public {
+        // ERC-5564 allows multiple scheme IDs
+        vm.prank(alice);
+        registry.announce(1, bob, hex"aa", 0, hex""); // scheme 1 (secp256k1)
+
+        vm.prank(alice);
+        registry.announce(2, bob, hex"bb", 0, hex""); // scheme 2 (ed25519)
+
+        assertEq(registry.getAnnouncementCount(), 2);
+
+        StealthRegistry.Announcement memory ann0 = registry.getAnnouncement(0);
+        StealthRegistry.Announcement memory ann1 = registry.getAnnouncement(1);
+        assertEq(ann0.schemeId, 1);
+        assertEq(ann1.schemeId, 2);
+    }
+
+    function test_stealth_getAnnouncementsPagination() public {
+        // Create 20 announcements with different view tags
+        for (uint256 i = 0; i < 20; i++) {
+            vm.prank(alice);
+            registry.announce(1, bob, abi.encodePacked(i), i % 5, hex"");
+        }
+
+        assertEq(registry.getAnnouncementCount(), 20);
+
+        // View tag 0 should have 4 entries (indices 0, 5, 10, 15)
+        uint256[] memory tag0 = registry.getAnnouncementsByViewTag(0);
+        assertEq(tag0.length, 4);
+
+        // View tag 3 should have 4 entries (indices 3, 8, 13, 18)
+        uint256[] memory tag3 = registry.getAnnouncementsByViewTag(3);
+        assertEq(tag3.length, 4);
+    }
+
+    function testFuzz_register_values(uint256 sx, uint256 sy, uint256 vx, uint256 vy) public {
+        vm.assume(sx != 0 || sy != 0); // valid spending key
+        vm.assume(vx != 0 || vy != 0); // valid viewing key
+
+        vm.prank(alice);
+        registry.registerStealthMetaAddress(sx, sy, vx, vy);
+
+        StealthRegistry.StealthMetaAddress memory meta = registry.getStealthMetaAddress(alice);
+        assertEq(meta.spendingPubKeyX, sx);
+        assertEq(meta.spendingPubKeyY, sy);
+        assertEq(meta.viewingPubKeyX, vx);
+        assertEq(meta.viewingPubKeyY, vy);
+    }
+
     function test_announce_rateLimitPerCaller() public {
         // Alice reaches limit
         uint256 maxAnn = registry.MAX_ANNOUNCEMENTS_PER_CALLER();
