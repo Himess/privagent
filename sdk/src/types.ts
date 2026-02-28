@@ -236,3 +236,77 @@ export interface GhostFetchOptions extends RequestInit {
   allowedNetworks?: string[];
   dryRun?: boolean;
 }
+
+// ============================================================================
+// x402 V4 Types (JoinSplit / hidden amounts)
+// ============================================================================
+
+export interface ZkPaymentRequirementsV4 {
+  scheme: "zk-exact-v2";
+  network: string;
+  price: string;
+  asset: string;
+  poolAddress: string;
+  payToPubkey: string; // server's Poseidon public key (bigint string)
+  serverEcdhPubKey: string; // hex-encoded compressed secp256k1 public key
+  relayer?: string;
+  relayerFee?: string;
+  maxTimeoutSeconds: number;
+}
+
+export interface ZkExactPayloadV4 {
+  from: "shielded-v4";
+  proof: string[]; // flattened Groth16 proof [pA0,pA1, pB00,pB01,pB10,pB11, pC0,pC1]
+  nullifiers: string[]; // input nullifier hashes
+  commitments: string[]; // output commitment hashes
+  root: string;
+  publicAmount: string; // "0" for private transfer
+  extDataHash: string;
+  extData: {
+    recipient: string;
+    relayer: string;
+    fee: string;
+    encryptedOutput1: string; // hex-encoded
+    encryptedOutput2: string; // hex-encoded
+  };
+  nIns: number;
+  nOuts: number;
+  senderEcdhPubKey: string; // hex-encoded buyer's secp256k1 public key
+}
+
+export interface V4PaymentPayload {
+  x402Version: 4;
+  accepted: ZkPaymentRequirementsV4;
+  resource?: ResourceInfo;
+  payload: ZkExactPayloadV4;
+}
+
+export interface PaymentRequiredV4 {
+  x402Version: 4;
+  accepts: ZkPaymentRequirementsV4[];
+  resource: ResourceInfo;
+  error?: string;
+}
+
+export interface GhostPaywallConfigV4 {
+  price: string;
+  asset: string;
+  network?: string;
+  poolAddress: string;
+  signer: Signer;
+  poseidonPubkey: string; // server's Poseidon public key (bigint string)
+  ecdhPrivateKey: Uint8Array; // secp256k1 private key for note decryption
+  ecdhPublicKey: Uint8Array; // secp256k1 public key
+  relayer?: string;
+  relayerFee?: string;
+  maxFee?: string;
+  maxTimeoutSeconds?: number;
+  /** Verification keys keyed by circuit config e.g. "1x2", "2x2" */
+  verificationKeys?: Record<string, Record<string, unknown>>;
+}
+
+export interface GhostFetchOptionsV4 extends RequestInit {
+  maxPayment?: bigint;
+  allowedNetworks?: string[];
+  dryRun?: boolean;
+}

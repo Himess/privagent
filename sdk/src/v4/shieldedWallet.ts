@@ -102,6 +102,10 @@ export class ShieldedWallet {
     return this.keypair.privateKey;
   }
 
+  get circuitDir(): string {
+    return this.config.circuitDir;
+  }
+
   async initialize(): Promise<void> {
     await initPoseidon();
     // Re-derive pubkey after Poseidon init (if it was generated before init)
@@ -460,6 +464,41 @@ export class ShieldedWallet {
 
   getTree(): MerkleTree {
     return this.tree;
+  }
+
+  /**
+   * Confirm a payment that was submitted by a relayer (x402 flow).
+   * Marks input UTXOs as spent and adds output UTXOs to local state.
+   */
+  confirmPayment(inputUTXOs: UTXO[], outputUTXOs: UTXO[]): void {
+    for (const utxo of inputUTXOs) {
+      utxo.spent = true;
+      utxo.pending = false;
+    }
+
+    const leafCount = this.tree.getLeafCount();
+    for (let i = 0; i < outputUTXOs.length; i++) {
+      const out = outputUTXOs[i];
+      out.leafIndex = leafCount + i;
+      out.nullifier = computeNullifierV4(
+        out.commitment,
+        out.leafIndex,
+        this.keypair.privateKey
+      );
+      this.tree.addLeaf(out.commitment);
+      if (out.pubkey === this.keypair.publicKey && out.amount > 0n) {
+        this.utxos.push(out);
+      }
+    }
+  }
+
+  /**
+   * Cancel a pending payment. Unlocks the input UTXOs.
+   */
+  cancelPayment(inputUTXOs: UTXO[]): void {
+    for (const utxo of inputUTXOs) {
+      utxo.pending = false;
+    }
   }
 }
 
