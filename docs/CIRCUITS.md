@@ -1,112 +1,169 @@
-# GhostPay Circuit Documentation (V3)
+# GhostPay Circuit Documentation
 
-## privatePayment Circuit
+## JoinSplit Circuit (V4)
 
-The main circuit proving:
-1. Knowledge of a note `(amount, nullifierSecret, randomness)` committed in the Merkle tree
+The main circuit proving UTXO ownership and balance conservation. Based on Tornado Cash Nova's `transaction.circom` pattern.
+
+### What It Proves
+
+1. Knowledge of input UTXOs `(amount, pubkey, blinding)` committed in the Merkle tree
 2. Correct nullifier computation (prevents double-spend)
-3. Sufficient balance for payment + fee
-4. Correct conditional change commitment computation
+3. Balance conservation: `sum(inputs) + publicAmount === sum(outputs)`
+4. Correct output commitment computation
+5. Amount range validity (0 ≤ amount < 2^120)
+
+### Circuit Variants
+
+| Variant | Inputs | Outputs | Use Case |
+|---------|--------|---------|----------|
+| `joinSplit_1x2` | 1 | 2 | Single UTXO payment + change |
+| `joinSplit_2x2` | 2 | 2 | Merge UTXOs + payment + change |
+| `joinSplit_4x2` | 4 | 2 | Consolidate many UTXOs (not deployed) |
+
+The `1x2` variant handles the most common case: spending a single UTXO, creating a payment output and a change output. The `2x2` variant handles cases where no single UTXO has sufficient balance.
 
 ### Signals
 
-#### Private Inputs
-| Signal | Description |
-|--------|-------------|
-| `balance` | Note balance (USDC amount in 6-decimal units) |
-| `nullifierSecret` | Secret for nullifier derivation (bound to commitment) |
-| `randomness` | Commitment randomness |
-| `pathElements[20]` | Merkle proof sibling hashes |
-| `pathIndices[20]` | Merkle proof path directions (0=left, 1=right) |
-| `newBalance` | Change amount (balance - amount - fee) |
-| `newNullifierSecret` | Secret for change note |
-| `newRandomness` | Randomness for change commitment |
-
 #### Public Inputs
+
 | Signal | Description |
 |--------|-------------|
-| `root` | Merkle tree root |
-| `nullifierHash` | Hash to prevent double-spend |
-| `recipient` | Payment recipient address (as field element) |
-| `amount` | Payment amount |
-| `relayer` | Relayer address (for fee) |
-| `fee` | Relayer fee |
+| `root` | Merkle tree root (proves inputs exist) |
+| `publicAmount` | External amount (>0 deposit, <0 withdraw, 0 transfer) |
+| `extDataHash` | Hash of external data (recipient, relayer, fee, encrypted outputs) |
+| `inputNullifiers[nIns]` | One per input UTXO (prevents double-spend) |
+| `outputCommitments[nOuts]` | One per output UTXO (new commitments) |
 
-#### Output
+#### Private Inputs — Per Input UTXO
+
 | Signal | Description |
 |--------|-------------|
-| `newCommitment` | Conditional: `Poseidon(change, newSecret, newRandom)` if change > 0, else `0` |
+| `inAmount[nIns]` | Input UTXO amounts |
+| `inPrivateKey[nIns]` | Owner's private key (Poseidon keypair) |
+| `inBlinding[nIns]` | Commitment blinding factor |
+| `inPathIndices[nIns]` | Merkle leaf index (integer, not bit array) |
+| `inPathElements[nIns][levels]` | Merkle proof sibling hashes |
 
-### Constraints (V3)
+#### Private Inputs — Per Output UTXO
 
-1. `commitment = Poseidon(balance, nullifierSecret, randomness)` — 3-input (C6+C7 fix)
-2. `nullifierHash == Poseidon(nullifierSecret, commitment)` — nullifier binding
-3. `MerkleTreeChecker(commitment, pathElements, pathIndices) == root` — inclusion proof
-4. `amount + fee <= balance` — `LessEqThan(64)` (M2 fix: was 252, now 64-bit)
-5. `change = balance - amount - fee` — balance equation
-6. `change == newBalance` — declared change matches
-7. `expectedNewCommitment = (1 - IsZero(change)) * Poseidon(newBalance, newNullifierSecret, newRandomness)` — conditional (C2 fix)
-8. `newCommitment == expectedNewCommitment` — output constraint
-9. `recipientSquare = recipient * recipient` — unused signal prevention
-10. `relayerSquare = relayer * relayer` — unused signal prevention
+| Signal | Description |
+|--------|-------------|
+| `outAmount[nOuts]` | Output UTXO amounts |
+| `outPubkey[nOuts]` | Recipient public key (Poseidon) |
+| `outBlinding[nOuts]` | Commitment blinding factor |
 
-### V3 Changes from V2
+### Constraints
 
-| Aspect | V2 | V3 |
-|--------|----|----|
-| Commitment | `Poseidon(balance, randomness)` | `Poseidon(balance, nullifierSecret, randomness)` |
-| Balance check | `LessEqThan(252)` | `LessEqThan(64)` |
-| newCommitment | Always computed | Conditional via `IsZero` gate |
-| Full-spend | `newCommitment = Poseidon(0, random)` | `newCommitment = 0` |
+#### Per Input UTXO
 
-### Constraint Count
+1. **Keypair derivation:** `publicKey = Poseidon(privateKey)` — 1-input Poseidon
+2. **Commitment:** `commitment = Poseidon(amount, publicKey, blinding)` — 3-input Poseidon
+3. **Nullifier:** `nullifier = Poseidon(commitment, pathIndex, privateKey)` — 3-input Poseidon
+4. **Nullifier match:** `inputNullifiers[i] === nullifier` — equality constraint
+5. **Merkle proof:** `MerkleProofVerifier(commitment, pathIndex, pathElements) → computedRoot` — depth-16 path
+6. **Conditional root check:** `ForceEqualIfEnabled(root, computedRoot, amount)` — skip for dummy (amount=0) inputs
+7. **Range check:** `Num2Bits(120)` on amount — prevents field overflow
 
-| Component | Non-linear | Linear | Total |
-|-----------|-----------|--------|-------|
-| Circuit total | 5,762 | 6,442 | 12,204 |
+#### Per Output UTXO
 
-Well within `2^14 = 16,384` non-linear constraint limit of `powersOfTau28_hez_final_14.ptau`.
+1. **Commitment:** `commitment = Poseidon(amount, pubkey, blinding)` — 3-input Poseidon
+2. **Commitment match:** `outputCommitments[i] === commitment` — equality constraint
+3. **Range check:** `Num2Bits(120)` on amount — prevents field overflow
 
-Constraint breakdown:
-- 20 Poseidon(2) hashes for Merkle path verification
-- 2 Poseidon(3) hashes for commitment and change commitment
-- 1 Poseidon(2) hash for nullifier
-- 1 LessEqThan(64) comparator
-- 1 IsZero gate for conditional output
-- 2 quadratic constraints for unused signal prevention
+#### Global
 
-## Merkle Tree Template
+1. **Balance conservation:** `sum(inAmount) + publicAmount === sum(outAmount)`
+2. **extDataHash binding:** `extDataHashSquare = extDataHash * extDataHash` — quadratic constraint prevents optimizer removal
 
-`MerkleTreeChecker(levels)` — verifies a leaf is included in a Merkle tree.
+### Constraint Counts
 
-- Uses Poseidon(2) at each level
-- `pathIndices[i]` determines left/right placement (constrained to 0 or 1)
-- Outputs the computed root
-- Depth 20 = ~1,048,576 possible leaves
+| Circuit | Non-linear | Approx Total |
+|---------|-----------|-------------|
+| joinSplit_1x2 (1 in, 2 out, depth 16) | 5,572 | ~11,000 |
+| joinSplit_2x2 (2 in, 2 out, depth 16) | 10,375 | ~20,000 |
+
+#### Breakdown (1x2)
+
+| Component | Count | Constraints |
+|-----------|-------|-------------|
+| Poseidon(1) keypair | 1 | ~220 |
+| Poseidon(3) input commitment | 1 | ~660 |
+| Poseidon(3) nullifier | 1 | ~660 |
+| MerkleProofVerifier (16 levels) | 1 | ~16 × 220 = ~3,520 |
+| Poseidon(3) output commitments | 2 | ~1,320 |
+| Num2Bits(120) range checks | 3 | ~360 |
+| ForceEqualIfEnabled | 1 | ~2 |
+| Balance + extData | - | ~4 |
+
+### V3 vs V4 Circuit Comparison
+
+| Aspect | V3 (privatePayment) | V4 (joinSplit) |
+|--------|---------------------|----------------|
+| Model | Single input, single change | N inputs, M outputs |
+| Depth | 20 | 16 |
+| Commitment | `Poseidon(amount, nullifierSecret, randomness)` | `Poseidon(amount, pubkey, blinding)` |
+| Nullifier | `Poseidon(nullifierSecret, commitment)` | `Poseidon(commitment, pathIndex, privateKey)` |
+| Key model | Per-note secret | Per-wallet keypair |
+| Balance check | `LessEqThan(64)` | `sum(in) + pubAmount === sum(out)` |
+| Change output | Conditional (IsZero gate) | Always produced (can be zero-amount) |
+| Range check | 64-bit (amount + fee) | 120-bit (each UTXO amount) |
+| Public signals | 7 (root, null, commit, recipient, amount, relayer, fee) | 3 + nIns + nOuts (root, pubAmount, extDataHash, nullifiers, commitments) |
+| Amount visibility | PUBLIC (in public signals) | HIDDEN (only in encrypted notes) |
+
+### Sub-templates
+
+#### Keypair
+
+```
+template Keypair():
+  input:  privateKey
+  output: publicKey = Poseidon(privateKey)
+```
+
+#### UTXOCommitment
+
+```
+template UTXOCommitment():
+  input:  amount, pubkey, blinding
+  output: commitment = Poseidon(amount, pubkey, blinding)
+```
+
+#### NullifierHasher
+
+```
+template NullifierHasher():
+  input:  commitment, pathIndex, privateKey
+  output: nullifier = Poseidon(commitment, pathIndex, privateKey)
+```
+
+#### ForceEqualIfEnabled
+
+From Tornado Cash Nova — enforces `in[0] === in[1]` only when `enabled != 0`. Used for conditional root checking: dummy inputs (amount=0) skip root verification since they have no real Merkle proof.
+
+#### MerkleProofVerifier
+
+Verifies a leaf is in a Merkle tree at a given index. Uses Poseidon(2) at each level. The `pathIndex` is an integer (not bit array) — individual bits are extracted internally.
 
 ## Trusted Setup
 
 ### Powers of Tau (Phase 1)
 
-Uses `powersOfTau28_hez_final_14.ptau` from the Hermez trusted setup ceremony:
-- Supports circuits up to 2^14 = 16,384 non-linear constraints
+Uses `powersOfTau28_hez_final_16.ptau` from the Hermez trusted setup ceremony:
+- Supports circuits up to 2^16 = 65,536 non-linear constraints
 - Community ceremony with 54 participants
-- Download: `https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_14.ptau`
+- Download: `https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_16.ptau`
 
 ### Phase 2
 
-The build script performs a single-entropy Phase 2 contribution.
+The build script performs a single-entropy Phase 2 contribution per circuit variant.
 For production, run a multi-party ceremony:
 
 ```bash
 # First contributor
-snarkjs zkey contribute build/privatePayment_0000.zkey build/privatePayment_0001.zkey --name="Contributor 1"
-
-# Second contributor
-snarkjs zkey contribute build/privatePayment_0001.zkey build/privatePayment_0002.zkey --name="Contributor 2"
+snarkjs zkey contribute build/v4/1x2/joinSplit_1x2_0000.zkey build/v4/1x2/joinSplit_1x2_0001.zkey --name="Contributor 1"
 
 # Verify
-snarkjs zkey verify build/privatePayment.r1cs powersOfTau28_hez_final_14.ptau build/privatePayment_final.zkey
+snarkjs zkey verify build/v4/1x2/joinSplit_1x2.r1cs powersOfTau28_hez_final_16.ptau build/v4/1x2/joinSplit_1x2_final.zkey
 ```
 
 See `circuits/CEREMONY.md` for the current ceremony record.
@@ -115,11 +172,31 @@ See `circuits/CEREMONY.md` for the current ceremony record.
 
 ```bash
 cd circuits
-bash scripts/build.sh
+bash scripts/build-v4.sh
 ```
 
-Outputs:
-- `build/privatePayment_js/privatePayment.wasm` — WASM for proof generation
-- `build/privatePayment_final.zkey` — Proving key
-- `build/verification_key.json` — Verification key
-- `contracts/src/Groth16Verifier.sol` — On-chain verifier
+Outputs per variant (1x2, 2x2):
+- `build/v4/{variant}/joinSplit_{variant}.wasm` — WASM for proof generation
+- `build/v4/{variant}/joinSplit_{variant}_final.zkey` — Proving key
+- `build/v4/{variant}/verification_key.json` — Verification key
+- `contracts/src/verifiers/Groth16Verifier_{variant}.sol` — On-chain verifier
+
+## Proof Format
+
+The proof is serialized as 8 bigint strings for the `Payment` header:
+
+```
+proof[0] = pA[0]
+proof[1] = pA[1]
+proof[2] = pB[0][1]  // note: pB indices swapped for Solidity
+proof[3] = pB[0][0]
+proof[4] = pB[1][1]
+proof[5] = pB[1][0]
+proof[6] = pC[0]
+proof[7] = pC[1]
+```
+
+For snarkjs verification (off-chain), pB must be un-swapped:
+```
+pi_b: [[proof[3], proof[2]], [proof[5], proof[4]], ["1", "0"]]
+```

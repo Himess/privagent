@@ -1,33 +1,51 @@
 # GhostPay
 
-Privacy-preserving x402 payment protocol on Base. AI agents pay for API access using ZK proofs — deposits are visible, but payments are unlinkable to the depositor.
+Privacy-preserving x402 payment protocol on Base. AI agents pay for API access using ZK proofs — all transfer amounts are **hidden on-chain**.
 
-## Architecture
+## Architecture (V4 — JoinSplit UTXO)
 
 ```
-Agent deposits USDC → ShieldedPool (Poseidon Merkle tree)
+Agent deposits USDC → ShieldedPoolV4 (Poseidon Merkle tree, depth 16)
                           ↓
-Agent requests API → 402 (zk-exact scheme)
+Agent requests API → 402 (zk-exact-v2 scheme)
                           ↓
-Agent creates ZK proof → Payment header (raw proof, no TX)
+Agent generates JoinSplit proof (publicAmount=0, amounts HIDDEN)
                           ↓
-Server calls withdraw() → USDC to stealth address
+Encrypted output notes → Payment header (base64)
+                          ↓
+Server decrypts note → verifies amount off-chain → calls transact()
                           ↓
 Agent gets API response ← 200 OK + X-Payment-TxHash
 ```
 
-**Core stack:** Poseidon(3) commitments + Groth16 ZK proofs + secp256k1 ECDH stealth addresses + x402 HTTP payment protocol
+**Core stack:** Poseidon(3) UTXO commitments + JoinSplit Groth16 proofs + ECDH note encryption (AES-256-GCM) + x402 HTTP payment protocol
 
-**Server-as-relayer:** The buyer generates a ZK proof client-side and sends it in the `Payment` header. The server (seller) submits `ShieldedPool.withdraw()` on-chain — buyers don't need ETH for gas.
+**Server-as-relayer:** The buyer generates a JoinSplit proof client-side and sends it in the `Payment` header. The server (seller) decrypts the encrypted output notes to verify the payment amount off-chain, then submits `ShieldedPoolV4.transact()` on-chain — buyers don't need ETH for gas.
+
+**Amounts HIDDEN:** Unlike V3 where withdrawal amounts were public, V4 uses a UTXO model where `publicAmount=0` for all private transfers. The server verifies amounts by decrypting ECDH-encrypted notes, not from on-chain data.
+
+## V3 vs V4
+
+| Aspect | V3 (old) | V4 (current) |
+|--------|----------|--------------|
+| Model | Single-note withdraw | UTXO JoinSplit (N→M) |
+| Amounts | PUBLIC in withdraw() | HIDDEN (publicAmount=0) |
+| Verification | On-chain only | Off-chain note decryption + on-chain proof |
+| Entry point | deposit() + withdraw() | transact() (single entry) |
+| Tree depth | 20 (~1M leaves) | 16 (65K leaves) |
+| Circuits | 1 (privatePayment) | 2 (joinSplit_1x2, joinSplit_2x2) |
+| Coin selection | Single note | Multi-UTXO (exact/smallest/accumulate) |
+| Note encryption | None | ECDH + AES-256-GCM |
+| Scheme | zk-exact | zk-exact-v2 |
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| `contracts/` | Foundry — ShieldedPool (ReentrancyGuard + Pausable + Ownable), PoseidonHasher, StealthRegistry, Groth16Verifier |
-| `circuits/` | Circom — privatePayment circuit (Poseidon(3), depth 20, conditional newCommitment) |
-| `sdk/` | TypeScript SDK — poseidon, merkle, proof, notes, stealth (secp256k1 ECDH), pool client, x402 modules |
-| `demo/` | Two-agent demo — seller (ghostPaywall) + buyer (ghostFetch) + E2E test |
+| `contracts/` | Foundry — ShieldedPoolV4 (JoinSplit UTXO pool), PoseidonHasher, Groth16Verifier_1x2, Groth16Verifier_2x2 |
+| `circuits/` | Circom — JoinSplit circuit (Poseidon(3) commitments, variable N×M, depth 16) |
+| `sdk/` | TypeScript SDK — v4/ (UTXO, keypair, coinSelection, extData, noteEncryption, joinSplitProver, shieldedWallet, treeSync), x402/ (zkExactSchemeV2, middlewareV2, zkFetchV2) |
+| `demo/` | Two-agent demo — seller-v4 (ghostPaywallV4) + buyer-v4 (ghostFetchV4) + E2E test |
 | `relayer/` | **Deprecated** — standalone relayer replaced by server-as-relayer middleware |
 
 ## Quick Start
@@ -37,19 +55,32 @@ Agent gets API response ← 200 OK + X-Payment-TxHash
 pnpm install
 
 # Build circuits (requires circom + snarkjs)
-cd circuits && bash scripts/build.sh
+cd circuits && bash scripts/build-v4.sh
 
-# Build & test contracts (31 tests)
+# Build & test contracts
 cd contracts && forge build && forge test -vvv
 
-# Test SDK (63 tests)
+# Test SDK (192 tests)
 cd sdk && pnpm test
 
 # Run E2E on Base Sepolia
-PRIVATE_KEY_SELLER=0x... PRIVATE_KEY_BUYER=0x... npx tsx demo/e2e-test.ts
+PRIVATE_KEY=0x... npx tsx demo/e2e-v4-test.ts
 ```
 
-## Deployed Contracts (Base Sepolia — V3)
+## Deployed Contracts (Base Sepolia)
+
+### V4 (Current — JoinSplit UTXO)
+
+| Contract | Address |
+|----------|---------|
+| PoseidonHasher | `0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd` |
+| Groth16Verifier_1x2 | `0xe473aF953d269601402DEBcB2cc899aB594Ad31e` |
+| Groth16Verifier_2x2 | `0x10D5BB24327d40c4717676E3B7351D76deb33848` |
+| ShieldedPoolV4 | `0x17B6209385c2e36E6095b89572273175902547f9` |
+
+Deploy block: `38256581`
+
+### V3 (Legacy — Single-note)
 
 | Contract | Address |
 |----------|---------|
@@ -60,97 +91,100 @@ PRIVATE_KEY_SELLER=0x... PRIVATE_KEY_BUYER=0x... npx tsx demo/e2e-test.ts
 
 Deploy block: `38229334`
 
-## x402 `zk-exact` Scheme
+## x402 `zk-exact-v2` Scheme (V4)
 
 ```
 GET /api/weather HTTP/1.1
 → 402 Payment Required
 {
-  "x402Version": 2,
+  "x402Version": 4,
   "accepts": [{
-    "scheme": "zk-exact",
+    "scheme": "zk-exact-v2",
     "network": "eip155:84532",
     "amount": "1000000",
     "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    "payTo": "0xSeller...",
-    "poolAddress": "0xPool...",
-    "stealthMetaAddress": { "spendingPubKey": "0x04...", "viewingPubKey": "0x04..." }
+    "poolAddress": "0x17B6209385c2e36E6095b89572273175902547f9",
+    "payToPubkey": "12345...",
+    "serverEcdhPubKey": "0x02abc..."
   }]
 }
 
-→ Agent generates ZK proof client-side (no TX)
-→ Retry with Payment header (base64 encoded, proof as string[8])
-→ Server calls withdraw() on-chain as relayer
+→ Agent: coin selection → JoinSplit proof (publicAmount=0) → encrypt output notes
+→ Retry with Payment header (base64 V4PaymentPayload)
+→ Server: decrypt note → verify amount → transact() on-chain
 → 200 OK + X-Payment-TxHash header
 ```
 
-## Commitment Scheme (V3)
+## Commitment Scheme (V4)
 
 ```
-commitment = Poseidon(amount, nullifierSecret, randomness)    // 3-input
-nullifierHash = Poseidon(nullifierSecret, commitment)
-newCommitment = change > 0 ? Poseidon(change, newSecret, newRandom) : 0
+commitment = Poseidon(amount, pubkey, blinding)       // 3-input — amount HIDDEN
+nullifier  = Poseidon(commitment, pathIndex, privkey) // 3-input — prevents double-spend
 ```
 
-Amount is bound to the commitment — the circuit enforces `balance >= amount + fee` where `balance` is the preimage of the Merkle leaf.
+Amount is bound to the commitment. The circuit enforces balance conservation: `sum(inputs) + publicAmount === sum(outputs)`. For private transfers, `publicAmount=0` so amounts never appear on-chain.
 
-## Stealth Addresses (V3 — secp256k1 ECDH)
+## Note Encryption (V4)
 
-Seller publishes a stealth meta-address (spending + viewing public keys). Buyer derives a one-time stealth address using ECDH:
+Buyer encrypts output UTXOs using ECDH so the server can verify amounts off-chain:
 
 ```
-ephemeralKey = random secp256k1 private key
-sharedSecret = ECDH(ephemeralKey, viewingPubKey)
-stealthPubKey = spendingPubKey + hash(sharedSecret) * G
-stealthAddress = keccak256(stealthPubKey)[12:]
+sharedSecret = ECDH(buyerEcdhPrivKey, serverEcdhPubKey)
+key = SHA-256(sharedSecret)
+plaintext = amount(8 bytes) + pubkey(32 bytes) + blinding(32 bytes)
+ciphertext = AES-256-GCM(key, iv, plaintext)
+output = iv(12) + tag(16) + ciphertext(72) = 100 bytes
 ```
-
-Only the seller can recover the stealth private key using their spending + viewing private keys.
 
 ## Gas Costs (Measured on Base Sepolia)
 
-| Operation | Gas |
-|-----------|-----|
-| Deposit | ~851K (Poseidon Merkle insert, depth 20) |
-| Withdraw | ~1.03M (Groth16 verify + Merkle insert + USDC transfer) |
-| Proof Gen | ~3.5s (Node.js, snarkjs, incl. network) |
+| Operation | Gas | Time |
+|-----------|-----|------|
+| Deposit (1x2 JoinSplit) | ~950K | ~4s |
+| Private transfer (1x2) | ~900K | ~3.5s |
+| Private transfer (2x2) | ~1.1M | ~4.5s |
 
 ## Test Results
 
-- **Contracts:** 31 tests passing (Foundry)
-- **SDK:** 63 tests passing (vitest)
-- **E2E:** Full flow on Base Sepolia (deposit → 402 → ZK proof → server withdraw → 200)
+- **Contracts:** 76 tests passing (Foundry)
+- **SDK:** 116 tests passing (vitest)
+- **Total:** 192 tests
+- **E2E:** Full flow on Base Sepolia (deposit → 402 → JoinSplit proof → server decrypt → transact → 200)
 
-## Circuit Constraints
+## Circuit Constraints (V4)
 
-| Component | Non-linear | Linear |
-|-----------|-----------|--------|
-| Total | 5,762 | 6,442 |
+| Circuit | Non-linear | Total |
+|---------|-----------|-------|
+| joinSplit_1x2 | 5,572 | ~11K |
+| joinSplit_2x2 | 10,375 | ~20K |
 
-Uses `powersOfTau28_hez_final_14.ptau` (Hermez, 54 contributors). See `circuits/CEREMONY.md`.
+Uses `powersOfTau28_hez_final_16.ptau` (Hermez, 54 contributors). See `circuits/CEREMONY.md`.
 
 ## Key Design Decisions
 
-- **Variable amounts** — x402 needs arbitrary payment amounts (not fixed denominations)
-- **Poseidon(3) commitment** — amount + nullifierSecret + randomness binding (C6+C7 fix)
-- **Depth 20** — ~1M deposit anonymity set, Groth16 verify still constant ~224K gas
-- **100-root history** — ring buffer for recent Merkle roots (M1 fix)
-- **Conditional newCommitment** — IsZero circuit gate: full-spend outputs 0 (C2 fix)
+- **UTXO JoinSplit model** — N inputs → M outputs, like Tornado Cash Nova / Railgun
+- **Amounts HIDDEN** — publicAmount=0 for private transfers, server decrypts notes off-chain
+- **Poseidon(3) commitment** — amount + pubkey + blinding binding
+- **Variable circuits** — 1x2 (single payment + change) and 2x2 (consolidation + payment)
+- **ECDH note encryption** — secp256k1 shared secret → AES-256-GCM, only server can decrypt
+- **extDataHash binding** — recipient, relayer, fee, encrypted outputs bound to proof
 - **Server-as-relayer** — buyer sends raw proof, server submits TX (gas abstraction)
-- **secp256k1 ECDH stealth** — real EC keypairs with recoverable private keys (C1 fix)
-- **Note locking** — pendingNullifiers Set prevents concurrent double-spend (C4 fix)
+- **Coin selection** — exact match → smallest sufficient → smallest-first accumulation
+- **120-bit range checks** — prevents field overflow attacks on amounts
+- **Conditional root check** — ForceEqualIfEnabled pattern for dummy inputs (amount=0)
 
 ## Security Model
 
-- On-chain Groth16 proof verification prevents invalid withdrawals
-- ReentrancyGuard on deposit/withdraw (H1)
+- On-chain Groth16 proof verification prevents invalid transactions
+- ReentrancyGuard on transact() (H1)
 - Pausable by owner for emergency circuit break (H3)
 - Nullifier tracking prevents double-spending
-- Poseidon(3) commitments bind amount + nullifierSecret + randomness
-- secp256k1 ECDH stealth addresses enable private receiving with recoverable keys
+- extDataHash prevents front-running and binds external data to proof
+- ECDH encrypted notes — only server can decrypt and verify amounts
 - Pre-flight root + nullifier checks prevent gas griefing (H2)
-- Field bounds validation on Poseidon inputs (H9)
-- Generic error messages prevent information leakage (L6)
+- Off-chain proof verification before on-chain submit (P2)
+- 120-bit range checks prevent field overflow in amounts
+- Note locking prevents concurrent double-spend (C4)
 
 ## Documentation
 

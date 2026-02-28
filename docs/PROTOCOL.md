@@ -1,187 +1,308 @@
-# GhostPay Protocol Specification (V3)
+# GhostPay Protocol Specification
 
 ## Overview
 
-GhostPay implements a privacy-preserving payment protocol for HTTP 402 flows. It combines:
+GhostPay implements a privacy-preserving payment protocol for HTTP 402 flows. V4 uses a UTXO JoinSplit model where all transfer amounts are **hidden on-chain**.
 
-- **Poseidon(3) hash commitments** for binding amount + nullifierSecret + randomness
-- **Groth16 ZK proofs** for proving note ownership without revealing the note
-- **Merkle tree inclusion** for proving a commitment exists in the pool
+**V3 → V4 upgrade:** Single-note withdraw (amounts PUBLIC) replaced with JoinSplit UTXO (amounts HIDDEN via `publicAmount=0` + encrypted note verification).
+
+### Core Components
+
+- **Poseidon(3) UTXO commitments** for binding amount + pubkey + blinding
+- **JoinSplit Groth16 proofs** for proving UTXO ownership and balance conservation
+- **Merkle tree inclusion** (depth 16) for proving a commitment exists in the pool
 - **Nullifier tracking** for preventing double-spends
-- **secp256k1 ECDH stealth addresses** for private receiving
-- **Server-as-relayer** — buyer sends raw proof, server submits withdrawal on-chain
+- **ECDH note encryption** (AES-256-GCM) for private amount verification
+- **extDataHash binding** for preventing front-running
+- **Server-as-relayer** — buyer sends raw proof, server submits on-chain
 
-## `zk-exact` Scheme
+---
+
+## `zk-exact-v2` Scheme (V4)
 
 ### Wire Format
 
-The `zk-exact` scheme extends x402 V2 with ZK proof payloads.
+The `zk-exact-v2` scheme extends x402 with JoinSplit ZK proof payloads and encrypted UTXO notes.
 
 #### 402 Response (Server → Client)
 
 ```json
 {
-  "x402Version": 2,
+  "x402Version": 4,
   "accepts": [
     {
-      "scheme": "zk-exact",
+      "scheme": "zk-exact-v2",
       "network": "eip155:84532",
       "amount": "1000000",
-      "payTo": "0xRecipientAddress",
-      "maxTimeoutSeconds": 300,
       "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      "poolAddress": "0xShieldedPoolAddress",
+      "poolAddress": "0x17B6209385c2e36E6095b89572273175902547f9",
+      "payToPubkey": "12345678901234567890...",
+      "serverEcdhPubKey": "0x02abc...",
       "relayer": "0xRelayerAddress",
-      "relayerFee": "50000",
-      "stealthMetaAddress": {
-        "spendingPubKey": "0x04abc...",
-        "viewingPubKey": "0x04def..."
-      }
+      "relayerFee": "0"
     }
-  ],
-  "resource": {
-    "url": "https://api.example.com/data",
-    "method": "GET"
-  }
+  ]
 }
 ```
+
+Key V4 fields:
+- `x402Version: 4` (was 2 in V3)
+- `scheme: "zk-exact-v2"` (was `"zk-exact"` in V3)
+- `payToPubkey` — server's Poseidon public key (bigint string) for receiving shielded UTXOs
+- `serverEcdhPubKey` — server's secp256k1 compressed public key (hex) for ECDH note decryption
+- No `payTo` or `stealthMetaAddress` (V3 fields removed)
 
 #### Payment Header (Client → Server)
 
-Base64-encoded JSON in the `Payment` HTTP header (using `Buffer.from().toString("base64")`):
+Base64-encoded JSON in the `Payment` HTTP header:
 
 ```json
 {
-  "x402Version": 2,
-  "accepted": { "...same as requirement..." },
+  "x402Version": 4,
+  "scheme": "zk-exact-v2",
   "payload": {
-    "from": "shielded",
-    "nullifierHash": "123456789...",
-    "newCommitment": "987654321...",
-    "merkleRoot": "555...",
-    "recipient": "0xStealthAddress",
-    "amount": "1000000",
     "proof": ["1234...", "5678...", "9012...", "3456...", "7890...", "1234...", "5678...", "9012..."],
-    "relayer": "0xRelayerAddress",
-    "fee": "50000",
-    "ephemeralPubKey": "0x04..."
+    "root": "555...",
+    "publicAmount": "0",
+    "extDataHash": "789...",
+    "nullifiers": ["123...", "456..."],
+    "commitments": ["789...", "012..."],
+    "nIns": 1,
+    "nOuts": 2,
+    "extData": {
+      "recipient": "0x0000000000000000000000000000000000000000",
+      "relayer": "0xRelayerAddress",
+      "fee": "0",
+      "encryptedOutput1": "0xaabb...",
+      "encryptedOutput2": "0xccdd..."
+    },
+    "senderEcdhPubKey": "0x03def..."
   }
 }
 ```
 
-Key V3 changes:
-- `proof` is `string[]` (8 bigint elements), not a TX hash
-- `recipient` is included (stealth address)
-- `amount` is included for server validation
-- `ephemeralPubKey` is a single compressed/uncompressed public key string
-- Encoding uses `Buffer` (not `btoa/atob`) for proper binary handling
+Key V4 changes from V3:
+- `proof` is `string[8]` — Groth16 proof (pA[2] + pB[4] + pC[2]), pB swapped for Solidity
+- `nullifiers` and `commitments` are arrays (variable-length per circuit)
+- `nIns`/`nOuts` — circuit configuration (1x2 or 2x2)
+- `extData` — complete external data with encrypted output notes
+- `senderEcdhPubKey` — buyer's compressed secp256k1 public key (for ECDH decryption)
+- `publicAmount: "0"` for all private transfers (amounts HIDDEN)
+- No `recipient`/`amount` in payload (amount verified via note decryption)
 
-### Payment Flow (V3 — Server-as-Relayer)
+---
 
-1. **Agent** sends HTTP request to paid endpoint
-2. **Server** responds 402 with `zk-exact` requirements (includes stealthMetaAddress)
-3. **Agent** derives stealth address via ECDH, generates ZK proof client-side (no TX)
-4. **Agent** retries request with `Payment` header containing raw proof
-5. **Server** decodes proof, runs pre-flight checks (root known? nullifier unused?)
-6. **Server** calls `ShieldedPool.withdraw()` on-chain as relayer
-7. **Server** sets `X-Payment-TxHash` response header, returns data
+### Payment Flow (V4 — JoinSplit)
+
+```
+1. Agent → Server:  GET /api/weather
+2. Server → Agent:  402 { x402Version: 4, accepts: [{ scheme: "zk-exact-v2", ... }] }
+3. Agent:           Parse requirements, select matching scheme
+4. Agent:           Coin selection (exact → smallest → accumulate)
+5. Agent:           Create output UTXOs (payment to server pubkey + change to self)
+6. Agent:           Encrypt output notes via ECDH (buyer priv × server pub)
+7. Agent:           Compute extDataHash = keccak256(recipient, relayer, fee, hash(enc1), hash(enc2)) % FIELD_SIZE
+8. Agent:           Generate JoinSplit proof (publicAmount=0, all amounts private)
+9. Agent → Server:  Retry with Payment header (base64 V4PaymentPayload)
+10. Server:         Decode Payment header, validate structure
+11. Server:         Decrypt encrypted output note via ECDH (server priv × buyer pub)
+12. Server:         Verify decrypted amount >= required price
+13. Server:         Pre-flight: isKnownRoot() + nullifier check
+14. Server:         Off-chain proof verify (snarkjs groth16.verify)
+15. Server:         Submit transact() on-chain as relayer
+16. Server → Agent: 200 OK + X-Payment-TxHash header
+```
+
+### Differences from V3
+
+| Aspect | V3 (zk-exact) | V4 (zk-exact-v2) |
+|--------|---------------|-------------------|
+| Amounts | PUBLIC in withdraw() | HIDDEN (publicAmount=0) |
+| Entry point | withdraw(recipient, amount, ...) | transact(args, extData) |
+| Verification | On-chain proof only | Note decryption + on-chain proof |
+| Payload | nullifierHash, newCommitment, amount | nullifiers[], commitments[], extData |
+| Stealth | ECDH stealth addresses | ECDH note encryption |
+| Encoding | Buffer.from base64 | Buffer.from base64 |
 
 ### Differences from Standard x402
 
-| Aspect | Standard x402 | GhostPay zk-exact |
-|--------|---------------|-------------------|
-| Payment | ERC-3009 transfer | ZK proof + on-chain withdraw |
-| Privacy | Public transfer | Unlinkable to depositor |
+| Aspect | Standard x402 | GhostPay zk-exact-v2 |
+|--------|---------------|----------------------|
+| Payment | ERC-3009 transfer | JoinSplit ZK proof |
+| Privacy | Public transfer | All amounts HIDDEN |
 | Gas | Buyer pays | Server pays (relayer) |
-| Proof | TX hash | 8 bigint array |
-| Recipient | Direct address | Stealth address (ECDH) |
+| Proof | TX hash | 8-element bigint array |
+| Amount verification | On-chain transfer | Off-chain note decryption |
 
-## ShieldedPool Contract (V3)
+---
+
+## ShieldedPoolV4 Contract
+
+### transact() — Single Entry Point
+
+All operations (deposit, transfer, withdraw) go through a single `transact()` function:
+
+```solidity
+function transact(TransactArgs calldata args, ExtData calldata extData) external
+```
+
+#### TransactArgs
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pA` | `uint256[2]` | Groth16 proof point A |
+| `pB` | `uint256[2][2]` | Groth16 proof point B |
+| `pC` | `uint256[2]` | Groth16 proof point C |
+| `root` | `bytes32` | Merkle tree root |
+| `publicAmount` | `int256` | >0 deposit, <0 withdraw, 0 transfer |
+| `extDataHash` | `bytes32` | Hash of external data |
+| `inputNullifiers` | `bytes32[]` | Spent UTXO nullifiers |
+| `outputCommitments` | `bytes32[]` | New UTXO commitments |
+
+#### ExtData
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `recipient` | `address` | Withdraw recipient (address(0) for transfer) |
+| `relayer` | `address` | Relayer address |
+| `fee` | `uint256` | Relayer fee |
+| `encryptedOutput1` | `bytes` | Encrypted UTXO data for output 1 |
+| `encryptedOutput2` | `bytes` | Encrypted UTXO data for output 2 |
+
+### transact() Logic
+
+1. Validate `extDataHash == keccak256(abi.encode(recipient, relayer, fee, keccak256(enc1), keccak256(enc2))) % FIELD_SIZE`
+2. Validate all input nullifiers are unused
+3. Validate root is in 100-entry history buffer
+4. Select verifier by circuit config key (`nIns * 10 + nOuts`)
+5. Build public signals and verify Groth16 proof on-chain
+6. Mark all input nullifiers as spent, emit `NewNullifier` events
+7. Insert all output commitments into Merkle tree, emit `NewCommitment` events
+8. Handle public amount:
+   - `publicAmount > 0`: deposit — transferFrom(sender, pool, amount)
+   - `publicAmount < 0`: withdraw — transfer to recipient, fee to relayer
+   - `publicAmount == 0`: pure private transfer (no USDC movement)
+
+### Public Signal Order (V4)
+
+| Index | Signal | Description |
+|-------|--------|-------------|
+| 0 | `root` | Merkle tree root |
+| 1 | `publicAmount` | External amount (field-wrapped for negative) |
+| 2 | `extDataHash` | External data hash |
+| 3..3+nIns-1 | `inputNullifiers[i]` | Input nullifiers |
+| 3+nIns..3+nIns+nOuts-1 | `outputCommitments[i]` | Output commitments |
+
+For withdraw: `publicAmount` is field-wrapped: `FIELD_SIZE - uint256(-amount)`
 
 ### Security Features
 
-- `ReentrancyGuard` — prevents reentrancy on deposit/withdraw (H1)
-- `Pausable` — emergency circuit breaker, owner-only (H3)
-- `Ownable` — access control for pause/unpause
-- Custom errors — gas-efficient error handling (L2)
-- Indexed events — efficient log filtering (L1)
-- `MAX_DEPOSIT = 1_000_000_000_000` — 1M USDC cap (M6)
+- `ReentrancyGuard` — prevents reentrancy on transact()
+- `Pausable` — emergency circuit breaker, owner-only
+- `Ownable` — access control for pause/unpause and verifier management
+- Custom errors — gas-efficient error handling
+- Indexed events — efficient log filtering
+- `MAX_DEPOSIT = 1_000_000_000_000` — 1M USDC cap
+- `ROOT_HISTORY_SIZE = 100` — ring buffer for recent Merkle roots
+- Variable verifier selection — supports 1x2 and 2x2 circuit configurations
 
-### State
+---
 
-- **Merkle tree**: depth 20, Poseidon hash, ~1M leaf capacity
-- **Root history**: ring buffer of 100 recent roots (M1)
-- **Nullifier set**: spent nullifier hashes (prevents double-spend)
-- **Commitment set**: existing commitments
-
-### deposit(amount, commitment)
-
-1. Validate: amount > 0, amount <= MAX_DEPOSIT, commitment != 0
-2. Transfer USDC from sender to pool
-3. Insert commitment into Merkle tree
-4. Emit `Deposited(commitment, leafIndex, amount, timestamp)` event
-
-### withdraw(recipient, amount, nullifierHash, newCommitment, merkleRoot, relayer, fee, proof[8])
-
-1. Verify nullifier not spent
-2. Verify merkleRoot is in root history (100 entries)
-3. Verify recipient != address(0), amount > 0
-4. Verify pool has sufficient balance for amount + fee
-5. Verify Groth16 proof on-chain with 7 public signals
-6. Mark nullifier as spent (effects before interactions — CEI)
-7. Insert change commitment if non-zero
-8. Transfer `amount` USDC to recipient
-9. Transfer `fee` USDC to relayer (if fee > 0)
-
-### Public Signal Order
-
-snarkjs puts circuit outputs before inputs:
-
-| Index | Signal | Type |
-|-------|--------|------|
-| 0 | newCommitment | output (conditional: hash or 0) |
-| 1 | root | public input |
-| 2 | nullifierHash | public input |
-| 3 | recipient | public input |
-| 4 | amount | public input |
-| 5 | relayer | public input |
-| 6 | fee | public input |
-
-## Commitment Scheme (V3)
+## Commitment Scheme (V4)
 
 ```
-commitment = Poseidon(amount, nullifierSecret, randomness)     // 3-input Poseidon
-nullifierHash = Poseidon(nullifierSecret, commitment)          // 2-input Poseidon
-newCommitment = isFullSpend ? 0 : Poseidon(change, newSecret, newRandom)
+commitment = Poseidon(amount, pubkey, blinding)          // 3-input Poseidon
+nullifier  = Poseidon(commitment, pathIndex, privateKey) // 3-input Poseidon
+publicKey  = Poseidon(privateKey)                        // 1-input Poseidon
 ```
 
-The 3-input commitment binds the amount to the note (C7 fix) and includes the nullifier secret (C6 fix). This prevents:
-- Depositing 1 USDC but claiming a 1000 USDC balance in the proof
-- Creating two valid nullifiers for the same commitment
+### Key Differences from V3
+
+| Aspect | V3 | V4 |
+|--------|----|----|
+| Commitment | `Poseidon(amount, nullifierSecret, randomness)` | `Poseidon(amount, pubkey, blinding)` |
+| Nullifier | `Poseidon(nullifierSecret, commitment)` | `Poseidon(commitment, pathIndex, privateKey)` |
+| Key model | Per-note secret | Per-wallet keypair |
+| Spending | nullifierSecret proves ownership | privateKey proves ownership |
+
+### Why pathIndex in Nullifier?
+
+Including the Merkle tree leaf index (`pathIndex`) in the nullifier prevents the "same commitment, different position" attack. Without it, if the same commitment appears at two different positions, it could be spent twice. The pathIndex binds the nullifier to a specific tree insertion.
+
+---
+
+## extDataHash
+
+External data is bound to the proof via a hash constraint:
+
+```
+extDataHash = uint256(keccak256(abi.encode(
+    recipient,          // address
+    relayer,            // address
+    fee,                // uint256
+    keccak256(encryptedOutput1),  // bytes32
+    keccak256(encryptedOutput2)   // bytes32
+))) % FIELD_SIZE
+```
+
+This prevents:
+- Front-running (attacker can't substitute their recipient)
+- Fee manipulation (fee is fixed at proof generation time)
+- Note substitution (encrypted outputs are bound to proof)
+
+---
+
+## Note Encryption (V4)
+
+### ECDH Key Exchange
+
+Buyer and server each have secp256k1 keypairs. ECDH derives a shared secret:
+
+```
+sharedSecret = ECDH(buyerPrivKey, serverPubKey)  // = ECDH(serverPrivKey, buyerPubKey)
+key = SHA-256(sharedSecret)
+```
+
+### Encryption (Buyer → Server)
+
+```
+plaintext = amount(8 bytes BE) + pubkey(32 bytes BE) + blinding(32 bytes BE)  // 72 bytes
+iv = random(12 bytes)
+ciphertext = AES-256-GCM(key, iv, plaintext)
+output = iv(12) + authTag(16) + ciphertext(72) = 100 bytes
+```
+
+### Decryption (Server)
+
+Server decrypts using its ECDH private key + buyer's public key (from `senderEcdhPubKey` field). Verifies decrypted `amount >= price`. This is the only way the server knows the payment amount — it's never visible on-chain.
+
+---
 
 ## Security Considerations
 
 ### Privacy Guarantees
 
-- **Deposit amounts visible** — on-chain USDC transfer is public
-- **Withdrawals unlinkable** — ZK proof reveals nothing about the source note
-- **Server knows stealth recipient** — but cannot link it to the depositor
-- **Change commitments** — enable partial spends without revealing balance
-- **Stealth addresses** — each payment goes to a fresh one-time address
+- **Deposit amounts visible** — on-chain USDC transferFrom is public
+- **Transfer amounts HIDDEN** — publicAmount=0, amounts only in encrypted notes
+- **Sender HIDDEN** — privateKey never exposed, nullifier is unlinkable
+- **Receiver HIDDEN** — pubkey in commitment, encrypted in extData
+- **Server knows payment amount** — but only via note decryption, not from chain
+- **Change amounts HIDDEN** — change UTXO is also encrypted
 
 ### Attack Mitigations
 
 | Attack | Mitigation |
 |--------|-----------|
 | Double-spend | Nullifier set (on-chain mapping) |
-| Root front-running | 100-root history buffer (M1) |
+| Root front-running | 100-root history buffer |
 | Proof forgery | On-chain Groth16 verification |
-| Gas griefing | Pre-flight root + nullifier checks (H2) |
-| Reentrancy | OpenZeppelin ReentrancyGuard (H1) |
-| Concurrent double-spend | Note locking with pendingNullifiers (C4) |
-| Amount inflation | Poseidon(3) amount binding + circuit enforcement (C6+C7) |
-| Information leakage | Generic error messages (L6) |
-| Field overflow | Poseidon input bounds checking (H9) |
+| Gas griefing | Pre-flight root + nullifier checks + off-chain proof verify |
+| Reentrancy | OpenZeppelin ReentrancyGuard |
+| Concurrent double-spend | UTXO pending lock (client-side) |
+| Amount inflation | 120-bit range checks in circuit |
+| Front-running | extDataHash binding |
+| Note substitution | extDataHash includes keccak256(encryptedOutputs) |
+| Field overflow | Amount range check: 0 ≤ amount < 2^120 |
 
 ### Trust Assumptions
 
@@ -189,4 +310,5 @@ The 3-input commitment binds the amount to the note (C7 fix) and includes the nu
 - Poseidon hash security (algebraic hash, well-studied over BN254)
 - BN254 curve security (~128-bit)
 - Groth16 soundness
-- Server honesty (relayer submits withdrawal correctly)
+- Server honesty (relayer submits transact() correctly)
+- ECDH / AES-256-GCM security (note decryption)
