@@ -6,9 +6,14 @@
   "scripts": {
     "seller": "tsx agent-seller.ts",
     "buyer": "tsx agent-buyer.ts",
-    "demo": "concurrently \"pnpm seller\" \"sleep 2 && pnpm buyer\""
+    "demo": "concurrently \"pnpm seller\" \"sleep 2 && pnpm buyer\"",
+    "seller-v4": "tsx agent-seller-v4.ts",
+    "buyer-v4": "tsx agent-buyer-v4.ts",
+    "e2e-v4": "tsx e2e-v4-test.ts",
+    "demo-v4": "concurrently \"pnpm seller-v4\" \"sleep 4 && pnpm buyer-v4\""
   },
   "dependencies": {
+    "@noble/curves": "^1.4.0",
     "circomlibjs": "^0.1.7",
     "ethers": "^6.13.0",
     "express": "^5.0.0",

@@ -195,7 +195,7 @@ export class ShieldedWallet {
       this.config.signer
     );
 
-    // Approve USDC
+    // Approve USDC (use MaxUint256 for one-time unlimited approval)
     const signerAddr = await this.config.signer.getAddress();
     const allowance = await usdcContract.allowance(
       signerAddr,
@@ -204,7 +204,7 @@ export class ShieldedWallet {
     if (BigInt(allowance) < amount) {
       const approveTx = await usdcContract.approve(
         this.config.poolAddress,
-        amount
+        ethers.MaxUint256
       );
       await approveTx.wait();
     }
