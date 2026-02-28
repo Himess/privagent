@@ -31,6 +31,12 @@ function requireFieldBounds(...values: bigint[]): void {
   }
 }
 
+export function hash1(a: bigint): bigint {
+  ensureInitialized();
+  requireFieldBounds(a);
+  return F.toObject(poseidonInstance!([a]));
+}
+
 export function hash2(a: bigint, b: bigint): bigint {
   ensureInitialized();
   requireFieldBounds(a, b);
