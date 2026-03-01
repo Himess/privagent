@@ -7,7 +7,7 @@
 *The missing privacy layer for x402 payments and ERC-8004 agents on Base*
 
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-259%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-217%20passing-brightgreen)]()
 [![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)]()
@@ -27,7 +27,10 @@ AI agents transact $50M+ through x402 payments on Base — all publicly visible.
 GhostPay brings **Railgun-level privacy** to Base's agent economy:
 
 - **ZK-UTXO Architecture** — Groth16 proofs, Poseidon hashing, encrypted amounts
-- **x402 Native** — Drop-in middleware for any x402 API server
+- **Circuit-Level Fee** — Protocol fee enforced at ZK circuit level on ALL transactions
+- **View Tags** — 50x note scanning optimization with 1-byte Poseidon-based pre-filtering
+- **x402 Native** — Drop-in middleware + GhostPay Facilitator for any x402 server
+- **Hybrid Relayer** — Self-relay or external relay modes — agents need zero ETH
 - **ERC-8004 Compatible** — Verifiable agents, private payments
 - **Agent-First SDK** — Privacy payments with the ShieldedWallet API
 
@@ -59,6 +62,7 @@ await wallet.deposit(10_000_000n);  // 10 USDC -> shielded
 |  ERC-8004: Identity + Trust       |
 +-----------------------------------+
 |  GhostPay: Privacy Layer          |
+|  (ZK-UTXO + Facilitator)         |
 +-----------------------------------+
 |  x402: Payment Protocol           |
 +-----------------------------------+
@@ -100,6 +104,17 @@ app.get('/api/weather', (req, res) => {
 });
 ```
 
+```typescript
+// External relay mode — server doesn't pay gas, no ETH needed
+app.use('/api/weather', ghostPaywallV4({
+  poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+  usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  mode: 'external-relay',
+  relayerUrl: 'https://relay.ghostpay.xyz',
+  price: '1000000'
+}));
+```
+
 ### For Agent Developers (Client)
 
 ```typescript
@@ -123,28 +138,32 @@ const response = await fetch('https://api.example.com/weather');
 
 ```
 ghostpay/
-├── contracts/          # Solidity — ShieldedPoolV4, Verifiers, PoseidonHasher
+├── contracts/          # Solidity — ShieldedPoolV4, Verifiers, PoseidonHasher, StealthRegistry
 │   ├── src/            # Contract source files
-│   └── test/           # Foundry tests (132 tests)
-├── circuits/           # Circom — JoinSplit (1x2, 2x2)
+│   └── test/           # Foundry tests (111 tests)
+├── circuits/           # Circom — JoinSplit (1x2, 2x2) with protocolFee
 │   ├── src/            # Circuit source
 │   └── build/          # Compiled circuits + verification keys
 ├── sdk/                # TypeScript SDK
-│   ├── src/v4/         # UTXO engine, encryption, stealth (active)
-│   ├── src/x402/       # x402 middleware + client (active)
-│   └── src/legacy/     # V3 (deprecated)
+│   ├── src/v4/         # UTXO engine, encryption, stealth, view tags
+│   ├── src/x402/       # x402 middleware + client + relayer + facilitator
+│   ├── src/erc8004/    # ERC-8004 integration helpers
+│   └── src/utils/      # Logger, crypto utilities
 ├── app/                # Demo web app (Next.js 14)
 ├── examples/           # Integration examples
 │   ├── virtuals-integration/
 │   ├── eliza-plugin/
 │   ├── express-server/
-│   └── basic-transfer/
-├── demo/               # E2E test scripts
+│   ├── basic-transfer/
+│   └── erc8004-integration/
+├── scripts/            # Deploy, test fixtures, E2E scripts
 └── docs/               # Protocol documentation
     ├── LIGHTPAPER.md
     ├── PROTOCOL.md
     ├── CIRCUITS.md
     ├── STEALTH.md
+    ├── TODO.md
+    ├── ROADMAP.md
     └── POI-ROADMAP.md
 ```
 
@@ -159,54 +178,44 @@ ghostpay/
 
 Deploy block: `38256581`
 
-## V3 vs V4
-
-| Aspect | V3 (old) | V4 (current) |
-|--------|----------|--------------|
-| Model | Single-note withdraw | UTXO JoinSplit (N->M) |
-| Amounts | PUBLIC in withdraw() | HIDDEN (publicAmount=0) |
-| Verification | On-chain only | Off-chain note decryption + on-chain proof |
-| Entry point | deposit() + withdraw() | transact() (single entry) |
-| Tree depth | 20 (~1M leaves) | 20 (~1M leaves) |
-| Circuits | 1 (privatePayment) | 2 (joinSplit_1x2, joinSplit_2x2) |
-| Coin selection | Single note | Multi-UTXO (exact/smallest/accumulate) |
-| Note encryption | None | ECDH + HKDF + AES-256-GCM |
-| Scheme | zk-exact | zk-exact-v2 |
-| Protocol fee | None | 0.1% (configurable) |
-
 ## Testing
 
 ```bash
-# Foundry tests (contracts — 132 tests)
+# Foundry tests (contracts — 111 tests)
 cd contracts && forge test -vvv
 
-# SDK tests (TypeScript — 116 tests)
+# SDK tests (TypeScript — 101 tests)
 cd sdk && pnpm test
 
+# Relayer tests (5 tests)
+cd sdk && pnpm test -- --grep relayer
+
 # Run E2E on Base Sepolia
-PRIVATE_KEY=0x... npx tsx demo/e2e-v4-test.ts
+PRIVATE_KEY=0x... npx ts-node scripts/e2e-base-sepolia.ts
 ```
 
-**Total: 259 tests** (132 Foundry + 127 SDK)
+**Total: 217 tests** (111 Foundry + 101 SDK + 5 Relayer)
 
 ## Fee Structure
 
 | Fee | Amount | Recipient |
 |-----|--------|-----------|
-| Protocol fee | max(0.1%, $0.005) | Treasury |
-| Relayer fee | $0.01-0.05/TX | Server operator |
+| Protocol fee | max(0.1%, $0.01) | Treasury |
+| Relayer fee | $0.01-0.05/TX | Server operator / Relayer |
+| Facilitator fee | $0.01-0.05/TX | GhostPay facilitator |
 
-Protocol fees apply to deposits and withdrawals. Private transfers are fee-free in V4.
+Protocol fees apply to ALL transactions including private transfers (circuit-level enforcement). Agents operate with USDC only — no ETH funding required when using external relayer.
 
 ## Roadmap
 
 | Phase | Status | Features |
 |-------|--------|----------|
-| V4.3 | Live | ZK-UTXO, x402 middleware, stealth, protocol fees, BSL-1.1 |
-| V4.5 | Building | GhostPay Facilitator, ERC-8004 integration, POI, mainnet |
-| V5 | Planned | Decentralized relayers, ZK reputation, multi-token, view tags |
+| V4.3 | ✅ Complete | ZK-UTXO, x402 middleware, stealth, protocol fees, BSL-1.1 |
+| V4.4 | ✅ Complete | Circuit-level fee, view tags, hybrid relayer, facilitator, ERC-8004 L1 |
+| V4.5 | 🔨 Building | Facilitator deploy, ERC-8004 L2, POI, ceremony, audit, mainnet |
+| V5 | 📋 Planned | Decentralized relayers, ZK reputation, multi-token |
 
-[Full roadmap](docs/LIGHTPAPER.md#roadmap)
+[Full roadmap](docs/ROADMAP.md)
 
 ## Documentation
 
@@ -219,6 +228,8 @@ Protocol fees apply to deposits and withdrawals. Private transfers are fee-free 
 | [Trusted Setup](circuits/CEREMONY.md) | Trusted setup ceremony guide |
 | [POI Roadmap](docs/POI-ROADMAP.md) | Proof of Innocence design |
 | [Audit Report](AUDIT.md) | Internal audit findings |
+| [TODO](docs/TODO.md) | Development task tracker |
+| [Roadmap](docs/ROADMAP.md) | Visual roadmap and milestones |
 
 ## Integration Examples
 
@@ -228,11 +239,12 @@ Protocol fees apply to deposits and withdrawals. Private transfers are fee-free 
 | [ElizaOS Plugin](examples/eliza-plugin/) | ElizaOS action plugin |
 | [Express Server](examples/express-server/) | Privacy paywall middleware |
 | [Basic Transfer](examples/basic-transfer/) | Deposit -> transfer -> withdraw |
+| [ERC-8004 Integration](examples/erc8004-integration/) | Agent registration + payment proof |
 
 ## Security
 
-- 2 internal security audits completed (46+ findings resolved)
-- 259 tests passing (132 Foundry + 127 SDK)
+- 3 internal security audits completed (46+ findings resolved)
+- 217 tests passing (111 Foundry + 101 SDK + 5 Relayer)
 - Professional audit planned pre-mainnet
 - Bug reports: security@ghostpay.xyz
 

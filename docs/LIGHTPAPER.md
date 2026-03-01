@@ -66,6 +66,33 @@ GhostPay brings Railgun-level privacy to Base's agent economy:
 - Agent payments become PRIVATE (GhostPay)
 - "Verifiable agents, private payments"
 
+**Circuit-Level Fee (V4.4)**
+- Protocol fee enforced at ZK circuit level: `sum(inputs) + publicAmount = sum(outputs) + protocolFee`
+- Fee collected on ALL transaction types including private transfers
+- No way to bypass — mathematically enforced by zero-knowledge proof
+- Fee: max(0.1%, $0.01 minimum)
+
+**View Tags (V4.4)**
+- 1-byte Poseidon-based tag for each encrypted note
+- ~50x speedup for note scanning (500K notes → ~10K decrypt attempts)
+- Privacy-preserving: nonce-based tags prevent recipient clustering
+
+**Hybrid Relayer (V4.4)**
+- Self-relay: server submits transactions directly
+- External relay: server delegates to GhostPay relayer — zero gas for API providers
+- Agents operate with USDC only — no ETH funding required
+
+**GhostPay Facilitator (V4.4)**
+- x402-standard compatible privacy facilitator
+- Any x402 server adds privacy by changing one URL — zero code changes
+- Endpoints: /verify (settle), /info (discovery), /health
+- Scheme: `zk-exact-v2`
+
+**ERC-8004 Level 1 Integration (V4.4)**
+- Agent registration file spec with GhostPay payment method
+- Payment proof for feedback: nullifier-based sybil resistance
+- Helper SDK: `ghostPayPaymentMethod()`, `paymentProofForFeedback()`
+
 ### How It Works
 
 ```
@@ -85,6 +112,12 @@ Agent receives API response -> HTTP 200
     |
 On-chain: only cryptographic commitments visible
           sender, receiver, amount = HIDDEN
+```
+
+**Facilitator Mode (V4.4):**
+```
+Agent → x402 Server → GhostPay Facilitator → pool.transact() → Base
+(Server changes only facilitator URL — zero code changes for privacy)
 ```
 
 ### Privacy Model
@@ -127,6 +160,10 @@ On-chain: only cryptographic commitments visible
 3. **TypeScript SDK** — UTXO engine, note encryption (HKDF + AES-256-GCM), stealth addresses, Merkle tree sync
 4. **x402 Middleware** — Express middleware for API providers, payment verification, server-as-relayer
 5. **Stealth Registry** — ECDH-based stealth address system for recipient privacy
+6. **Relayer/Facilitator** — Hybrid relay system for gas-free agent payments, x402-compatible facilitator endpoint
+7. **ERC-8004 Integration** — Agent registration helpers, payment proof for reputation feedback
+8. **View Tags** — Note scanning optimization with 1-byte pre-filtering
+9. **Structured Logger** — Configurable logging for all SDK operations
 
 ### Smart Contracts (Base Sepolia — Live)
 
@@ -145,31 +182,130 @@ All contracts verified on Blockscout. Deploy block: `38256581`.
 
 | Fee Type | Amount | Recipient |
 |----------|--------|-----------|
-| Protocol fee (deposit/withdraw) | max(0.1%, $0.005) | Treasury (governance) |
-| Relayer fee (per TX) | $0.01-0.05 | Server operator |
-| Facilitator fee (Phase 2) | $0.01-0.05/TX | GhostPay facilitator |
+| Protocol fee (ALL transactions) | max(0.1%, $0.01) | Treasury (governance) |
+| Relayer fee (per TX) | $0.01-0.05 | Server operator / Relayer |
+| Facilitator fee | $0.01-0.05/TX | GhostPay facilitator |
 | Enterprise SDK license | $50K/year | GhostPay team |
 
 ### Unit Economics
 
 - Base L2 gas cost per TX: ~$0.02
-- Protocol fee per TX: >= $0.005
+- Protocol fee per TX: >= $0.01
 - Relayer fee per TX: $0.01-0.05
 - **Net margin per TX: positive from day 1**
 
-### Market Opportunity
+### Market Context: The Agent Payment Explosion
 
-- x402 cumulative volume: $50M+ (Q1 2026), growing rapidly
-- Base leads in total x402 volume ($21.5M) and transactions (70M+)
-- GhostPay target: 5% of Base x402 private payment volume
+The agent economy is experiencing exponential growth, validated by third-party data:
 
-### Revenue Projections
+**x402 Protocol (Current State — Q1 2026):**
+- $43M+ cumulative payment volume across all chains
+- 140M+ transactions processed
+- 406,700+ unique buyers, 81,000+ unique sellers
+- ~500% year-over-year growth rate
+- x402 Foundation members: Coinbase, Cloudflare, Google Cloud, Visa
+- Stripe added x402 support in February 2026
 
-| Year | x402 Base Volume (est.) | GhostPay 5% Share | Protocol + Fees | Enterprise | Total |
-|------|------------------------|-------------------|-----------------|------------|-------|
-| 2026 | $50-200M | $2.5-10M | $30-125K | $100K | $130-225K |
-| 2027 | $500M-2B | $25-100M | $300K-1.25M | $250K | $550K-1.5M |
-| 2028 | $2-10B | $100-500M | $1.5-5M | $500K | $2-5.5M |
+*Sources: joinedcrypto.com (Jan 2026), FourWeekMBA (Mar 2026), Gate News (Dec 2025)*
+
+**AI Agent Market:**
+- $7.6B (2025) → projected $52-182B by 2030-2033 (45-50% CAGR)
+- 1 billion+ AI agents projected operational by end of 2026 (IBM, Salesforce)
+- a16z Crypto projects up to $30 trillion in autonomous transactions by 2030
+- 50% of enterprises will deploy autonomous AI agents by 2027 (Deloitte)
+
+*Sources: Grand View Research, MarketsandMarkets, Deloitte, a16z State of Crypto 2025*
+
+**Key Catalysts (2026):**
+- Stripe x402 integration → access to millions of existing merchants
+- Google Cloud Agent Payments Protocol → enterprise adoption
+- Visa as x402 Foundation member → traditional finance bridge
+- Base leading x402 volume → Coinbase ecosystem advantage
+
+### GhostPay Revenue Model
+
+**Fee Structure:** max(0.1%, $0.01 minimum) on ALL transactions (circuit-level enforcement)
+
+**Revenue Streams:**
+1. Protocol fee: Collected on every deposit, transfer, and withdrawal
+2. Facilitator fee: $0.01-0.05/TX for privacy-as-a-service
+3. Enterprise SDK: $50K/year per integration
+
+### Growth Scenarios
+
+**Assumptions:**
+- Average x402 TX value: ~$0.30 (derived: $43M ÷ 140M TX = ~$0.31)
+- x402 annual growth: 300-500% (based on observed 500% rate, discounted for maturation)
+- GhostPay privacy adoption: 3-10% of Base x402 volume (conservative — privacy is opt-in)
+- Min fee ($0.01) applies to ~90% of transactions (micropayments dominant)
+
+**2026 Conservative:**
+
+| Metric | Value | Basis |
+|--------|-------|-------|
+| Total x402 volume (all chains) | ~$200M | $43M × 4-5x growth |
+| Base share (~50%) | ~$100M | Base leads in x402 adoption |
+| GhostPay privacy share (3%) | ~$3M | Early adoption, few integrations |
+| Transaction count | ~10M | $3M ÷ $0.30 avg |
+| Protocol fee revenue | ~$100K | 10M TX × $0.01 min fee |
+| Facilitator fee | ~$50K | Subset of TX through facilitator |
+| Enterprise licenses | $50K | 1 integration |
+| **Total revenue** | **~$200K** | |
+
+**2026 Optimistic:**
+
+| Metric | Value | Basis |
+|--------|-------|-------|
+| Total x402 volume (all chains) | ~$500M | Stripe + Google Cloud catalyst |
+| Base share (~50%) | ~$250M | |
+| GhostPay privacy share (5%) | ~$12.5M | Agent frameworks integrated |
+| Transaction count | ~40M | $12.5M ÷ $0.30 avg |
+| Protocol fee revenue | ~$400K | 40M TX × $0.01 |
+| Facilitator fee | ~$200K | |
+| Enterprise licenses | $150K | 2-3 integrations |
+| **Total revenue** | **~$750K** | |
+
+**2027 Growth (if x402 reaches mainstream):**
+
+| Metric | Value | Basis |
+|--------|-------|-------|
+| Total x402 volume (all chains) | ~$2-5B | Stripe + enterprise adoption at scale |
+| Base share (~45%) | ~$1-2.25B | |
+| GhostPay privacy share (7%) | ~$70-160M | Privacy as default for agent fleets |
+| Transaction count | ~230-530M | |
+| Protocol fee revenue | ~$2.3-5.3M | |
+| Facilitator + enterprise | ~$700K-1.5M | |
+| **Total revenue** | **~$3-7M** | |
+
+**2028+ Upside Scenario:**
+- a16z projects $30T in autonomous transactions by 2030
+- If even 0.1% flows through GhostPay: $30B × 0.001 = $30M volume
+- At $0.01/TX on 100M transactions: $1M protocol fee alone
+- With enterprise + facilitator: $3-5M total
+
+### Revenue Sensitivity Analysis
+
+The dominant revenue driver is **transaction count**, not volume (because min fee applies to most micropayments):
+
+| Metric | Impact on Revenue |
+|--------|-------------------|
+| 10M TX/year | ~$100K protocol fee |
+| 50M TX/year | ~$500K protocol fee |
+| 200M TX/year | ~$2M protocol fee |
+| 500M TX/year | ~$5M protocol fee |
+| 1B TX/year | ~$10M protocol fee |
+
+For context: x402 already processes 140M+ cumulative transactions in its first 8 months. If GhostPay captures even 1% of x402 transaction count, that's millions of transactions per year.
+
+### Path to Profitability
+
+| | Month 1-6 | Month 7-12 | Year 2 |
+|---|-----------|------------|--------|
+| Monthly cost | ~$150 | ~$300 | ~$500 |
+| Monthly revenue | ~$0 | ~$5-20K | ~$50-250K |
+| Status | Building | Break-even | Profitable |
+
+**Key insight:** GhostPay's operational costs are minimal (~$150/month for VPS + RPC). Even 500K transactions/month ($5K revenue) achieves profitability. This is achievable with a single agent framework integration.
 
 ### Operational Costs
 
@@ -191,6 +327,11 @@ All contracts verified on Blockscout. Deploy block: `38256581`.
 | UTXO model | Yes | Yes | No (fixed amounts) | Yes |
 | Encrypted amounts | Yes | Yes | No | Yes |
 | Live on testnet | Yes | N/A | N/A | No (different chain) |
+| Circuit-level fee | Yes (V4.4) | No | No | No |
+| View tags | Yes (V4.4) | Yes | No | No |
+| Hybrid relayer | Yes (V4.4) | Decentralized | N/A | N/A |
+| x402 facilitator | Yes (V4.4) | No | No | No |
+| No ETH required | Yes (V4.4) | No | No | No |
 
 **GhostPay is the only privacy protocol on Base with x402 and ERC-8004 integration.**
 
@@ -208,7 +349,7 @@ All contracts verified on Blockscout. Deploy block: `38256581`.
 | Risk | Mitigation |
 |------|-----------|
 | Regulatory (Tornado Cash precedent) | POI roadmap, deposit screening planned, BSL license |
-| Smart contract vulnerability | 2 internal audits, 259 tests, professional audit planned |
+| Smart contract vulnerability | 3 internal audits, 217 tests, professional audit planned |
 | Market timing (early) | First-mover advantage, no competition on Base |
 | Solo developer | 80+ PRs in major projects, proven execution, team expansion planned |
 
@@ -216,10 +357,11 @@ All contracts verified on Blockscout. Deploy block: `38256581`.
 
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
-| **V4.3** (Current) | Live | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, 259 tests, Base Sepolia deployment |
-| **V4.5** | Weeks 1-8 (Program) | GhostPay Facilitator Service (x402-standard compatible), ERC-8004 integration (registration file + reputation proofs), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
-| **V5** | Months 6-12 | Decentralized relayer network (stake + slash), view tags for note scanning optimization, ZK reputation proofs (ERC-8004 Level 3), multi-token support (USDT, ETH, DAI), circuit-level fee for private transfers |
-| **V5+** | Year 2+ | Cross-chain privacy (CCTP V2), Halo2 migration (no ceremony), facilitator network expansion |
+| **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, Base Sepolia deployment |
+| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, GhostPay facilitator, ERC-8004 Level 1 integration, 3 internal audits, 217 tests |
+| **V4.5** | Weeks 1-8 (Program) | GhostPay Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
+| **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
+| **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |
 
 ## Team
 
@@ -237,19 +379,29 @@ All contracts verified on Blockscout. Deploy block: `38256581`.
 
 | Metric | Value |
 |--------|-------|
-| GhostPay V4 development time | ~48 hours (V3 -> V4.3) |
-| Test coverage | 259 tests (132 Foundry + 127 SDK) |
-| Internal audits completed | 2 (46+ findings resolved) |
+| GhostPay development time | ~72 hours (V3 → V4.4) |
+| Test coverage | 217 tests (111 Foundry + 101 SDK + 5 Relayer) |
+| Internal audits completed | 3 (46+ findings resolved) |
 | Lines of Solidity | ~800+ |
-| Lines of TypeScript | ~3000+ |
-| Circom circuits | 2 (1x2 + 2x2 JoinSplit) |
-| Documentation pages | 6 (Protocol, Circuits, Stealth, Ceremony, POI Roadmap, Audit) |
+| Lines of TypeScript | ~3500+ |
+| Circom circuits | 2 (1x2 + 2x2 JoinSplit with protocolFee) |
+| Documentation pages | 8 (Protocol, Circuits, Stealth, Ceremony, POI Roadmap, Audit, TODO, Roadmap) |
 
 ## The Ask
 
-**Base Batches Season 3 — What we'll build:**
+**Base Batches Season 3 — What we've built and what we'll build:**
 
-1. **GhostPay Facilitator** — Any x402 server adds privacy by changing one URL. No code changes. Drop-in privacy-as-a-service.
+**Already built (V4.4 — complete):**
+- Circuit-level fee enforcement on all transactions
+- View tags for 50x note scanning optimization
+- Hybrid relayer with external relay support
+- x402-compatible GhostPay Facilitator
+- ERC-8004 Level 1 integration (registration + payment proof)
+- 217 tests passing, 3 internal audits
+
+**What we'll build in the program (V4.5):**
+
+1. **GhostPay Facilitator Deploy** — Any x402 server adds privacy by changing one URL. No code changes. Drop-in privacy-as-a-service.
 2. **ERC-8004 Integration** — GhostPay as the payment privacy layer for the 24,000+ registered agents. Verifiable agents, private payments.
 3. **Mainnet Launch** — Multi-party ceremony, professional audit, Base mainnet deployment.
 4. **First Enterprise Integration** — Partner with 1-2 agent frameworks (Virtuals, ElizaOS) for SDK integration.
