@@ -43,6 +43,13 @@ export { encryptNote, decryptNote } from "./noteEncryption.js";
 export { syncTreeFromEvents, getSpentNullifiers } from "./treeSync.js";
 
 export {
+  NoteStore,
+  MemoryNoteStore,
+  FileNoteStore,
+  StoredNote,
+} from "./noteStore.js";
+
+export {
   ShieldedWallet,
   ShieldedWalletConfig,
   TransactResult,

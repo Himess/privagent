@@ -21,6 +21,7 @@ import {
 } from "./joinSplitProver.js";
 import { ExtData, computeExtDataHash } from "./extData.js";
 import { syncTreeFromEvents } from "./treeSync.js";
+import { NoteStore, MemoryNoteStore, StoredNote } from "./noteStore.js";
 
 // ============================================================================
 // Pool ABI (V4)
@@ -56,6 +57,7 @@ export interface ShieldedWalletConfig {
   usdcAddress: string;
   circuitDir: string; // directory containing v4/1x2/ and v4/2x2/
   deployBlock?: number;
+  noteStore?: NoteStore; // optional persistent note storage (default: MemoryNoteStore)
 }
 
 // ============================================================================
@@ -89,9 +91,11 @@ export class ShieldedWallet {
   private tree: MerkleTree;
   private config: ShieldedWalletConfig;
   private initialized = false;
+  private noteStore: NoteStore;
 
   constructor(config: ShieldedWalletConfig, privateKey?: bigint) {
     this.config = config;
+    this.noteStore = config.noteStore || new MemoryNoteStore();
     this.keypair = privateKey
       ? keypairFromPrivateKey(privateKey)
       : generateKeypair();
@@ -114,7 +118,41 @@ export class ShieldedWallet {
     await initPoseidon();
     // Re-derive pubkey after Poseidon init (if it was generated before init)
     this.keypair = keypairFromPrivateKey(this.keypair.privateKey);
+
+    // Load persisted notes from NoteStore
+    const stored = await this.noteStore.getUnspent();
+    for (const sn of stored) {
+      const utxo: UTXO = {
+        amount: BigInt(sn.amount),
+        pubkey: BigInt(sn.pubkey),
+        blinding: BigInt(sn.blinding),
+        commitment: BigInt(sn.commitment),
+        nullifier: BigInt(sn.nullifier),
+        leafIndex: sn.leafIndex,
+        spent: false,
+        pending: false,
+      };
+      // Avoid duplicates (if already tracked)
+      if (!this.utxos.some((u) => u.commitment === utxo.commitment)) {
+        this.utxos.push(utxo);
+      }
+    }
+
     this.initialized = true;
+  }
+
+  private utxoToStoredNote(utxo: UTXO, txHash?: string): StoredNote {
+    return {
+      commitment: utxo.commitment.toString(),
+      nullifier: (utxo.nullifier ?? 0n).toString(),
+      amount: utxo.amount.toString(),
+      pubkey: utxo.pubkey.toString(),
+      blinding: utxo.blinding.toString(),
+      leafIndex: utxo.leafIndex ?? 0,
+      spent: !!utxo.spent,
+      createdAt: Date.now(),
+      txHash,
+    };
   }
 
   async syncTree(): Promise<void> {
@@ -255,6 +293,9 @@ export class ShieldedWallet {
     this.tree.addLeaf(dummyOutput.commitment);
     this.utxos.push(depositUTXO);
     // Don't track zero-amount dummy
+
+    // Persist to NoteStore
+    await this.noteStore.save(this.utxoToStoredNote(depositUTXO, receipt.hash));
 
     return {
       txHash: receipt.hash,
@@ -415,6 +456,9 @@ export class ShieldedWallet {
     for (const utxo of inputUTXOs) {
       utxo.spent = true;
       utxo.pending = false;
+      if (utxo.nullifier !== undefined) {
+        await this.noteStore.markSpent(utxo.nullifier.toString());
+      }
     }
 
     // Add new UTXOs to local state
@@ -431,6 +475,7 @@ export class ShieldedWallet {
       // Only track UTXOs that belong to us (pubkey matches)
       if (outUTXO.pubkey === this.keypair.publicKey && outUTXO.amount > 0n) {
         this.utxos.push(outUTXO);
+        await this.noteStore.save(this.utxoToStoredNote(outUTXO, receipt.hash));
       } else if (outUTXO.amount > 0n) {
         // [SDK-M5] Warn about untracked UTXO (sent to different pubkey)
         console.warn(`Untracked UTXO at leaf ${outUTXO.leafIndex}: pubkey mismatch`);
@@ -475,10 +520,13 @@ export class ShieldedWallet {
    * Confirm a payment that was submitted by a relayer (x402 flow).
    * Marks input UTXOs as spent and adds output UTXOs to local state.
    */
-  confirmPayment(inputUTXOs: UTXO[], outputUTXOs: UTXO[]): void {
+  async confirmPayment(inputUTXOs: UTXO[], outputUTXOs: UTXO[]): Promise<void> {
     for (const utxo of inputUTXOs) {
       utxo.spent = true;
       utxo.pending = false;
+      if (utxo.nullifier !== undefined) {
+        await this.noteStore.markSpent(utxo.nullifier.toString());
+      }
     }
 
     const leafCount = this.tree.getLeafCount();
@@ -493,6 +541,7 @@ export class ShieldedWallet {
       this.tree.addLeaf(out.commitment);
       if (out.pubkey === this.keypair.publicKey && out.amount > 0n) {
         this.utxos.push(out);
+        await this.noteStore.save(this.utxoToStoredNote(out));
       }
     }
   }

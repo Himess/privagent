@@ -80,7 +80,7 @@ export async function ghostFetchV4(
     const txHash = retryResponse.headers.get("X-Payment-TxHash");
     if (txHash) {
       // Server confirmed on-chain transaction — confirm payment
-      wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+      await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
     } else {
       // Server said OK but no TX hash — cancel (unlock UTXOs)
       wallet.cancelPayment(result._inputUTXOs);
@@ -134,7 +134,7 @@ export async function ghostFetchV4WithCallback(
   const success = retryResponse.ok && !!txHash;
 
   if (success) {
-    wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+    await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
   } else {
     wallet.cancelPayment(result._inputUTXOs);
   }
