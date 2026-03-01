@@ -23,12 +23,19 @@ contract StealthRegistry {
         uint256 timestamp;
     }
 
-    uint256 public constant MAX_ANNOUNCEMENTS_PER_CALLER = 1000; // [SC-H5]
+    uint256 public constant RATE_LIMIT_WINDOW = 1 hours;     // [C2] sliding window
+    uint256 public constant RATE_LIMIT_MAX = 100;            // [C2] max per window
+
+    struct RateLimit {
+        uint256 count;
+        uint256 windowStart;
+    }
+
     mapping(address => StealthMetaAddress) public stealthAddresses;
     mapping(address => bool) public isRegistered;
     Announcement[] public announcements;
     mapping(uint256 => uint256[]) public announcementsByViewTag;
-    mapping(address => uint256) public announcementCount; // [SC-H5]
+    mapping(address => RateLimit) public rateLimits;         // [C2] replaces permanent counter
 
     event StealthMetaAddressRegistered(
         address indexed registrant,
@@ -82,8 +89,14 @@ contract StealthRegistry {
         uint256 viewTag,
         bytes calldata metadata
     ) external {
-        require(announcementCount[msg.sender] < MAX_ANNOUNCEMENTS_PER_CALLER, "Rate limit exceeded"); // [SC-H5]
-        announcementCount[msg.sender]++;
+        // [C2] Sliding window rate limit (resets hourly)
+        RateLimit storage limit = rateLimits[msg.sender];
+        if (block.timestamp >= limit.windowStart + RATE_LIMIT_WINDOW) {
+            limit.count = 0;
+            limit.windowStart = block.timestamp;
+        }
+        require(limit.count < RATE_LIMIT_MAX, "Rate limit: max 100 announces per hour");
+        limit.count++;
         uint256 index = announcements.length;
 
         announcements.push(Announcement({

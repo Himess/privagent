@@ -110,27 +110,75 @@ contract StealthRegistryTest is Test {
         registry.getAnnouncement(0);
     }
 
-    // ============ Rate Limiting [SC-H5] ============
+    // ============ Rate Limiting [C2] — Sliding Window ============
 
-    function test_announce_rateLimit() public {
-        // Should be able to announce up to MAX_ANNOUNCEMENTS_PER_CALLER
-        uint256 maxAnn = registry.MAX_ANNOUNCEMENTS_PER_CALLER();
-        assertTrue(maxAnn == 1000);
+    function test_announce_rateLimit() public view {
+        // Verify constants
+        assertEq(registry.RATE_LIMIT_WINDOW(), 1 hours);
+        assertEq(registry.RATE_LIMIT_MAX(), 100);
     }
 
-    function test_announce_exceedsRateLimit_reverts() public {
-        uint256 maxAnn = registry.MAX_ANNOUNCEMENTS_PER_CALLER();
+    function test_rateLimit_withinWindow_succeeds() public {
+        // 99 announces within window should succeed
+        for (uint256 i = 0; i < 99; i++) {
+            vm.prank(alice);
+            registry.announce(1, bob, abi.encodePacked(i), 0, hex"");
+        }
+        assertEq(registry.getAnnouncementCount(), 99);
+    }
 
-        // Fast-forward: make MAX announcements
-        for (uint256 i = 0; i < maxAnn; i++) {
+    function test_rateLimit_exceedsWindow_reverts() public {
+        // 100 announces OK
+        for (uint256 i = 0; i < 100; i++) {
             vm.prank(alice);
             registry.announce(1, bob, abi.encodePacked(i), 0, hex"");
         }
 
-        // One more should revert
+        // 101st should revert
         vm.prank(alice);
-        vm.expectRevert("Rate limit exceeded");
+        vm.expectRevert("Rate limit: max 100 announces per hour");
         registry.announce(1, bob, hex"ff", 0, hex"");
+    }
+
+    function test_rateLimit_windowReset() public {
+        // Fill first window
+        for (uint256 i = 0; i < 100; i++) {
+            vm.prank(alice);
+            registry.announce(1, bob, abi.encodePacked(i), 0, hex"");
+        }
+
+        // 101st should fail
+        vm.prank(alice);
+        vm.expectRevert("Rate limit: max 100 announces per hour");
+        registry.announce(1, bob, hex"ff", 0, hex"");
+
+        // Advance 1 hour → window resets
+        vm.warp(block.timestamp + 1 hours);
+
+        // Should succeed again
+        for (uint256 i = 0; i < 100; i++) {
+            vm.prank(alice);
+            registry.announce(1, bob, abi.encodePacked(i + 200), 0, hex"");
+        }
+        assertEq(registry.getAnnouncementCount(), 200);
+    }
+
+    function test_rateLimit_differentUsers_independent() public {
+        // Alice fills her window
+        for (uint256 i = 0; i < 100; i++) {
+            vm.prank(alice);
+            registry.announce(1, bob, abi.encodePacked(i), 0, hex"");
+        }
+
+        // Alice is rate limited
+        vm.prank(alice);
+        vm.expectRevert("Rate limit: max 100 announces per hour");
+        registry.announce(1, bob, hex"ff", 0, hex"");
+
+        // Bob can still announce
+        vm.prank(bob);
+        registry.announce(1, alice, hex"aa", 0, hex"");
+        assertEq(registry.getAnnouncementCount(), 101);
     }
 
     // ============ Additional Tests ============
@@ -181,19 +229,5 @@ contract StealthRegistryTest is Test {
         assertEq(meta.spendingPubKeyY, sy);
         assertEq(meta.viewingPubKeyX, vx);
         assertEq(meta.viewingPubKeyY, vy);
-    }
-
-    function test_announce_rateLimitPerCaller() public {
-        // Alice reaches limit
-        uint256 maxAnn = registry.MAX_ANNOUNCEMENTS_PER_CALLER();
-        for (uint256 i = 0; i < maxAnn; i++) {
-            vm.prank(alice);
-            registry.announce(1, bob, abi.encodePacked(i), 0, hex"");
-        }
-
-        // Bob can still announce
-        vm.prank(bob);
-        registry.announce(1, alice, hex"aa", 0, hex"");
-        assertEq(registry.announcementCount(bob), 1);
     }
 }

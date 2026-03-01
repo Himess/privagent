@@ -1,10 +1,4 @@
-// V3 (single-note model)
-export { ZkPaymentHandler, decodePaymentHeader } from "./zkExactScheme.js";
-export { ghostFetch, createGhostFetch, ghostFetchWithCallback } from "./zkFetch.js";
-export { ghostPaywall } from "./middleware.js";
-export type { ZkPaymentHandlerOptions } from "./zkExactScheme.js";
-export type { GhostPaywallConfig, PaymentInfo } from "../types.js";
-export type { PaymentCallback } from "./zkFetch.js";
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 
 // V4 (JoinSplit UTXO model — hidden amounts)
 export { ZkPaymentHandlerV4, decodePaymentHeaderV4 } from "./zkExactSchemeV2.js";

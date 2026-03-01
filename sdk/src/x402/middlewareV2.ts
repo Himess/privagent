@@ -12,6 +12,24 @@ import type {
 import { computeExtDataHash } from "../v4/extData.js";
 import { decryptNote } from "../v4/noteEncryption.js";
 
+// [M4] In-memory rate limiter for DoS protection
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+const rateLimitStore: Map<string, RateLimitEntry> = new Map();
+
+function checkRateLimit(ip: string, maxRequests: number = 60, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const entry = rateLimitStore.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= maxRequests;
+}
+
 const POOL_V4_ABI = [
   "function transact((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, bytes32 root, int256 publicAmount, bytes32 extDataHash, bytes32[] inputNullifiers, bytes32[] outputCommitments) args, (address recipient, address relayer, uint256 fee, bytes encryptedOutput1, bytes encryptedOutput2) extData) external",
   "function isKnownRoot(bytes32) external view returns (bool)",
@@ -44,6 +62,13 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
   const poolContract = new Contract(config.poolAddress, POOL_V4_ABI, config.signer);
 
   return async (req: Request, res: Response, next: NextFunction) => {
+    // [M4] Rate limiting
+    const clientIp = req.ip || (req.socket?.remoteAddress ?? "unknown");
+    if (!checkRateLimit(clientIp)) {
+      res.status(429).json({ error: "Too many requests" });
+      return;
+    }
+
     const paymentHeader = req.headers["payment"] as string | undefined;
 
     // ===== No Payment header → return 402 =====

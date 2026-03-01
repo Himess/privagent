@@ -3,16 +3,6 @@ export { initPoseidon, hash1, hash2, hash3, computeCommitment, computeNullifierH
 export { MerkleTree } from "./merkle.js";
 export * from "./types.js";
 
-// V3 Legacy (deprecated — use V4 API)
-/** @deprecated Use V4 ShieldedWallet instead */
-export { ProofGenerator } from "./legacy/proof.js";
-/** @deprecated Use V4 createUTXO instead */
-export { createNote, getNullifierHash, selectNoteForPayment, randomFieldElement, serializeNote, deserializeNote } from "./legacy/note.js";
-/** @deprecated Use V4 stealth API instead */
-export { AgentStealthKeypair, generateStealthPayment, pubKeyToAddress, serializeStealthMetaAddress, deserializeStealthMetaAddress } from "./legacy/stealth.js";
-/** @deprecated Use V4 ShieldedWallet instead */
-export { ShieldedPoolClient } from "./legacy/pool.js";
-
 // ERC-8004 Integration
 export {
   ghostPayPaymentMethod,
@@ -23,3 +13,7 @@ export {
 
 // V4 UTXO Engine (active)
 export * from "./v4/index.js";
+
+// Utilities
+export { createLogger, setLogLevel, getLogLevel } from "./utils/logger.js";
+export type { Logger, LogLevel } from "./utils/logger.js";

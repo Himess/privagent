@@ -1043,6 +1043,68 @@ contract ShieldedPoolV4Test is Test {
 
     // ============ 18. Invariant Test [TEST-H2] ============
 
+    // ============ [H5] Cross-Circuit Double-Spend ============
+
+    function test_crossCircuit_nullifierReuse_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+
+        // Use nullifier X in 1x2 circuit
+        bytes32 sharedNullifier = bytes32(uint256(0xCC55CC55));
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
+        ShieldedPoolV4.TransactArgs memory args1 = _makeTransferArgs(sharedNullifier, extData);
+        pool.transact(args1, extData);
+
+        // Try same nullifier X in 2x2 circuit → should REVERT
+        bytes32 differentNull = bytes32(uint256(0xDD66DD66));
+        ShieldedPoolV4.TransactArgs memory args2 = _make2x2Args(0, sharedNullifier, differentNull, extData);
+        args2.root = pool.getLastRoot();
+        args2.extDataHash = _computeExtDataHash(extData);
+        // Need fresh commitments
+        args2.outputCommitments[0] = bytes32(uint256(0x1234abcd));
+        args2.outputCommitments[1] = bytes32(uint256(0x5678ef01));
+
+        vm.expectRevert(ShieldedPoolV4.NullifierAlreadyUsed.selector);
+        pool.transact(args2, extData);
+    }
+
+    function test_crossCircuit_differentNullifiers_succeeds() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+
+        // 1x2 with nullifier X
+        bytes32 null1x2 = bytes32(uint256(0xAA11AA11));
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
+        ShieldedPoolV4.TransactArgs memory args1 = _makeTransferArgs(null1x2, extData);
+        pool.transact(args1, extData);
+
+        // 2x2 with DIFFERENT nullifiers Y, Z → should succeed
+        bytes32 nullY = bytes32(uint256(0xBB22BB22));
+        bytes32 nullZ = bytes32(uint256(0xCC33CC33));
+        ShieldedPoolV4.TransactArgs memory args2 = _make2x2Args(0, nullY, nullZ, extData);
+        args2.root = pool.getLastRoot();
+        args2.extDataHash = _computeExtDataHash(extData);
+
+        pool.transact(args2, extData);
+
+        assertTrue(pool.nullifiers(null1x2));
+        assertTrue(pool.nullifiers(nullY));
+        assertTrue(pool.nullifiers(nullZ));
+    }
+
+    // ============ [M8] Withdraw to Pool Address ============
+
+    function test_withdraw_toPoolAddress_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(address(pool), address(0), 0);
+        bytes32 nullifier = bytes32(uint256(0xFADE0001));
+        ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(1_000_000, nullifier, extData);
+
+        vm.expectRevert(ShieldedPoolV4.WithdrawToSelf.selector);
+        pool.transact(args, extData);
+    }
+
+    // ============ 18. Invariant Test [TEST-H2] ============
+
     function test_invariant_balanceAfterDepositWithdraw() public {
         // Deposit
         uint256 depositAmount = 50_000_000; // 50 USDC

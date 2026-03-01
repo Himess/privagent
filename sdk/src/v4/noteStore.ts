@@ -46,13 +46,15 @@ export interface NoteStore {
 
 /**
  * In-memory NoteStore — default, no persistence.
- * Notes are lost on restart.
+ * [M2] O(1) nullifier lookup via secondary index.
  */
 export class MemoryNoteStore implements NoteStore {
   private notes: Map<string, StoredNote> = new Map();
+  private nullifierIndex: Map<string, string> = new Map(); // [M2] nullifier → commitment
 
   async save(note: StoredNote): Promise<void> {
     this.notes.set(note.commitment, note);
+    this.nullifierIndex.set(note.nullifier, note.commitment);
   }
 
   async getUnspent(): Promise<StoredNote[]> {
@@ -64,19 +66,19 @@ export class MemoryNoteStore implements NoteStore {
   }
 
   async markSpent(nullifier: string): Promise<void> {
-    for (const note of this.notes.values()) {
-      if (note.nullifier === nullifier) {
-        note.spent = true;
-        break;
-      }
+    // [M2] O(1) lookup instead of O(n) scan
+    const commitment = this.nullifierIndex.get(nullifier);
+    if (commitment) {
+      const note = this.notes.get(commitment);
+      if (note) note.spent = true;
     }
   }
 
   async getByNullifier(nullifier: string): Promise<StoredNote | null> {
-    for (const note of this.notes.values()) {
-      if (note.nullifier === nullifier) return note;
-    }
-    return null;
+    // [M2] O(1) lookup
+    const commitment = this.nullifierIndex.get(nullifier);
+    if (!commitment) return null;
+    return this.notes.get(commitment) || null;
   }
 
   async getByCommitment(commitment: string): Promise<StoredNote | null> {
@@ -85,15 +87,17 @@ export class MemoryNoteStore implements NoteStore {
 
   async clear(): Promise<void> {
     this.notes.clear();
+    this.nullifierIndex.clear();
   }
 }
 
 /**
  * File-based NoteStore — persistent storage using JSON file.
- * Survives server restarts. Zero dependencies.
+ * [M2] O(1) nullifier lookup via secondary index (built on load).
  */
 export class FileNoteStore implements NoteStore {
   private notes: Map<string, StoredNote> = new Map();
+  private nullifierIndex: Map<string, string> = new Map(); // [M2]
   private loaded: boolean = false;
 
   constructor(private filePath: string) {}
@@ -105,6 +109,7 @@ export class FileNoteStore implements NoteStore {
       const parsed: StoredNote[] = JSON.parse(data);
       for (const note of parsed) {
         this.notes.set(note.commitment, note);
+        this.nullifierIndex.set(note.nullifier, note.commitment); // [M2]
       }
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
@@ -123,6 +128,7 @@ export class FileNoteStore implements NoteStore {
   async save(note: StoredNote): Promise<void> {
     await this.load();
     this.notes.set(note.commitment, note);
+    this.nullifierIndex.set(note.nullifier, note.commitment); // [M2]
     await this.persist();
   }
 
@@ -138,21 +144,21 @@ export class FileNoteStore implements NoteStore {
 
   async markSpent(nullifier: string): Promise<void> {
     await this.load();
-    for (const note of this.notes.values()) {
-      if (note.nullifier === nullifier) {
-        note.spent = true;
-        break;
-      }
+    // [M2] O(1) lookup
+    const commitment = this.nullifierIndex.get(nullifier);
+    if (commitment) {
+      const note = this.notes.get(commitment);
+      if (note) note.spent = true;
     }
     await this.persist();
   }
 
   async getByNullifier(nullifier: string): Promise<StoredNote | null> {
     await this.load();
-    for (const note of this.notes.values()) {
-      if (note.nullifier === nullifier) return note;
-    }
-    return null;
+    // [M2] O(1) lookup
+    const commitment = this.nullifierIndex.get(nullifier);
+    if (!commitment) return null;
+    return this.notes.get(commitment) || null;
   }
 
   async getByCommitment(commitment: string): Promise<StoredNote | null> {
@@ -162,6 +168,7 @@ export class FileNoteStore implements NoteStore {
 
   async clear(): Promise<void> {
     this.notes.clear();
+    this.nullifierIndex.clear();
     await this.persist();
   }
 }

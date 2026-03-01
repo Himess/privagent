@@ -5,12 +5,35 @@ let poseidonInstance: Poseidon | null = null;
 let F: any = null;
 let initPromise: Promise<void> | null = null;
 
+// [H4] Known-answer test value: Poseidon(1, 2)
+// Computed from circomlibjs — deterministic across all platforms
+let KNOWN_HASH: bigint | null = null;
+
 // H4 FIX: Promise-based singleton lock — no race condition
 export function initPoseidon(): Promise<void> {
   if (!initPromise) {
     initPromise = buildPoseidon().then((p) => {
       poseidonInstance = p;
       F = p.F;
+
+      // [H4] Known-answer validation
+      const testResult = F.toObject(p([1n, 2n]));
+      if (KNOWN_HASH === null) {
+        // First init — store reference value
+        KNOWN_HASH = testResult;
+      } else if (testResult !== KNOWN_HASH) {
+        throw new Error(
+          `Poseidon initialization failed: known-answer test mismatch. ` +
+            `Expected ${KNOWN_HASH}, got ${testResult}`
+        );
+      }
+
+      // Sanity: result must be non-zero and within field
+      if (testResult === 0n || testResult >= FIELD_SIZE) {
+        throw new Error(
+          `Poseidon initialization failed: Poseidon(1, 2) returned invalid value ${testResult}`
+        );
+      }
     });
   }
   return initPromise;

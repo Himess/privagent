@@ -70,6 +70,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     error FeeTooHigh();
     error ViewTagCountMismatch();
     error ProtocolFeeTooLow();
+    error WithdrawToSelf();
 
     // ============ Constants ============
     uint32 public constant MERKLE_TREE_DEPTH = 20;
@@ -251,6 +252,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             uint256 recipientAmount = withdrawAmount - extData.fee;
             if (recipientAmount == 0) revert ZeroRecipientAmount();
             if (extData.recipient == address(0)) revert InvalidRecipient();
+            if (extData.recipient == address(this)) revert WithdrawToSelf(); // [M8]
             if (!usdc.transfer(extData.recipient, recipientAmount)) revert TransferFailed();
 
             if (extData.fee > 0) {

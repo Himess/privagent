@@ -1,17 +1,17 @@
 // Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 
 /**
- * GhostPay Facilitator Server — x402-compatible privacy wrapper.
+ * [C3] GhostPay Facilitator Server — x402-compatible privacy wrapper.
  *
  * A facilitator is a relayer that also exposes x402-standard endpoints
- * (/verify, /info, /health). Any x402 server can add privacy by changing
- * its facilitator URL to point here.
+ * (/verify, /info, /health). Real TX submission via pool.transact().
  *
  * Usage:
  *   const app = createFacilitatorServer({
  *     privateKey: process.env.RELAYER_KEY!,
  *     poolAddress: '0x...',
- *     rpcUrl: 'https://mainnet.base.org',
+ *     poolAbi: ShieldedPoolV4ABI,
+ *     rpcUrl: 'https://sepolia.base.org',
  *   });
  *   app.listen(3001);
  */
@@ -25,22 +25,36 @@ export interface FacilitatorConfig extends RelayerConfig {
 
 /**
  * Create a facilitator Express app with x402-standard endpoints.
- *
- * Endpoints:
- *   GET  /info    — facilitator discovery (x402 standard)
- *   POST /verify  — verify + settle ZK payment (x402 standard)
- *   GET  /health  — health check
- *   /v1/*         — relayer endpoints (backward compatible)
+ * Delegates real TX submission to internal relayer.
  */
 export function createFacilitatorServer(config: FacilitatorConfig) {
   // Dynamic import to avoid bundling express as hard dependency
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const express = require("express") as any;
   const app = express.default ? express.default() : express();
-  app.use((express.default || express).json());
+  app.use((express.default || express).json({ limit: "100kb" }));
 
   // Internal relayer for actual TX submission
   const relayer = createRelayerServer(config);
+
+  // Lazy-init provider/wallet/pool
+  let _pool: any = null;
+  let _wallet: any = null;
+  let _provider: any = null;
+
+  async function getPool() {
+    if (!_pool) {
+      const { ethers } = await import("ethers");
+      _provider = new ethers.JsonRpcProvider(config.rpcUrl);
+      _wallet = new ethers.Wallet(config.privateKey, _provider);
+      _pool = new ethers.Contract(
+        config.poolAddress,
+        config.poolAbi,
+        _wallet
+      );
+    }
+    return { pool: _pool, wallet: _wallet, provider: _provider };
+  }
 
   // === x402 Standard Endpoints ===
 
@@ -63,6 +77,7 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
     });
   });
 
+  // [C3] /verify — real TX submission
   app.post("/verify", async (req: any, res: any) => {
     try {
       const { x402Version, scheme, network, payload } = req.body;
@@ -74,28 +89,57 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
         });
       }
 
-      if (network && network !== "eip155:84532") {
+      if (
+        network &&
+        network !== "eip155:84532" &&
+        network !== "eip155:8453"
+      ) {
         return res.status(400).json({
           valid: false,
-          error: `Unsupported network: ${network}. GhostPay operates on Base Sepolia (eip155:84532)`,
+          error: `Unsupported network: ${network}`,
         });
       }
 
-      if (!payload || !payload.proof) {
+      if (!payload || !payload.args || !payload.extData) {
         return res.status(400).json({
           valid: false,
-          error: "Missing payload or proof data",
+          error: "Missing payload, args, or extData",
         });
       }
 
-      // NOTE: In production, verify and relay via internal relayer
-      // const result = await verifyAndRelay(payload);
+      const { args, extData } = payload;
+      const { pool } = await getPool();
+
+      // Gas estimation (validates proof on-chain)
+      let gasEstimate: bigint;
+      try {
+        gasEstimate = await pool.transact.estimateGas(args, extData);
+      } catch (gasError: unknown) {
+        const reason =
+          gasError instanceof Error ? gasError.message : "Unknown";
+        return res
+          .status(400)
+          .json({ valid: false, error: `TX would fail: ${reason}` });
+      }
+
+      // Submit TX
+      const tx = await pool.transact(args, extData, {
+        gasLimit: (gasEstimate * 120n) / 100n,
+      });
+      const receipt = await tx.wait();
+
+      if (!receipt || receipt.status === 0) {
+        return res
+          .status(500)
+          .json({ valid: false, error: "TX reverted on-chain" });
+      }
 
       res.json({
         valid: true,
         x402Version: x402Version || 2,
-        txHash: "0x" + "0".repeat(64), // placeholder
-        network: "eip155:84532",
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        network: network || "eip155:84532",
         settledAt: new Date().toISOString(),
       });
     } catch (error: unknown) {

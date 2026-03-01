@@ -55,6 +55,11 @@ export {
 } from "./viewTag.js";
 
 export {
+  SIGNAL_INDEX,
+  validateSignalCount,
+} from "./signalIndex.js";
+
+export {
   ShieldedWallet,
   ShieldedWalletConfig,
   TransactResult,

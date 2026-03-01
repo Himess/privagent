@@ -31,11 +31,11 @@ export function selectUTXOs(
     return { inputs: [exact], change: 0n };
   }
 
-  // 2. Sort by amount ascending (smallest-first)
+  // 2. [M3] Deterministic sort: amount ascending, then leafIndex ascending (FIFO)
   const sorted = [...eligible].sort((a, b) => {
     if (a.amount < b.amount) return -1;
     if (a.amount > b.amount) return 1;
-    return 0;
+    return a.leafIndex - b.leafIndex;
   });
 
   // 3. Try single UTXO that covers the target (smallest sufficient)

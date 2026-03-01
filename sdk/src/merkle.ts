@@ -88,24 +88,58 @@ export class MerkleTree {
   }
 
   /**
-   * Compute a node hash at (level, index) using sparse zero-pruning.
-   * Subtrees beyond the last leaf return precomputed zero hashes.
+   * [M6] Compute a node hash at (level, index) — iterative with explicit stack.
+   * Bounded by O(depth) stack frames. Safe for depth 20+.
    */
   private getNode(level: number, index: number): bigint {
-    // [SDK-H3] Depth limit check
     if (level > this.depth || level < 0) {
       throw new Error(`Invalid level: ${level} (depth: ${this.depth})`);
     }
-    const subtreeStart = index * 2 ** level;
-    if (subtreeStart >= this.leaves.length) {
-      return this.zeroValues[level];
+
+    // Explicit stack to avoid recursive calls
+    type StackFrame = { level: number; index: number };
+    const stack: StackFrame[] = [{ level, index }];
+    const results: Map<string, bigint> = new Map();
+
+    // Post-order traversal using iterative DFS
+    const visited = new Set<string>();
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const key = `${frame.level}:${frame.index}`;
+
+      // Sparse zero pruning
+      const subtreeStart = frame.index * 2 ** frame.level;
+      if (subtreeStart >= this.leaves.length) {
+        results.set(key, this.zeroValues[frame.level]);
+        stack.pop();
+        continue;
+      }
+
+      // Leaf level
+      if (frame.level === 0) {
+        results.set(key, this.leaves[frame.index]);
+        stack.pop();
+        continue;
+      }
+
+      const leftKey = `${frame.level - 1}:${frame.index * 2}`;
+      const rightKey = `${frame.level - 1}:${frame.index * 2 + 1}`;
+
+      if (!visited.has(key)) {
+        visited.add(key);
+        stack.push({ level: frame.level - 1, index: frame.index * 2 + 1 });
+        stack.push({ level: frame.level - 1, index: frame.index * 2 });
+        continue;
+      }
+
+      const left = results.get(leftKey)!;
+      const right = results.get(rightKey)!;
+      results.set(key, hash2(left, right));
+      stack.pop();
     }
-    if (level === 0) {
-      return this.leaves[index];
-    }
-    const left = this.getNode(level - 1, index * 2);
-    const right = this.getNode(level - 1, index * 2 + 1);
-    return hash2(left, right);
+
+    return results.get(`${level}:${index}`)!;
   }
 
   getProof(leafIndex: number): MerkleProof {
