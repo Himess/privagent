@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { Provider, Signer, Contract, ethers } from "ethers";
 import { MerkleTree } from "../merkle.js";
 import { initPoseidon } from "../poseidon.js";
@@ -33,6 +34,9 @@ const POOL_ABI = [
   "function nextLeafIndex() view returns (uint256)",
   "function getBalance() view returns (uint256)",
   "function getTreeInfo() view returns (uint256, uint256, bytes32)",
+  "function protocolFeeBps() view returns (uint256)",
+  "function minProtocolFee() view returns (uint256)",
+  "function treasury() view returns (address)",
 ];
 
 const USDC_ABI = [
@@ -195,7 +199,7 @@ export class ShieldedWallet {
       this.config.signer
     );
 
-    // Approve USDC (use MaxUint256 for one-time unlimited approval)
+    // Approve exact USDC amount (trust-minimized, no unlimited allowance)
     const signerAddr = await this.config.signer.getAddress();
     const allowance = await usdcContract.allowance(
       signerAddr,
@@ -204,7 +208,7 @@ export class ShieldedWallet {
     if (BigInt(allowance) < amount) {
       const approveTx = await usdcContract.approve(
         this.config.poolAddress,
-        ethers.MaxUint256
+        amount
       );
       await approveTx.wait();
     }
@@ -500,6 +504,51 @@ export class ShieldedWallet {
     for (const utxo of inputUTXOs) {
       utxo.pending = false;
     }
+  }
+
+  // ============================================================================
+  // Protocol Fee
+  // ============================================================================
+
+  /**
+   * Calculate protocol fee for a given amount.
+   * fee = max(amount * feeBps / 10000, minFee)
+   * Returns 0 if treasury is not set.
+   */
+  static calculateProtocolFee(
+    amount: bigint,
+    feeBps: bigint,
+    minFee: bigint,
+    hasTreasury: boolean
+  ): bigint {
+    if (!hasTreasury) return 0n;
+    const percentFee = (amount * feeBps) / 10000n;
+    return percentFee > minFee ? percentFee : minFee;
+  }
+
+  /**
+   * Query protocol fee parameters from the pool contract.
+   */
+  async getProtocolFeeParams(): Promise<{
+    feeBps: bigint;
+    minFee: bigint;
+    treasury: string;
+  }> {
+    const poolContract = new Contract(
+      this.config.poolAddress,
+      POOL_ABI,
+      this.config.provider
+    );
+    const [feeBps, minFee, treasury] = await Promise.all([
+      poolContract.protocolFeeBps(),
+      poolContract.minProtocolFee(),
+      poolContract.treasury(),
+    ]);
+    return {
+      feeBps: BigInt(feeBps),
+      minFee: BigInt(minFee),
+      treasury: treasury as string,
+    };
   }
 }
 

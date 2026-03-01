@@ -6,10 +6,14 @@
  */
 
 import express from "express";
-import { ghostPaywallV4, initPoseidon } from "ghostpay-sdk/x402";
+import { ghostPaywallV4 } from "ghostpay-sdk/x402";
+import { initPoseidon, keypairFromPrivateKey, derivePublicKey } from "ghostpay-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
+import { randomBytes } from "crypto";
+import { secp256k1 } from "@noble/curves/secp256k1";
 
-const POOL_ADDRESS = "0x17B6209385c2e36E6095b89572273175902547f9";
+const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const PORT = 3001;
 
 async function main() {
@@ -19,6 +23,14 @@ async function main() {
     process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org"
   );
   const signer = new Wallet(process.env.PRIVATE_KEY!, provider);
+
+  // Generate ECDH keys for note decryption
+  const ecdhPrivateKey = randomBytes(32);
+  const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
+
+  // Generate Poseidon keypair for UTXO management
+  const poseidonPrivateKey = 42n; // Use a real random key in production
+  const poseidonPubkey = derivePublicKey(poseidonPrivateKey);
 
   const app = express();
 
@@ -31,9 +43,13 @@ async function main() {
   app.get(
     "/api/weather",
     ghostPaywallV4({
-      price: 1_000000n, // 1 USDC
+      price: "1000000", // 1 USDC
+      asset: USDC_ADDRESS,
       signer,
       poolAddress: POOL_ADDRESS,
+      poseidonPubkey: poseidonPubkey.toString(),
+      ecdhPrivateKey,
+      ecdhPublicKey,
     }),
     (_req, res) => {
       res.json({
@@ -51,9 +67,13 @@ async function main() {
   app.get(
     "/api/market-data",
     ghostPaywallV4({
-      price: 5_000000n, // 5 USDC
+      price: "5000000", // 5 USDC
+      asset: USDC_ADDRESS,
       signer,
       poolAddress: POOL_ADDRESS,
+      poseidonPubkey: poseidonPubkey.toString(),
+      ecdhPrivateKey,
+      ecdhPublicKey,
     }),
     (_req, res) => {
       res.json({

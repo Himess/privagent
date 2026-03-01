@@ -449,13 +449,13 @@ contract EdgeCasesTest is Test {
     function test_treeInfo_returnsCorrectValues() public {
         (uint256 nextLeaf, uint256 maxLeaves, bytes32 root) = pool.getTreeInfo();
         assertEq(nextLeaf, 0);
-        assertEq(maxLeaves, 65536);
+        assertEq(maxLeaves, 1048576);
         assertTrue(root != bytes32(0));
 
         _doDeposit(1_000_000, 700);
 
         (nextLeaf, maxLeaves, root) = pool.getTreeInfo();
         assertEq(nextLeaf, 2);
-        assertEq(maxLeaves, 65536);
+        assertEq(maxLeaves, 1048576);
     }
 }

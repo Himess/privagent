@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
-import { computeCommitment, computeNullifierHash } from "./poseidon.js";
-import { PrivateNote, FIELD_SIZE } from "./types.js";
+import { computeCommitment, computeNullifierHash } from "../poseidon.js";
+import { PrivateNote, FIELD_SIZE } from "../types.js";
 
 /**
  * Generate a random field element (< FIELD_SIZE)

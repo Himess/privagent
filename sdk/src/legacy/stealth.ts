@@ -17,7 +17,7 @@ import type {
   StealthMetaAddress,
   SerializedStealthMetaAddress,
   StealthPaymentData,
-} from "./types.js";
+} from "../types.js";
 
 // secp256k1 curve order
 const CURVE_ORDER = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");

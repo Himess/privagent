@@ -1,6 +1,6 @@
 import { Contract, Interface, Signer, Provider, ethers } from "ethers";
-import { initPoseidon, computeCommitment, computeNullifierHash } from "./poseidon.js";
-import { MerkleTree } from "./merkle.js";
+import { initPoseidon, computeCommitment, computeNullifierHash } from "../poseidon.js";
+import { MerkleTree } from "../merkle.js";
 import { ProofGenerator } from "./proof.js";
 import { createNote, selectNoteForPayment, randomFieldElement, getNullifierHash } from "./note.js";
 import {
@@ -10,7 +10,7 @@ import {
   WithdrawResult,
   GenerateProofResult,
   MERKLE_DEPTH,
-} from "./types.js";
+} from "../types.js";
 
 const POOL_ABI = [
   "function deposit(uint256 amount, bytes32 commitment) external",

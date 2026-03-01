@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 pragma circom 2.0.0;
 
 include "merkleProof.circom";

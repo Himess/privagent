@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -21,7 +21,7 @@ import "./PoseidonHasher.sol";
  * Architecture:
  *   - transact() is the ONLY entry point (deposit, transfer, withdraw)
  *   - Variable circuit support via IVerifier per (nIns, nOuts)
- *   - Merkle tree depth 16 (65K leaves), multi-tree rollover
+ *   - Merkle tree depth 20 (1M leaves)
  *   - extDataHash binding (recipient, relayer, fee, encrypted outputs)
  *
  * Public signal order (snarkjs):
@@ -64,10 +64,13 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     error ZeroRecipientAmount();
     error InvalidPublicAmountRange();
     error MissingVerifiers();
+    error DuplicateNullifierInBatch();
+    error InvalidTreasury();
+    error FeeTooHigh();
 
     // ============ Constants ============
-    uint32 public constant MERKLE_TREE_DEPTH = 16;
-    uint32 public constant MAX_LEAVES = 65536; // 2^16
+    uint32 public constant MERKLE_TREE_DEPTH = 20;
+    uint32 public constant MAX_LEAVES = 1048576; // 2^20
     uint256 public constant FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
     uint256 public constant ROOT_HISTORY_SIZE = 100;
     uint256 public constant MAX_DEPOSIT = 1_000_000_000_000; // 1M USDC
@@ -100,7 +103,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     // Verifiers per circuit config: key = nIns * 10 + nOuts
     mapping(uint256 => address) public verifiers;
 
-    // Merkle tree (depth 16)
+    // Merkle tree (depth 20)
     mapping(uint256 => bytes32) public filledSubtrees;
     mapping(uint256 => bytes32) public merkleZeros;
     mapping(uint256 => bytes32) public roots;
@@ -109,6 +112,11 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
 
     // Nullifier tracking (global)
     mapping(bytes32 => bool) public nullifiers;
+
+    // Protocol fee
+    uint256 public protocolFeeBps = 10;       // 0.1% (basis points)
+    uint256 public minProtocolFee = 5000;     // 0.005 USDC (6 decimals)
+    address public treasury;                   // fee recipient (address(0) = no fee)
 
     // ============ Events ============
     event NewCommitment(
@@ -119,6 +127,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     event NewNullifier(bytes32 indexed nullifier);
     event PublicDeposit(address indexed depositor, uint256 amount);
     event PublicWithdraw(address indexed recipient, uint256 indexed amount, address relayer, uint256 fee); // [SC-L1]
+    event ProtocolFeeCollected(uint256 indexed amount);
+    event TreasuryUpdated(address indexed newTreasury);
+    event ProtocolFeeUpdated(uint256 newFeeBps, uint256 newMinFee);
 
     // ============ Constructor ============
     constructor(
@@ -156,9 +167,12 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         // 1. Validate extDataHash
         if (args.extDataHash != _hashExtData(extData)) revert InvalidExtDataHash();
 
-        // 2. Validate nullifiers
+        // 2. Validate nullifiers (intra-tx uniqueness + storage check)
         for (uint256 i = 0; i < args.inputNullifiers.length; i++) {
             if (nullifiers[args.inputNullifiers[i]]) revert NullifierAlreadyUsed();
+            for (uint256 j = i + 1; j < args.inputNullifiers.length; j++) {
+                if (args.inputNullifiers[i] == args.inputNullifiers[j]) revert DuplicateNullifierInBatch();
+            }
         }
 
         // 3. Validate root
@@ -193,8 +207,13 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             // Deposit
             uint256 depositAmount = uint256(args.publicAmount);
             if (depositAmount > MAX_DEPOSIT) revert InvalidPublicAmount();
-            if (!usdc.transferFrom(msg.sender, address(this), depositAmount)) {
-                revert TransferFailed();
+            uint256 pFee = _calculateProtocolFee(depositAmount);
+            if (pFee > 0 && treasury != address(0)) {
+                if (!usdc.transferFrom(msg.sender, address(this), depositAmount - pFee)) revert TransferFailed();
+                if (!usdc.transferFrom(msg.sender, treasury, pFee)) revert TransferFailed();
+                emit ProtocolFeeCollected(pFee);
+            } else {
+                if (!usdc.transferFrom(msg.sender, address(this), depositAmount)) revert TransferFailed();
             }
             emit PublicDeposit(msg.sender, depositAmount);
         } else if (args.publicAmount < 0) {
@@ -203,14 +222,20 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             if (withdrawAmount > usdc.balanceOf(address(this))) revert InsufficientPoolBalance();
             if (extData.fee > withdrawAmount) revert FeeExceedsAmount();
 
-            uint256 recipientAmount = withdrawAmount - extData.fee;
-            if (recipientAmount == 0) revert ZeroRecipientAmount(); // [SC-H3]
+            uint256 pFee = _calculateProtocolFee(withdrawAmount);
+            uint256 totalFees = extData.fee + pFee;
+            if (totalFees >= withdrawAmount) revert ZeroRecipientAmount();
+            uint256 recipientAmount = withdrawAmount - totalFees;
             if (extData.recipient == address(0)) revert InvalidRecipient();
             if (!usdc.transfer(extData.recipient, recipientAmount)) revert TransferFailed();
 
             if (extData.fee > 0) {
                 if (extData.relayer == address(0)) revert RelayerRequiredForFee();
                 if (!usdc.transfer(extData.relayer, extData.fee)) revert TransferFailed();
+            }
+            if (pFee > 0 && treasury != address(0)) {
+                if (!usdc.transfer(treasury, pFee)) revert TransferFailed();
+                emit ProtocolFeeCollected(pFee);
             }
             emit PublicWithdraw(extData.recipient, withdrawAmount, extData.relayer, extData.fee);
         }
@@ -367,6 +392,22 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
 
+    /// @notice Set the treasury address for protocol fee collection
+    function setTreasury(address _treasury) external onlyOwner {
+        if (_treasury == address(0)) revert InvalidTreasury();
+        treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
+    }
+
+    /// @notice Update protocol fee parameters. Max 1% fee, max 0.1 USDC min fee.
+    function setProtocolFee(uint256 _feeBps, uint256 _minFee) external onlyOwner {
+        if (_feeBps > 100) revert FeeTooHigh();     // max 1%
+        if (_minFee > 100000) revert FeeTooHigh();   // max 0.1 USDC
+        protocolFeeBps = _feeBps;
+        minProtocolFee = _minFee;
+        emit ProtocolFeeUpdated(_feeBps, _minFee);
+    }
+
     // ============ View ============
     /// @notice Return (nextLeafIndex, maxLeaves, currentRoot)
     function getTreeInfo() external view returns (uint256, uint256, bytes32) {
@@ -375,6 +416,13 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
 
     function getBalance() external view returns (uint256) {
         return usdc.balanceOf(address(this));
+    }
+
+    // ============ Protocol Fee ============
+    function _calculateProtocolFee(uint256 amount) internal view returns (uint256) {
+        if (treasury == address(0)) return 0;
+        uint256 percentFee = (amount * protocolFeeBps) / 10000;
+        return percentFee > minProtocolFee ? percentFee : minProtocolFee;
     }
 
     /// @notice Emergency withdrawal — only when paused. [SC-M4]

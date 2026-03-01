@@ -2,7 +2,7 @@
   "name": "ghostpay-sdk",
   "version": "0.1.0",
   "description": "Privacy-preserving x402 payment SDK for Base — JoinSplit UTXO model with Groth16 ZK proofs",
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/Himess/ghostpay"

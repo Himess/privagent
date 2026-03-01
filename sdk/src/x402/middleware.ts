@@ -183,9 +183,11 @@ export function ghostPaywall(config: GhostPaywallConfig): RequestHandler {
           p.fee,
         ];
 
+        // pB coordinates must be un-swapped for snarkjs verification
+        // (formatProofForContract swaps them for Solidity's ordering)
         const proofForVerify = {
           pi_a: [p.proof[0], p.proof[1], "1"],
-          pi_b: [[p.proof[2], p.proof[3]], [p.proof[4], p.proof[5]], ["1", "0"]],
+          pi_b: [[p.proof[3], p.proof[2]], [p.proof[5], p.proof[4]], ["1", "0"]],
           pi_c: [p.proof[6], p.proof[7], "1"],
           protocol: "groth16",
           curve: "bn128",

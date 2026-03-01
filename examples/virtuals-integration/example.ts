@@ -5,42 +5,43 @@
  * The agent can pay for API access without revealing amounts or identity.
  */
 
-import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
+import { ShieldedWallet } from "ghostpay-sdk";
 import { ghostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 
-const POOL_ADDRESS = "0x17B6209385c2e36E6095b89572273175902547f9";
+const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 async function main() {
-  // 1. Initialize Poseidon hash
-  await initPoseidon();
-
-  // 2. Connect to Base Sepolia
+  // 1. Connect to Base Sepolia
   const provider = new JsonRpcProvider(process.env.BASE_SEPOLIA_RPC);
   const signer = new Wallet(process.env.PRIVATE_KEY!, provider);
   console.log(`Agent wallet: ${signer.address}`);
 
-  // 3. Create shielded wallet
+  // 2. Create shielded wallet
   const wallet = new ShieldedWallet({
+    provider,
     signer,
     poolAddress: POOL_ADDRESS,
-    circuitWasmPath: "./circuits/joinSplit_1x2.wasm",
-    circuitZkeyPath: "./circuits/joinSplit_1x2_final.zkey",
-    verificationKeyPath: "./circuits/verification_key.json",
+    usdcAddress: USDC_ADDRESS,
+    circuitDir: "./circuits/build",
+    deployBlock: 22580000,
   });
 
-  // 4. Sync existing UTXOs from chain
-  await wallet.sync();
+  await wallet.initialize();
+
+  // 3. Sync existing UTXOs from chain
+  await wallet.syncTree();
   console.log(`Shielded balance: ${wallet.getBalance()} (raw units)`);
 
-  // 5. Deposit USDC if needed
+  // 4. Deposit USDC if needed
   if (wallet.getBalance() < 2_000000n) {
     console.log("Depositing 10 USDC...");
-    const tx = await wallet.deposit(10_000000n);
-    console.log(`Deposit TX: ${tx.hash}`);
+    const result = await wallet.deposit(10_000000n);
+    console.log(`Deposit TX: ${result.txHash}`);
   }
 
-  // 6. Make private API call
+  // 5. Make private API call
   console.log("Calling paid API with private payment...");
   const response = await ghostFetchV4(
     "https://api.example.com/premium/weather",

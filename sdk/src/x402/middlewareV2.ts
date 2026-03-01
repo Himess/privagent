@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { Contract, ethers } from "ethers";
 import * as snarkjs from "snarkjs";

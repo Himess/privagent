@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { initPoseidon, computeCommitment, computeNullifierHash } from "./poseidon.js";
+import { initPoseidon, computeCommitment, computeNullifierHash } from "../poseidon.js";
 import {
   createNote,
   getNullifierHash,
@@ -8,7 +8,7 @@ import {
   deserializeNote,
   randomFieldElement,
 } from "./note.js";
-import { FIELD_SIZE } from "./types.js";
+import { FIELD_SIZE } from "../types.js";
 
 describe("note", () => {
   beforeAll(async () => {

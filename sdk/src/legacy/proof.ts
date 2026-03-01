@@ -1,6 +1,6 @@
 import * as snarkjs from "snarkjs";
 import * as fs from "fs";
-import { ProofData, CircuitInput } from "./types.js";
+import { ProofData, CircuitInput } from "../types.js";
 
 export class ProofGenerator {
   private wasmPath: string;

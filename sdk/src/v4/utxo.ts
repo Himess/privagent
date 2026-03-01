@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { randomBytes } from "crypto";
 import { hash1, hash3 } from "../poseidon.js";
 import { FIELD_SIZE } from "../types.js";
@@ -34,8 +35,8 @@ export interface SerializedUTXO {
 // Constants
 // ============================================================================
 
-export const V4_MERKLE_DEPTH = 16;
-export const V4_MAX_LEAVES = 65536; // 2^16
+export const V4_MERKLE_DEPTH = 20;
+export const V4_MAX_LEAVES = 1048576; // 2^20
 
 // ============================================================================
 // Core Functions

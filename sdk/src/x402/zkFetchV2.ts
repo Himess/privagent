@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { ShieldedWallet } from "../v4/shieldedWallet.js";
 import {
   ZkPaymentHandlerV4,

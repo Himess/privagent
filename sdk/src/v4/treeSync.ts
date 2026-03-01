@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { Provider, Contract } from "ethers";
 import { MerkleTree } from "../merkle.js";
 import { V4_MERKLE_DEPTH } from "./utxo.js";
@@ -44,10 +45,12 @@ export async function syncTreeFromEvents(
         throw new Error(`Out-of-order leaf: index ${leafIndex}, expected >= ${commitments.length}`);
       }
 
-      // Ensure leaves are inserted in order
-      while (commitments.length < leafIndex) {
-        commitments.push(0n);
-        tree.addLeaf(0n);
+      // Gap detection — gaps indicate missed events or corrupt sync
+      if (commitments.length !== leafIndex) {
+        throw new Error(
+          `Tree sync gap detected: expected leaf index ${commitments.length}, got ${leafIndex}. ` +
+          `Events may be missing — check deployBlock and RPC provider.`
+        );
       }
 
       commitments.push(commitment);

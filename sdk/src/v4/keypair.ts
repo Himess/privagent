@@ -1,3 +1,4 @@
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { randomBytes } from "crypto";
 import { derivePublicKey, randomFieldElement } from "./utxo.js";
 import { FIELD_SIZE } from "../types.js";

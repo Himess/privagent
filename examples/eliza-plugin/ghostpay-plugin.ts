@@ -5,7 +5,7 @@
  * Uses JoinSplit ZK proofs to hide all transaction details.
  */
 
-import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
+import { ShieldedWallet } from "ghostpay-sdk";
 import { ghostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 
@@ -33,7 +33,8 @@ interface Plugin {
   initialize: () => Promise<void>;
 }
 
-const POOL_ADDRESS = "0x17B6209385c2e36E6095b89572273175902547f9";
+const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 let wallet: ShieldedWallet;
 
@@ -79,32 +80,32 @@ export const ghostPayPlugin: Plugin = {
         if (!amount) return { success: false, message: "Amount required (in USDC)" };
 
         const amountRaw = BigInt(Math.floor(parseFloat(amount) * 1_000000));
-        const tx = await wallet.deposit(amountRaw);
+        const result = await wallet.deposit(amountRaw);
 
         return {
           success: true,
-          data: { txHash: tx.hash, amount: amount },
-          message: `Deposited ${amount} USDC | TX: ${tx.hash}`,
+          data: { txHash: result.txHash, amount: amount },
+          message: `Deposited ${amount} USDC | TX: ${result.txHash}`,
         };
       },
     },
   ],
 
   initialize: async () => {
-    await initPoseidon();
-
     const provider = new JsonRpcProvider(process.env.BASE_SEPOLIA_RPC);
     const signer = new Wallet(process.env.PRIVATE_KEY!, provider);
 
     wallet = new ShieldedWallet({
+      provider,
       signer,
       poolAddress: POOL_ADDRESS,
-      circuitWasmPath: "./circuits/joinSplit_1x2.wasm",
-      circuitZkeyPath: "./circuits/joinSplit_1x2_final.zkey",
-      verificationKeyPath: "./circuits/verification_key.json",
+      usdcAddress: USDC_ADDRESS,
+      circuitDir: "./circuits/build",
+      deployBlock: 22580000,
     });
 
-    await wallet.sync();
+    await wallet.initialize();
+    await wallet.syncTree();
     console.log("[GhostPay] Plugin initialized, wallet synced");
   },
 };

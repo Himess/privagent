@@ -1,5 +1,5 @@
 import { ZkPaymentHandler } from "./zkExactScheme.js";
-import { ShieldedPoolClient } from "../pool.js";
+import { ShieldedPoolClient } from "../legacy/pool.js";
 import type { GhostFetchOptions, PaymentResult } from "../types.js";
 
 /**

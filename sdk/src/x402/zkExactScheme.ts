@@ -1,9 +1,9 @@
-import { ShieldedPoolClient } from "../pool.js";
+import { ShieldedPoolClient } from "../legacy/pool.js";
 import { initPoseidon } from "../poseidon.js";
 import {
   generateStealthPayment,
   deserializeStealthMetaAddress,
-} from "../stealth.js";
+} from "../legacy/stealth.js";
 import type {
   ZkPaymentRequirements,
   ZkExactPayload,

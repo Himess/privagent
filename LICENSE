@@ -1,0 +1,47 @@
+Business Source License 1.1
+
+License text copyright (c) 2017 MariaDB Corporation Ab,
+All Rights Reserved. "Business Source License" is a trademark
+of MariaDB Corporation Ab.
+
+Parameters
+
+Licensor:             GhostPay Contributors
+Licensed Work:        GhostPay V4
+                      The Licensed Work is (c) 2026 GhostPay Contributors
+Additional Use Grant: You may make use of the Licensed Work, provided that
+                      you do not use the Licensed Work for a Commercial
+                      Purpose.
+
+                      A "Commercial Purpose" means using the Licensed Work
+                      in a production environment to provide a commercial
+                      service or product, including but not limited to:
+                      (a) deploying the Licensed Work's smart contracts on
+                          any blockchain mainnet for commercial use
+                      (b) offering a hosted service that uses the Licensed
+                          Work to process transactions for third parties
+                      (c) integrating the Licensed Work into a commercial
+                          product or service
+
+                      The following uses are explicitly permitted without
+                      a commercial license:
+                      (a) deploying on any testnet for development/testing
+                      (b) personal, non-commercial use
+                      (c) academic research and education
+                      (d) security auditing and vulnerability research
+                      (e) contributing to the Licensed Work itself
+
+Change Date:          March 1, 2028
+Change License:       GNU General Public License v2.0 or later
+
+For information about alternative licensing arrangements for the
+Licensed Work, please contact: license@ghostpay.xyz
+
+Notice
+
+The Business Source License (this document, or the "License") is not
+an Open Source license. However, the Licensed Work will eventually be
+made available under an Open Source License, as stated in this License.
+
+The full text of the Business Source License 1.1 is available at:
+https://mariadb.com/bsl11/

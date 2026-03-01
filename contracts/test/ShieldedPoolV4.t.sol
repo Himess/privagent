@@ -444,19 +444,9 @@ contract ShieldedPoolV4Test is Test {
             outputCommitments: commitments
         });
 
-        // The second nullifier in the loop should trigger NullifierAlreadyUsed
-        // because the first one marks it, and the second one checks
-        // Actually - the contract marks nullifiers AFTER validation loop
-        // Let me re-check... The contract checks ALL nullifiers first (step 2),
-        // then marks them ALL (step 6). So duplicate nullifiers in same tx
-        // won't revert on NullifierAlreadyUsed. This is actually OK because
-        // the ZK circuit would prevent this — but we should note this.
-        // For mock verifiers this won't catch it. Let's test what actually happens.
+        // [SC-C1] Batch nullifier duplicate check catches same nullifier in same tx
+        vm.expectRevert(ShieldedPoolV4.DuplicateNullifierInBatch.selector);
         pool.transact(args, extData);
-        // It won't revert with mock verifiers because the contract checks
-        // nullifiers against storage (not within the tx batch).
-        // The ZK proof would fail in production. This is expected behavior.
-        assertTrue(pool.nullifiers(sameNull));
     }
 
     // ============ 5. Root Validation ============
@@ -730,7 +720,7 @@ contract ShieldedPoolV4Test is Test {
 
         (uint256 nextLeaf, uint256 maxSize, bytes32 currentRoot) = pool.getTreeInfo();
         assertEq(nextLeaf, 2);
-        assertEq(maxSize, 65536); // 2^16
+        assertEq(maxSize, 1048576); // 2^20
         assertTrue(currentRoot != bytes32(0));
     }
 
@@ -746,8 +736,8 @@ contract ShieldedPoolV4Test is Test {
     }
 
     function test_constants() public view {
-        assertEq(pool.MERKLE_TREE_DEPTH(), 16);
-        assertEq(pool.MAX_LEAVES(), 65536);
+        assertEq(pool.MERKLE_TREE_DEPTH(), 20);
+        assertEq(pool.MAX_LEAVES(), 1048576);
         assertEq(pool.ROOT_HISTORY_SIZE(), 100);
         assertEq(pool.MAX_DEPOSIT(), 1_000_000_000_000);
     }
@@ -1008,6 +998,19 @@ contract ShieldedPoolV4Test is Test {
     }
 
     // ============ 16. Invariant Test [TEST-H2] ============
+
+    // ============ 17. Batch Nullifier Duplicate Check ============
+
+    function test_transact_duplicateNullifiers_reverts() public {
+        _doDeposit(DEPOSIT_AMOUNT);
+        ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
+        bytes32 sameNullifier = bytes32(uint256(0xdead));
+        ShieldedPoolV4.TransactArgs memory args = _make2x2Args(0, sameNullifier, sameNullifier, extData);
+        vm.expectRevert(ShieldedPoolV4.DuplicateNullifierInBatch.selector);
+        pool.transact(args, extData);
+    }
+
+    // ============ 18. Invariant Test [TEST-H2] ============
 
     function test_invariant_balanceAfterDepositWithdraw() public {
         // Deposit

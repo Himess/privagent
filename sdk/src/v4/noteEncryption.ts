@@ -1,9 +1,15 @@
-import { randomBytes, createCipheriv, createDecipheriv, createHash } from "crypto";
+// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { UTXO } from "./utxo.js";
 
-function sha256(data: Uint8Array): Buffer {
-  return createHash("sha256").update(data).digest();
+const HKDF_SALT = new TextEncoder().encode("ghostpay-v4-note-encryption");
+const HKDF_INFO = new TextEncoder().encode("aes-256-gcm-key");
+
+function deriveEncryptionKey(sharedPoint: Uint8Array): Uint8Array {
+  return hkdf(sha256, sharedPoint, HKDF_SALT, HKDF_INFO, 32);
 }
 
 /**
@@ -17,9 +23,9 @@ export function encryptNote(
   senderPrivateKey: Uint8Array, // 32 bytes secp256k1
   receiverPubKey: Uint8Array // 33 or 65 bytes secp256k1
 ): Uint8Array {
-  // ECDH shared secret
+  // ECDH shared secret → HKDF key derivation (domain-separated)
   const sharedPoint = secp256k1.getSharedSecret(senderPrivateKey, receiverPubKey, true);
-  const key = sha256(sharedPoint);
+  const key = deriveEncryptionKey(sharedPoint);
 
   // Plaintext: amount(8) + pubkey(32) + blinding(32) = 72 bytes
   const plaintext = Buffer.alloc(72);
@@ -60,9 +66,9 @@ export function decryptNote(
   try {
     if (ciphertext.length < 100) return null;
 
-    // ECDH shared secret
+    // ECDH shared secret → HKDF key derivation (domain-separated)
     const sharedPoint = secp256k1.getSharedSecret(receiverPrivateKey, senderPubKey, true);
-    const key = sha256(sharedPoint);
+    const key = deriveEncryptionKey(sharedPoint);
 
     const iv = ciphertext.slice(0, 12);
     const tag = ciphertext.slice(12, 28);
