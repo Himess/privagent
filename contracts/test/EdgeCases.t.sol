@@ -89,6 +89,11 @@ contract EdgeCasesTest is Test {
         usdc.approve(address(pool), type(uint256).max);
     }
 
+    function _defaultViewTags() internal pure returns (uint8[] memory) {
+        uint8[] memory vt = new uint8[](2);
+        return vt;
+    }
+
     function _computeExtDataHash(ShieldedPoolV4.ExtData memory extData) internal pure returns (bytes32) {
         bytes32 hash = keccak256(abi.encode(
             extData.recipient,
@@ -122,8 +127,10 @@ contract EdgeCasesTest is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(amount),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -179,8 +186,10 @@ contract EdgeCasesTest is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(0), // pure transfer
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         uint256 poolBefore = usdc.balanceOf(address(pool));
@@ -220,8 +229,10 @@ contract EdgeCasesTest is Test {
                 root: pool.getLastRoot(),
                 publicAmount: -int256(1_000_000), // 1 USDC each
                 extDataHash: _computeExtDataHash(extData),
+                protocolFee: 0,
                 inputNullifiers: nullifiers,
-                outputCommitments: commitments
+                outputCommitments: commitments,
+                viewTags: _defaultViewTags()
             });
 
             pool.transact(args, extData);
@@ -263,8 +274,10 @@ contract EdgeCasesTest is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(0), // self transfer
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         uint256 poolBefore = usdc.balanceOf(address(pool));
@@ -306,8 +319,10 @@ contract EdgeCasesTest is Test {
             root: pool.getLastRoot(),
             publicAmount: -int256(1),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         pool.transact(args, extData);
@@ -364,8 +379,10 @@ contract EdgeCasesTest is Test {
             root: malPool.getLastRoot(),
             publicAmount: -int256(1_000_000),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         // Set up the attack: on transfer, try to call transact() again
@@ -382,8 +399,10 @@ contract EdgeCasesTest is Test {
             root: malPool.getLastRoot(),
             publicAmount: -int256(1_000_000),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers2,
-            outputCommitments: commitments2
+            outputCommitments: commitments2,
+            viewTags: _defaultViewTags()
         });
 
         bytes memory attackPayload = abi.encodeCall(ShieldedPoolV4.transact, (args2, extData));
@@ -436,8 +455,10 @@ contract EdgeCasesTest is Test {
             root: pool.getLastRoot(),
             publicAmount: type(int256).min,
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.expectRevert(ShieldedPoolV4.InvalidPublicAmountRange.selector);

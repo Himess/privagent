@@ -26,6 +26,11 @@ contract PoolHandler is Test {
         depositor = _depositor;
     }
 
+    function _defaultViewTags() internal pure returns (uint8[] memory) {
+        uint8[] memory vt = new uint8[](2);
+        return vt;
+    }
+
     function _computeExtDataHash(ShieldedPoolV4.ExtData memory extData) internal pure returns (bytes32) {
         bytes32 hash = keccak256(abi.encode(
             extData.recipient,
@@ -61,8 +66,10 @@ contract PoolHandler is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(amount),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         usdc.mint(depositor, amount);
@@ -103,8 +110,10 @@ contract PoolHandler is Test {
             root: pool.getLastRoot(),
             publicAmount: -int256(amount),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         pool.transact(args, extData);
@@ -198,6 +207,11 @@ contract PauseInvariantTest is Test {
         );
     }
 
+    function _defaultViewTags() internal pure returns (uint8[] memory) {
+        uint8[] memory vt = new uint8[](2);
+        return vt;
+    }
+
     function _computeExtDataHash(ShieldedPoolV4.ExtData memory extData) internal pure returns (bytes32) {
         bytes32 hash = keccak256(abi.encode(
             extData.recipient, extData.relayer, extData.fee,
@@ -234,8 +248,10 @@ contract PauseInvariantTest is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(1_000_000),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);

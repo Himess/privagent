@@ -43,6 +43,11 @@ contract ProtocolFeeTest is Test {
 
     // ============ Helpers ============
 
+    function _defaultViewTags() internal pure returns (uint8[] memory) {
+        uint8[] memory vt = new uint8[](2);
+        return vt;
+    }
+
     function _makeExtData(
         address recipient,
         address relayer,
@@ -71,7 +76,8 @@ contract ProtocolFeeTest is Test {
     function _makeDepositArgs(
         uint256 amount,
         ShieldedPoolV4.ExtData memory extData,
-        uint256 salt
+        uint256 salt,
+        uint256 protocolFee
     ) internal view returns (ShieldedPoolV4.TransactArgs memory) {
         bytes32 root = pool.getLastRoot();
         bytes32 extDataHash = _computeExtDataHash(extData);
@@ -90,15 +96,18 @@ contract ProtocolFeeTest is Test {
             root: root,
             publicAmount: int256(amount),
             extDataHash: extDataHash,
+            protocolFee: protocolFee,
             inputNullifiers: nullifiers_,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
     function _makeWithdrawArgs(
         uint256 amount,
         bytes32 nullifier,
-        ShieldedPoolV4.ExtData memory extData
+        ShieldedPoolV4.ExtData memory extData,
+        uint256 protocolFee
     ) internal view returns (ShieldedPoolV4.TransactArgs memory) {
         bytes32 root = pool.getLastRoot();
         bytes32 extDataHash = _computeExtDataHash(extData);
@@ -117,29 +126,35 @@ contract ProtocolFeeTest is Test {
             root: root,
             publicAmount: -int256(amount),
             extDataHash: extDataHash,
+            protocolFee: protocolFee,
             inputNullifiers: nullifiers_,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
     function _doDeposit(uint256 amount, uint256 salt) internal {
         ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
-        ShieldedPoolV4.TransactArgs memory args = _makeDepositArgs(amount, extData, salt);
+        // Calculate protocol fee if treasury is set
+        uint256 pFee = 0;
+        if (pool.treasury() != address(0)) {
+            uint256 percentFee = (amount * pool.protocolFeeBps()) / 10000;
+            uint256 minFee = pool.minProtocolFee();
+            pFee = percentFee > minFee ? percentFee : minFee;
+        }
+        ShieldedPoolV4.TransactArgs memory args = _makeDepositArgs(amount, extData, salt, pFee);
         vm.prank(alice);
         pool.transact(args, extData);
     }
 
     // ============ Protocol Fee Tests ============
 
-    /// @notice 10 USDC deposit with treasury → pool gets 9.995, treasury gets 0.005 (minFee)
+    /// @notice 10 USDC deposit with treasury → pool gets 9.99, treasury gets 0.01
     function test_protocolFee_onDeposit() public {
         pool.setTreasury(treasuryAddr);
 
         uint256 depositAmount = 10_000_000; // 10 USDC
-        // fee = max(10M * 10 / 10000, 5000) = max(10000, 5000) = 10000 = 0.01 USDC
-        // Wait — 10M * 10 / 10000 = 10000. 10000 > 5000, so percentFee wins.
-        // Actually for 10 USDC: percent = 10_000_000 * 10 / 10000 = 10_000
-        // 10_000 > 5_000 → fee = 10_000 (0.01 USDC)
+        // fee = max(10M * 10 / 10000, 10000) = max(10000, 10000) = 10000 = 0.01 USDC
         uint256 expectedFee = 10_000; // 0.01 USDC
 
         uint256 aliceBefore = usdc.balanceOf(alice);
@@ -159,7 +174,7 @@ contract ProtocolFeeTest is Test {
         pool.setTreasury(treasuryAddr);
 
         uint256 depositAmount = 100_000_000; // 100 USDC
-        // fee = max(100M * 10 / 10000, 5000) = max(100_000, 5000) = 100_000
+        // fee = max(100M * 10 / 10000, 10000) = max(100_000, 10000) = 100_000
         uint256 expectedFee = 100_000; // 0.1 USDC
 
         _doDeposit(depositAmount, 200);
@@ -168,31 +183,34 @@ contract ProtocolFeeTest is Test {
         assertEq(usdc.balanceOf(treasuryAddr), expectedFee);
     }
 
-    /// @notice 10 USDC withdraw with relayer fee → recipient gets withdrawAmount - relayerFee - protocolFee
+    /// @notice 10 USDC withdraw with relayer fee → protocolFee from pool surplus (not recipient's share)
     function test_protocolFee_onWithdraw() public {
         // Deposit first (treasury is address(0) by default → no fee)
-        uint256 depositAmount = 10_000_000; // 10 USDC
+        // Deposit extra to cover the protocol fee that will be taken from pool surplus
+        uint256 depositAmount = 10_010_000; // 10.01 USDC (covers 10M withdraw + 10K fee)
         _doDeposit(depositAmount, 250);
         assertEq(usdc.balanceOf(address(pool)), depositAmount);
 
         // Now set treasury and withdraw
         pool.setTreasury(treasuryAddr);
-        uint256 withdrawAmount = 10_000_000; // 10 USDC
+        uint256 withdrawAmount = 10_000_000; // 10 USDC (publicAmount = -10M)
         uint256 relayerFee = 30_000; // 0.03 USDC
-        // protocolFee = max(10M * 10 / 10000, 5000) = max(10_000, 5000) = 10_000
+        // protocolFee = max(10M * 10 / 10000, 10000) = max(10_000, 10000) = 10_000
         uint256 expectedProtocolFee = 10_000;
-        uint256 expectedRecipient = withdrawAmount - relayerFee - expectedProtocolFee;
+        // Recipient gets withdrawAmount - relayerFee (protocolFee NOT deducted from recipient)
+        uint256 expectedRecipient = withdrawAmount - relayerFee;
 
         address bob = makeAddr("bob");
         ShieldedPoolV4.ExtData memory wExtData = _makeExtData(bob, relayerAddr, relayerFee);
         ShieldedPoolV4.TransactArgs memory wArgs = _makeWithdrawArgs(
-            withdrawAmount, bytes32(uint256(0x4444)), wExtData
+            withdrawAmount, bytes32(uint256(0x4444)), wExtData, expectedProtocolFee
         );
         pool.transact(wArgs, wExtData);
 
         assertEq(usdc.balanceOf(bob), expectedRecipient);
         assertEq(usdc.balanceOf(relayerAddr), relayerFee);
         assertEq(usdc.balanceOf(treasuryAddr), expectedProtocolFee);
+        // Pool had 10.01M, released 10M + 10K = 10.01M → 0
         assertEq(usdc.balanceOf(address(pool)), 0);
     }
 
@@ -207,15 +225,15 @@ contract ProtocolFeeTest is Test {
         assertEq(usdc.balanceOf(treasuryAddr), 0); // no fee
     }
 
-    /// @notice Private transfer (publicAmount == 0) → no protocol fee
-    function test_protocolFee_privateTransfer_noFee() public {
+    /// @notice Private transfer (publicAmount == 0) → collects circuit-enforced fee
+    function test_protocolFee_privateTransfer_collectsFee() public {
         pool.setTreasury(treasuryAddr);
 
-        // First deposit
+        // First deposit (treasury is now set, fee will be collected)
         _doDeposit(10_000_000, 400);
         uint256 treasuryBefore = usdc.balanceOf(treasuryAddr);
 
-        // Private transfer (publicAmount = 0)
+        // Private transfer (publicAmount = 0) — now collects circuit-enforced fee
         ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
         bytes32 root = pool.getLastRoot();
         bytes32 extDataHash = _computeExtDataHash(extData);
@@ -226,6 +244,8 @@ contract ProtocolFeeTest is Test {
         commitments[0] = bytes32(uint256(0x8888));
         commitments[1] = bytes32(uint256(0x9999));
 
+        uint256 minFee = pool.minProtocolFee(); // 10000
+
         ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
             pB: [[uint256(0), uint256(0)], [uint256(0), uint256(0)]],
@@ -233,30 +253,32 @@ contract ProtocolFeeTest is Test {
             root: root,
             publicAmount: int256(0),
             extDataHash: extDataHash,
+            protocolFee: minFee,
             inputNullifiers: nullifiers_,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         pool.transact(args, extData);
 
-        // Treasury unchanged — no fee on private transfer
-        assertEq(usdc.balanceOf(treasuryAddr), treasuryBefore);
+        // Treasury receives the protocol fee from private transfer
+        assertEq(usdc.balanceOf(treasuryAddr), treasuryBefore + minFee);
     }
 
     /// @notice setProtocolFee only callable by owner
     function test_setProtocolFee_onlyOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        pool.setProtocolFee(20, 10000);
+        pool.setProtocolFee(20, 10000); // minProtocolFee = 10000
     }
 
     /// @notice Fee > 1% (100 bps) → revert FeeTooHigh
     function test_setProtocolFee_maxCap() public {
         vm.expectRevert(ShieldedPoolV4.FeeTooHigh.selector);
-        pool.setProtocolFee(101, 5000); // 1.01% → revert
+        pool.setProtocolFee(101, 10000); // 1.01% → revert
 
         // 1% exactly should work
-        pool.setProtocolFee(100, 5000);
+        pool.setProtocolFee(100, 10000);
         assertEq(pool.protocolFeeBps(), 100);
     }
 
@@ -266,13 +288,13 @@ contract ProtocolFeeTest is Test {
         pool.setTreasury(address(0));
     }
 
-    /// @notice 1 USDC deposit → minFee applied (percent = 1000, minFee = 5000 → 5000 wins)
+    /// @notice 1 USDC deposit → minFee applied (percent = 1000, minFee = 10000 → 10000 wins)
     function test_protocolFee_minFeeApplied() public {
         pool.setTreasury(treasuryAddr);
 
         uint256 depositAmount = 1_000_000; // 1 USDC
-        // fee = max(1M * 10 / 10000, 5000) = max(1000, 5000) = 5000
-        uint256 expectedFee = 5000; // 0.005 USDC
+        // fee = max(1M * 10 / 10000, 10000) = max(1000, 10000) = 10000
+        uint256 expectedFee = 10000; // 0.01 USDC
 
         _doDeposit(depositAmount, 500);
 
@@ -280,12 +302,12 @@ contract ProtocolFeeTest is Test {
         assertEq(usdc.balanceOf(address(pool)), depositAmount - expectedFee);
     }
 
-    /// @notice 50 USDC deposit → percentFee applied (50000 > 5000)
+    /// @notice 50 USDC deposit → percentFee applied (50000 > 10000)
     function test_protocolFee_percentApplied() public {
         pool.setTreasury(treasuryAddr);
 
         uint256 depositAmount = 50_000_000; // 50 USDC
-        // fee = max(50M * 10 / 10000, 5000) = max(50_000, 5000) = 50_000
+        // fee = max(50M * 10 / 10000, 10000) = max(50_000, 10000) = 50_000
         uint256 expectedFee = 50_000; // 0.05 USDC
 
         _doDeposit(depositAmount, 600);
@@ -302,7 +324,7 @@ contract ProtocolFeeTest is Test {
         pool.setTreasury(treasuryAddr);
 
         uint256 percentFee = (amount * 10) / 10000;
-        uint256 expectedFee = percentFee > 5000 ? percentFee : 5000;
+        uint256 expectedFee = percentFee > 10000 ? percentFee : 10000;
 
         _doDeposit(amount, amount); // use amount as salt for uniqueness
 
@@ -318,7 +340,7 @@ contract ProtocolFeeTest is Test {
         uint256 expectedFee = 10_000;
 
         ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
-        ShieldedPoolV4.TransactArgs memory args = _makeDepositArgs(depositAmount, extData, 700);
+        ShieldedPoolV4.TransactArgs memory args = _makeDepositArgs(depositAmount, extData, 700, expectedFee);
 
         vm.expectEmit(true, false, false, false);
         emit ShieldedPoolV4.ProtocolFeeCollected(expectedFee);

@@ -50,6 +50,11 @@ export {
 } from "./noteStore.js";
 
 export {
+  generateViewTag,
+  checkViewTag,
+} from "./viewTag.js";
+
+export {
   ShieldedWallet,
   ShieldedWalletConfig,
   TransactResult,

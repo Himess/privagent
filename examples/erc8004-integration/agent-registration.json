@@ -1,0 +1,45 @@
+{
+  "$schema": "https://erc8004.org/schema/agent-registration-v1.json",
+  "agentId": "ghostpay-demo-weather-agent",
+  "version": "1.0.0",
+  "name": "Weather Oracle Agent",
+  "description": "Provides real-time weather data with private payment support",
+  "capabilities": [
+    "weather-data",
+    "private-payment",
+    "x402-privacy"
+  ],
+  "endpoints": {
+    "api": "https://weather-agent.example.com/api",
+    "x402": "https://weather-agent.example.com/x402"
+  },
+  "paymentMethods": [
+    {
+      "scheme": "x402-exact",
+      "network": "eip155:84532",
+      "token": "USDC",
+      "address": "0x1234...server_address",
+      "description": "Standard x402 payment (public)"
+    },
+    {
+      "scheme": "x402-ghostpay",
+      "network": "eip155:84532",
+      "token": "USDC",
+      "pool": "0x17B6209385c2e36E6095b89572273175902547f9",
+      "facilitator": "https://facilitator.ghostpay.xyz",
+      "privacyLevel": "full-utxo",
+      "features": [
+        "stealth-addresses",
+        "encrypted-amounts",
+        "view-tags",
+        "zk-proofs"
+      ],
+      "description": "Private x402 payment via GhostPay"
+    }
+  ],
+  "pricing": {
+    "GET /api/weather/current": "100000",
+    "GET /api/weather/forecast": "500000",
+    "GET /api/weather/historical": "1000000"
+  }
+}

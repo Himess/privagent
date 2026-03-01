@@ -108,7 +108,16 @@ export class ZkPaymentHandlerV4 {
     const serverEcdhPubKey = hexToBytes(requirements.serverEcdhPubKey);
     const relayer = requirements.relayer ?? ethers.ZeroAddress;
     const fee = BigInt(requirements.relayerFee ?? "0");
-    const totalNeeded = amount + fee;
+
+    // Calculate protocol fee (V4.4)
+    const feeParams = await this.wallet.getProtocolFeeParams();
+    const protocolFee = ShieldedWallet.calculateProtocolFee(
+      amount,
+      feeParams.feeBps,
+      feeParams.minFee,
+      feeParams.treasury !== ethers.ZeroAddress
+    );
+    const totalNeeded = amount + fee + protocolFee;
 
     // Coin selection
     const available = this.wallet.getUTXOs();
@@ -149,6 +158,7 @@ export class ZkPaymentHandlerV4 {
           inputs: selection.inputs,
           outputs: [paymentUTXO, changeUTXO],
           publicAmount: 0n,
+          protocolFee,
           tree: this.wallet.getTree(),
           extDataHash,
           privateKey: this.wallet.privateKey,
@@ -156,13 +166,13 @@ export class ZkPaymentHandlerV4 {
         this.wallet.circuitDir
       );
 
-      // Extract public signals
+      // Extract public signals (V4.4: offset 4 due to protocolFee at [3])
       const ps = proofResult.proofData.publicSignals;
       const nIns = proofResult.nIns;
       const nOuts = proofResult.nOuts;
-      const nullifiers = ps.slice(3, 3 + nIns).map((n) => n.toString());
+      const nullifiers = ps.slice(4, 4 + nIns).map((n) => n.toString());
       const commitments = ps
-        .slice(3 + nIns, 3 + nIns + nOuts)
+        .slice(4 + nIns, 4 + nIns + nOuts)
         .map((c) => c.toString());
 
       // Flatten proof to [pA0,pA1, pB00,pB01,pB10,pB11, pC0,pC1]

@@ -4,4 +4,4 @@ include "../joinSplit.circom";
 
 // 1 input, 2 outputs, depth 20 (1M leaves)
 // Most common: single UTXO payment + change
-component main {public [root, publicAmount, extDataHash, inputNullifiers, outputCommitments]} = JoinSplit(1, 2, 20);
+component main {public [root, publicAmount, extDataHash, protocolFee, inputNullifiers, outputCommitments]} = JoinSplit(1, 2, 20);

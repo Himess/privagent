@@ -22,13 +22,14 @@ import {
 import { ExtData, computeExtDataHash } from "./extData.js";
 import { syncTreeFromEvents } from "./treeSync.js";
 import { NoteStore, MemoryNoteStore, StoredNote } from "./noteStore.js";
+import { generateViewTag } from "./viewTag.js";
 
 // ============================================================================
 // Pool ABI (V4)
 // ============================================================================
 
 const POOL_ABI = [
-  "function transact((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, bytes32 root, int256 publicAmount, bytes32 extDataHash, bytes32[] inputNullifiers, bytes32[] outputCommitments) args, (address recipient, address relayer, uint256 fee, bytes encryptedOutput1, bytes encryptedOutput2) extData) external",
+  "function transact((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, bytes32 root, int256 publicAmount, bytes32 extDataHash, uint256 protocolFee, bytes32[] inputNullifiers, bytes32[] outputCommitments, uint8[] viewTags) args, (address recipient, address relayer, uint256 fee, bytes encryptedOutput1, bytes encryptedOutput2) extData) external",
   "function getLastRoot() view returns (bytes32)",
   "function isKnownRoot(bytes32) view returns (bool)",
   "function nullifiers(bytes32) view returns (bool)",
@@ -194,11 +195,6 @@ export class ShieldedWallet {
   async deposit(amount: bigint): Promise<TransactResult> {
     if (!this.config.signer) throw new Error("Signer required for deposit");
 
-    // Create output UTXO for the deposit
-    const depositUTXO = createUTXO(amount, this.keypair.publicKey);
-    // Second output is a dummy (zero amount)
-    const dummyOutput = createUTXO(0n, this.keypair.publicKey);
-
     // Dummy input (not spending anything)
     const dummyInput = createDummyUTXO();
 
@@ -212,12 +208,29 @@ export class ShieldedWallet {
 
     const extDataHash = computeExtDataHash(extData);
 
+    // Calculate protocol fee for deposit
+    const feeParams = await this.getProtocolFeeParams();
+    const protocolFee = ShieldedWallet.calculateProtocolFee(
+      amount,
+      feeParams.feeBps,
+      feeParams.minFee,
+      feeParams.treasury !== ethers.ZeroAddress
+    );
+
+    // Deposit UTXO amount = depositAmount - protocolFee (circuit balance conservation)
+    // Circuit: 0 + publicAmount = sumOutputs + protocolFee
+    //        → sumOutputs = publicAmount - protocolFee = amount - protocolFee
+    const depositUTXO = createUTXO(amount - protocolFee, this.keypair.publicKey);
+    // Second output is a dummy (zero amount)
+    const dummyOutput = createUTXO(0n, this.keypair.publicKey);
+
     // Generate proof
     const proofResult = await generateJoinSplitProof(
       {
         inputs: [dummyInput],
         outputs: [depositUTXO, dummyOutput],
         publicAmount: amount,
+        protocolFee,
         tree: this.tree,
         extDataHash,
         privateKey: this.keypair.privateKey,
@@ -251,13 +264,18 @@ export class ShieldedWallet {
       await approveTx.wait();
     }
 
-    // Extract public signals
+    // Extract public signals (V4.4: offset 4 due to protocolFee at [3])
     const ps = proofResult.proofData.publicSignals;
     const nIns = proofResult.nIns;
     const nOuts = proofResult.nOuts;
 
-    const nullifiers = ps.slice(3, 3 + nIns).map((n) => toBytes32(n));
-    const commitments = ps.slice(3 + nIns, 3 + nIns + nOuts).map((c) => toBytes32(c));
+    const nullifiers = ps.slice(4, 4 + nIns).map((n) => toBytes32(n));
+    const commitments = ps.slice(4 + nIns, 4 + nIns + nOuts).map((c) => toBytes32(c));
+
+    // Generate view tags for outputs
+    const viewTags = [depositUTXO, dummyOutput].map((u) =>
+      generateViewTag(this.keypair.privateKey, u.pubkey)
+    );
 
     const tx = await poolContract.transact(
       {
@@ -267,8 +285,10 @@ export class ShieldedWallet {
         root: toBytes32(ps[0]),
         publicAmount: amount,
         extDataHash: toBytes32(extDataHash),
+        protocolFee,
         inputNullifiers: nullifiers,
         outputCommitments: commitments,
+        viewTags,
       },
       {
         recipient: extData.recipient,
@@ -300,8 +320,8 @@ export class ShieldedWallet {
     return {
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
-      nullifiers: ps.slice(3, 3 + nIns),
-      commitments: ps.slice(3 + nIns, 3 + nIns + nOuts),
+      nullifiers: ps.slice(4, 4 + nIns),
+      commitments: ps.slice(4 + nIns, 4 + nIns + nOuts),
       publicAmount: amount,
     };
   }
@@ -317,7 +337,35 @@ export class ShieldedWallet {
     relayer: string = ethers.ZeroAddress,
     fee: bigint = 0n
   ): Promise<GenerateTransactProofResult> {
-    const totalNeeded = amount + fee;
+    // Calculate protocol fee first (needed for coin selection)
+    const feeParams = await this.getProtocolFeeParams();
+
+    // Determine publicAmount and output structure based on TX type
+    let publicAmount = 0n;
+    let paymentAmount: bigint;
+    let feeBase: bigint;
+
+    if (recipient !== ethers.ZeroAddress) {
+      // Withdraw: money leaves the pool publicly
+      // publicAmount = -(amount + fee), protocolFee from pool surplus
+      publicAmount = -(amount + fee);
+      paymentAmount = 0n; // payment is PUBLIC, not a shielded output
+      feeBase = amount + fee;
+    } else {
+      // Private transfer: stays in pool as shielded UTXO
+      paymentAmount = amount;
+      feeBase = amount;
+    }
+
+    const protocolFee = ShieldedWallet.calculateProtocolFee(
+      feeBase,
+      feeParams.feeBps,
+      feeParams.minFee,
+      feeParams.treasury !== ethers.ZeroAddress
+    );
+
+    // totalNeeded includes protocolFee (circuit balance conservation)
+    const totalNeeded = amount + fee + protocolFee;
 
     // Coin selection
     const selection = selectUTXOs(this.utxos, totalNeeded, 2);
@@ -332,7 +380,9 @@ export class ShieldedWallet {
 
     try {
       // Create output UTXOs
-      const paymentUTXO = createUTXO(amount, recipientPubkey);
+      // For withdraw: paymentAmount=0 (dummy), change absorbs remaining balance
+      // For transfer: paymentAmount=amount (shielded), change absorbs remaining
+      const paymentUTXO = createUTXO(paymentAmount, recipientPubkey);
       const changeUTXO = createUTXO(selection.change, this.keypair.publicKey);
 
       const extData: ExtData = {
@@ -345,20 +395,12 @@ export class ShieldedWallet {
 
       const extDataHash = computeExtDataHash(extData);
 
-      // Determine publicAmount
-      // For private transfer: publicAmount = 0
-      // For withdraw: publicAmount = -(amount + fee)
-      let publicAmount = 0n;
-      if (recipient !== ethers.ZeroAddress) {
-        // Withdraw: money leaves the pool
-        publicAmount = -(amount + fee);
-      }
-
       const proofResult = await generateJoinSplitProof(
         {
           inputs: selection.inputs,
           outputs: [paymentUTXO, changeUTXO],
           publicAmount,
+          protocolFee,
           tree: this.tree,
           extDataHash,
           privateKey: this.keypair.privateKey,
@@ -427,8 +469,16 @@ export class ShieldedWallet {
     const nIns = proofResult.nIns;
     const nOuts = proofResult.nOuts;
 
-    const nullifiers = ps.slice(3, 3 + nIns).map((n) => toBytes32(n));
-    const commitments = ps.slice(3 + nIns, 3 + nIns + nOuts).map((c) => toBytes32(c));
+    const nullifiers = ps.slice(4, 4 + nIns).map((n) => toBytes32(n));
+    const commitments = ps.slice(4 + nIns, 4 + nIns + nOuts).map((c) => toBytes32(c));
+
+    // protocolFee is at public signal index [3]
+    const protocolFee = ps[3];
+
+    // Generate view tags for outputs
+    const viewTags = outputUTXOs.map((u) =>
+      generateViewTag(this.keypair.privateKey, u.pubkey)
+    );
 
     const tx = await poolContract.transact(
       {
@@ -438,8 +488,10 @@ export class ShieldedWallet {
         root: toBytes32(ps[0]),
         publicAmount: publicAmount,
         extDataHash: toBytes32(proof.extDataHash),
+        protocolFee,
         inputNullifiers: nullifiers,
         outputCommitments: commitments,
+        viewTags,
       },
       {
         recipient: extData.recipient,
@@ -485,8 +537,8 @@ export class ShieldedWallet {
     return {
       txHash: receipt.hash,
       blockNumber: receipt.blockNumber,
-      nullifiers: ps.slice(3, 3 + nIns),
-      commitments: ps.slice(3 + nIns, 3 + nIns + nOuts),
+      nullifiers: ps.slice(4, 4 + nIns),
+      commitments: ps.slice(4 + nIns, 4 + nIns + nOuts),
       publicAmount,
     };
   }

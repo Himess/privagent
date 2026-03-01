@@ -17,6 +17,7 @@ include "node_modules/circomlib/circuits/comparators.circom";
  *   root              — Merkle tree root (proves inputs exist)
  *   publicAmount      — external amount (>0 deposit, <0 withdraw, 0 transfer)
  *   extDataHash       — hash of external data (recipient, relayer, fee, encrypted outputs)
+ *   protocolFee       — protocol fee amount (enforced in balance conservation)
  *   inputNullifiers[] — one per input (prevents double-spend)
  *   outputCommitments[] — one per output (new UTXOs)
  *
@@ -71,13 +72,14 @@ template NullifierHasher() {
  * nOuts:  number of output UTXOs (1-4)
  * levels: Merkle tree depth (16)
  *
- * Balance conservation: sum(inputs) + publicAmount === sum(outputs)
+ * Balance conservation: sum(inputs) + publicAmount === sum(outputs) + protocolFee
  */
 template JoinSplit(nIns, nOuts, levels) {
     // === PUBLIC SIGNALS ===
     signal input root;
     signal input publicAmount;
     signal input extDataHash;
+    signal input protocolFee;
     signal input inputNullifiers[nIns];
     signal input outputCommitments[nOuts];
 
@@ -164,12 +166,18 @@ template JoinSplit(nIns, nOuts, levels) {
         sumOuts += outAmount[i];
     }
 
+    // === PROTOCOL FEE RANGE CHECK ===
+    // 0 <= protocolFee < 2^120 (same range as amounts)
+    component feeAmountCheck = Num2Bits(120);
+    feeAmountCheck.in <== protocolFee;
+
     // === BALANCE CONSERVATION ===
-    // sum(inputs) + publicAmount === sum(outputs)
+    // sum(inputs) + publicAmount === sum(outputs) + protocolFee
     // publicAmount > 0: deposit (extra money coming in from public)
     // publicAmount < 0: withdraw (money going out to public)
     // publicAmount = 0: private transfer (no public USDC movement)
-    sumIns + publicAmount === sumOuts;
+    // protocolFee: protocol fee deducted from the balance
+    sumIns + publicAmount === sumOuts + protocolFee;
 
     // === BIND EXTERNAL DATA ===
     // extDataHash prevents front-running and binds recipient/fee/encrypted notes to proof.

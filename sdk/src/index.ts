@@ -13,5 +13,13 @@ export { AgentStealthKeypair, generateStealthPayment, pubKeyToAddress, serialize
 /** @deprecated Use V4 ShieldedWallet instead */
 export { ShieldedPoolClient } from "./legacy/pool.js";
 
+// ERC-8004 Integration
+export {
+  ghostPayPaymentMethod,
+  paymentProofForFeedback,
+  GhostPayPaymentMethod,
+  PaymentProofForFeedback,
+} from "./erc8004/index.js";
+
 // V4 UTXO Engine (active)
 export * from "./v4/index.js";

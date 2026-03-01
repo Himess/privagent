@@ -55,6 +55,7 @@ describe("V4 JoinSplit Prover", () => {
           inputs: [createDummyUTXO()],
           outputs: [depositUTXO, zeroUTXO],
           publicAmount: depositAmount,
+          protocolFee: 0n,
           tree,
           extDataHash: computeExtDataHash(extData),
           privateKey,
@@ -64,7 +65,7 @@ describe("V4 JoinSplit Prover", () => {
 
       expect(result.nIns).toBe(1);
       expect(result.nOuts).toBe(2);
-      expect(result.publicSignals).toHaveLength(6); // root, pubAmount, extDataHash, 1 null, 2 commits
+      expect(result.publicSignals).toHaveLength(7); // root, pubAmount, extDataHash, protocolFee, 1 null, 2 commits
       expect(result.proofData.pA).toHaveLength(2);
 
       const proofArray = proofToArray(result.proofData);
@@ -103,6 +104,7 @@ describe("V4 JoinSplit Prover", () => {
           inputs: [inputUTXO],
           outputs: [paymentUTXO, changeUTXO],
           publicAmount: 0n, // private transfer
+          protocolFee: 0n,
           tree,
           extDataHash: computeExtDataHash(extData),
           privateKey,
@@ -112,7 +114,7 @@ describe("V4 JoinSplit Prover", () => {
 
       expect(result.nIns).toBe(1);
       expect(result.nOuts).toBe(2);
-      expect(result.publicSignals).toHaveLength(6);
+      expect(result.publicSignals).toHaveLength(7);
     },
     PROOF_TIMEOUT
   );
@@ -147,6 +149,7 @@ describe("V4 JoinSplit Prover", () => {
           inputs: [inputUTXO],
           outputs: [changeUTXO, zeroUTXO],
           publicAmount: -3000000n, // withdraw 3 USDC
+          protocolFee: 0n,
           tree,
           extDataHash: computeExtDataHash(extData),
           privateKey,
@@ -191,6 +194,7 @@ describe("V4 JoinSplit Prover", () => {
           inputs: [utxo1, utxo2],
           outputs: [consolidatedUTXO, zeroUTXO],
           publicAmount: 0n,
+          protocolFee: 0n,
           tree,
           extDataHash: computeExtDataHash(extData),
           privateKey,
@@ -200,7 +204,7 @@ describe("V4 JoinSplit Prover", () => {
 
       expect(result.nIns).toBe(2);
       expect(result.nOuts).toBe(2);
-      expect(result.publicSignals).toHaveLength(7); // root, pubAmount, extDataHash, 2 nulls, 2 commits
+      expect(result.publicSignals).toHaveLength(8); // root, pubAmount, extDataHash, protocolFee, 2 nulls, 2 commits
     },
     PROOF_TIMEOUT
   );
@@ -225,6 +229,7 @@ describe("V4 JoinSplit Prover", () => {
           inputs: [dummy],
           outputs: [out1, out2],
           publicAmount: 5000000n, // deposit
+          protocolFee: 0n,
           tree,
           extDataHash: computeExtDataHash(extData),
           privateKey,
@@ -233,7 +238,7 @@ describe("V4 JoinSplit Prover", () => {
       );
 
       expect(result.nIns).toBe(1);
-      expect(result.publicSignals).toHaveLength(6);
+      expect(result.publicSignals).toHaveLength(7);
     },
     PROOF_TIMEOUT
   );

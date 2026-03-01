@@ -46,6 +46,11 @@ contract ShieldedPoolV4Test is Test {
 
     // ============ Helpers ============
 
+    function _defaultViewTags() internal pure returns (uint8[] memory) {
+        uint8[] memory vt = new uint8[](2);
+        return vt;
+    }
+
     function _makeExtData(
         address recipient,
         address relayer,
@@ -93,8 +98,10 @@ contract ShieldedPoolV4Test is Test {
             root: root,
             publicAmount: int256(amount),
             extDataHash: extDataHash,
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
@@ -121,8 +128,10 @@ contract ShieldedPoolV4Test is Test {
             root: root,
             publicAmount: -int256(amount),
             extDataHash: extDataHash,
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
@@ -148,8 +157,10 @@ contract ShieldedPoolV4Test is Test {
             root: root,
             publicAmount: int256(0),
             extDataHash: extDataHash,
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
@@ -178,8 +189,10 @@ contract ShieldedPoolV4Test is Test {
             root: root,
             publicAmount: publicAmount,
             extDataHash: extDataHash,
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
     }
 
@@ -256,8 +269,10 @@ contract ShieldedPoolV4Test is Test {
                 root: pool.getLastRoot(),
                 publicAmount: int256(1_000_000),
                 extDataHash: _computeExtDataHash(extData),
+                protocolFee: 0,
                 inputNullifiers: nullifiers,
-                outputCommitments: commitments
+                outputCommitments: commitments,
+                viewTags: _defaultViewTags()
             });
 
             vm.prank(alice);
@@ -440,8 +455,10 @@ contract ShieldedPoolV4Test is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(0),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         // [SC-C1] Batch nullifier duplicate check catches same nullifier in same tx
@@ -467,8 +484,10 @@ contract ShieldedPoolV4Test is Test {
             root: bytes32(uint256(0xdeadbeef)), // fake root
             publicAmount: int256(1_000_000),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -495,8 +514,10 @@ contract ShieldedPoolV4Test is Test {
                 root: pool.getLastRoot(),
                 publicAmount: int256(1_000_000),
                 extDataHash: _computeExtDataHash(extData),
+                protocolFee: 0,
                 inputNullifiers: nullifiers,
-                outputCommitments: commitments
+                outputCommitments: commitments,
+                viewTags: _defaultViewTags()
             });
 
             vm.prank(alice);
@@ -569,8 +590,10 @@ contract ShieldedPoolV4Test is Test {
             root: rejectPool.getLastRoot(),
             publicAmount: int256(DEPOSIT_AMOUNT),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -606,8 +629,10 @@ contract ShieldedPoolV4Test is Test {
             root: rejectPool.getLastRoot(),
             publicAmount: int256(DEPOSIT_AMOUNT),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -634,8 +659,10 @@ contract ShieldedPoolV4Test is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(1_000_000),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -833,12 +860,12 @@ contract ShieldedPoolV4Test is Test {
         _doDeposit(DEPOSIT_AMOUNT);
 
         uint256 withdrawAmount = 1_000_000;
-        // fee == amount → recipientAmount = 0
+        // fee == amount → fee >= withdrawAmount → FeeExceedsAmount
         ShieldedPoolV4.ExtData memory extData = _makeExtData(bob, relayerAddr, withdrawAmount);
         bytes32 nullifier = bytes32(uint256(0xaaab));
         ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(withdrawAmount, nullifier, extData);
 
-        vm.expectRevert(ShieldedPoolV4.ZeroRecipientAmount.selector);
+        vm.expectRevert(ShieldedPoolV4.FeeExceedsAmount.selector);
         pool.transact(args, extData);
     }
 
@@ -910,8 +937,10 @@ contract ShieldedPoolV4Test is Test {
             root: pool.getLastRoot(),
             publicAmount: int256(amount),
             extDataHash: _computeExtDataHash(extData),
+            protocolFee: 0,
             inputNullifiers: nullifiers,
-            outputCommitments: commitments
+            outputCommitments: commitments,
+            viewTags: _defaultViewTags()
         });
 
         vm.prank(alice);
@@ -974,8 +1003,10 @@ contract ShieldedPoolV4Test is Test {
                 root: pool.getLastRoot(),
                 publicAmount: publicAmount,
                 extDataHash: _computeExtDataHash(extData),
+                protocolFee: 0,
                 inputNullifiers: nullifiers,
-                outputCommitments: commitments
+                outputCommitments: commitments,
+                viewTags: _defaultViewTags()
             });
 
             vm.prank(alice);

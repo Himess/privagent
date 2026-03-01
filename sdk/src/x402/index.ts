@@ -20,3 +20,17 @@ export type {
   GhostPaywallConfigV4,
   GhostFetchOptionsV4,
 } from "../types.js";
+
+// External relay
+export { relayViaExternal, getRelayerInfo } from "./externalRelay.js";
+export type { RelayRequest, RelayResponse, RelayerInfo } from "./externalRelay.js";
+
+// Server reference implementations (relayer + facilitator)
+export { createRelayerServer } from "./relayerServer.js";
+export type {
+  RelayerConfig,
+  RelaySubmitRequest,
+  RelaySubmitResponse,
+} from "./relayerServer.js";
+export { createFacilitatorServer } from "./facilitatorServer.js";
+export type { FacilitatorConfig } from "./facilitatorServer.js";

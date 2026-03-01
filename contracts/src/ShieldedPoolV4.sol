@@ -24,12 +24,13 @@ import "./PoseidonHasher.sol";
  *   - Merkle tree depth 20 (1M leaves)
  *   - extDataHash binding (recipient, relayer, fee, encrypted outputs)
  *
- * Public signal order (snarkjs):
+ * Public signal order (snarkjs — V4.4):
  *   [0] root
  *   [1] publicAmount
  *   [2] extDataHash
- *   [3..3+nIns-1] inputNullifiers
- *   [3+nIns..3+nIns+nOuts-1] outputCommitments
+ *   [3] protocolFee          (circuit-enforced fee)
+ *   [4..4+nIns-1] inputNullifiers
+ *   [4+nIns..4+nIns+nOuts-1] outputCommitments
  */
 
 interface IVerifier {
@@ -67,6 +68,8 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     error DuplicateNullifierInBatch();
     error InvalidTreasury();
     error FeeTooHigh();
+    error ViewTagCountMismatch();
+    error ProtocolFeeTooLow();
 
     // ============ Constants ============
     uint32 public constant MERKLE_TREE_DEPTH = 20;
@@ -91,8 +94,10 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         bytes32 root;
         int256 publicAmount;
         bytes32 extDataHash;
+        uint256 protocolFee;         // circuit-enforced fee (V4.4)
         bytes32[] inputNullifiers;
         bytes32[] outputCommitments;
+        uint8[] viewTags;            // 1 byte per output for note scanning (V4.4)
     }
 
     // ============ Immutables ============
@@ -115,14 +120,15 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
 
     // Protocol fee
     uint256 public protocolFeeBps = 10;       // 0.1% (basis points)
-    uint256 public minProtocolFee = 5000;     // 0.005 USDC (6 decimals)
+    uint256 public minProtocolFee = 10000;    // 0.01 USDC (6 decimals) — V4.4
     address public treasury;                   // fee recipient (address(0) = no fee)
 
     // ============ Events ============
     event NewCommitment(
         bytes32 indexed commitment,
         uint256 indexed leafIndex,
-        bytes encryptedOutput
+        bytes encryptedOutput,
+        uint8 viewTag
     );
     event NewNullifier(bytes32 indexed nullifier);
     event PublicDeposit(address indexed depositor, uint256 amount);
@@ -178,54 +184,72 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         // 3. Validate root
         if (!isKnownRoot(args.root)) revert UnknownMerkleRoot();
 
-        // 4. Select verifier
+        // 4. Validate view tags count matches outputs
+        if (args.viewTags.length != args.outputCommitments.length) revert ViewTagCountMismatch();
+
+        // 5. Validate circuit-enforced protocol fee (V4.4)
+        if (treasury != address(0)) {
+            if (args.publicAmount > 0) {
+                uint256 expectedFee = _calculateProtocolFee(uint256(args.publicAmount));
+                if (args.protocolFee < expectedFee) revert ProtocolFeeTooLow();
+            } else if (args.publicAmount < 0) {
+                if (args.publicAmount == type(int256).min) revert InvalidPublicAmountRange();
+                uint256 expectedFee = _calculateProtocolFee(uint256(-args.publicAmount));
+                if (args.protocolFee < expectedFee) revert ProtocolFeeTooLow();
+            } else {
+                // Private transfer: enforce minimum fee only (amount is hidden)
+                if (args.protocolFee < minProtocolFee) revert ProtocolFeeTooLow();
+            }
+        }
+
+        // 6. Select verifier
         uint256 configKey = args.inputNullifiers.length * 10 + args.outputCommitments.length;
         address verifierAddr = verifiers[configKey];
         if (verifierAddr == address(0)) revert UnsupportedCircuit();
 
-        // 5. Verify ZK proof
+        // 7. Verify ZK proof (includes protocolFee as public signal)
         uint256[] memory pubSignals = _buildPublicSignals(args);
         if (!_verifyProof(verifierAddr, args.pA, args.pB, args.pC, pubSignals)) {
             revert InvalidProof();
         }
 
-        // 6. Mark nullifiers as spent
+        // 8. Mark nullifiers as spent
         for (uint256 i = 0; i < args.inputNullifiers.length; i++) {
             nullifiers[args.inputNullifiers[i]] = true;
             emit NewNullifier(args.inputNullifiers[i]);
         }
 
-        // 7. Insert output commitments into Merkle tree
+        // 9. Insert output commitments into Merkle tree (with view tags)
         for (uint256 i = 0; i < args.outputCommitments.length; i++) {
             bytes memory encOutput = i == 0 ? extData.encryptedOutput1 : extData.encryptedOutput2;
             uint256 leafIndex = _insertLeaf(args.outputCommitments[i]);
-            emit NewCommitment(args.outputCommitments[i], leafIndex, encOutput);
+            emit NewCommitment(args.outputCommitments[i], leafIndex, encOutput, args.viewTags[i]);
         }
 
-        // 8. Handle public amount
+        // 10. Handle public amount + circuit-enforced fee
         if (args.publicAmount > 0) {
             // Deposit
             uint256 depositAmount = uint256(args.publicAmount);
             if (depositAmount > MAX_DEPOSIT) revert InvalidPublicAmount();
-            uint256 pFee = _calculateProtocolFee(depositAmount);
-            if (pFee > 0 && treasury != address(0)) {
-                if (!usdc.transferFrom(msg.sender, address(this), depositAmount - pFee)) revert TransferFailed();
-                if (!usdc.transferFrom(msg.sender, treasury, pFee)) revert TransferFailed();
-                emit ProtocolFeeCollected(pFee);
+            if (args.protocolFee > 0 && treasury != address(0)) {
+                if (!usdc.transferFrom(msg.sender, address(this), depositAmount - args.protocolFee)) revert TransferFailed();
+                if (!usdc.transferFrom(msg.sender, treasury, args.protocolFee)) revert TransferFailed();
+                emit ProtocolFeeCollected(args.protocolFee);
             } else {
                 if (!usdc.transferFrom(msg.sender, address(this), depositAmount)) revert TransferFailed();
             }
             emit PublicDeposit(msg.sender, depositAmount);
         } else if (args.publicAmount < 0) {
             // Withdraw
+            // Circuit enforces: sumInputs + publicAmount = sumOutputs + protocolFee
+            // → pool releases |publicAmount| + protocolFee total USDC
             uint256 withdrawAmount = uint256(-args.publicAmount);
-            if (withdrawAmount > usdc.balanceOf(address(this))) revert InsufficientPoolBalance();
-            if (extData.fee > withdrawAmount) revert FeeExceedsAmount();
+            uint256 totalOutflow = withdrawAmount + args.protocolFee;
+            if (totalOutflow > usdc.balanceOf(address(this))) revert InsufficientPoolBalance();
+            if (extData.fee >= withdrawAmount) revert FeeExceedsAmount();
 
-            uint256 pFee = _calculateProtocolFee(withdrawAmount);
-            uint256 totalFees = extData.fee + pFee;
-            if (totalFees >= withdrawAmount) revert ZeroRecipientAmount();
-            uint256 recipientAmount = withdrawAmount - totalFees;
+            uint256 recipientAmount = withdrawAmount - extData.fee;
+            if (recipientAmount == 0) revert ZeroRecipientAmount();
             if (extData.recipient == address(0)) revert InvalidRecipient();
             if (!usdc.transfer(extData.recipient, recipientAmount)) revert TransferFailed();
 
@@ -233,13 +257,21 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
                 if (extData.relayer == address(0)) revert RelayerRequiredForFee();
                 if (!usdc.transfer(extData.relayer, extData.fee)) revert TransferFailed();
             }
-            if (pFee > 0 && treasury != address(0)) {
-                if (!usdc.transfer(treasury, pFee)) revert TransferFailed();
-                emit ProtocolFeeCollected(pFee);
+            // protocolFee comes from pool surplus (circuit-enforced UTXO deduction)
+            if (args.protocolFee > 0 && treasury != address(0)) {
+                if (!usdc.transfer(treasury, args.protocolFee)) revert TransferFailed();
+                emit ProtocolFeeCollected(args.protocolFee);
             }
             emit PublicWithdraw(extData.recipient, withdrawAmount, extData.relayer, extData.fee);
+        } else {
+            // Private transfer (publicAmount == 0):
+            // Circuit enforces: sum(inputs) = sum(outputs) + protocolFee
+            // Surplus stays in pool → transfer to treasury
+            if (args.protocolFee > 0 && treasury != address(0)) {
+                if (!usdc.transfer(treasury, args.protocolFee)) revert TransferFailed();
+                emit ProtocolFeeCollected(args.protocolFee);
+            }
         }
-        // publicAmount == 0: pure private transfer (no USDC movement)
     }
 
     // ============ extDataHash ============
@@ -264,9 +296,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     function _buildPublicSignals(TransactArgs calldata args) internal pure returns (uint256[] memory) {
         uint256 nIns = args.inputNullifiers.length;
         uint256 nOuts = args.outputCommitments.length;
-        uint256[] memory signals = new uint256[](3 + nIns + nOuts);
+        uint256[] memory signals = new uint256[](4 + nIns + nOuts);
 
-        // [0] root, [1] publicAmount, [2] extDataHash
+        // [0] root, [1] publicAmount, [2] extDataHash, [3] protocolFee
         signals[0] = uint256(args.root);
 
         // publicAmount: positive for deposit, field-wrapped negative for withdraw
@@ -278,15 +310,16 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         }
 
         signals[2] = uint256(args.extDataHash);
+        signals[3] = args.protocolFee;
 
-        // [3..3+nIns-1] nullifiers
+        // [4..4+nIns-1] nullifiers
         for (uint256 i = 0; i < nIns; i++) {
-            signals[3 + i] = uint256(args.inputNullifiers[i]);
+            signals[4 + i] = uint256(args.inputNullifiers[i]);
         }
 
-        // [3+nIns..3+nIns+nOuts-1] commitments
+        // [4+nIns..4+nIns+nOuts-1] commitments
         for (uint256 i = 0; i < nOuts; i++) {
-            signals[3 + nIns + i] = uint256(args.outputCommitments[i]);
+            signals[4 + nIns + i] = uint256(args.outputCommitments[i]);
         }
 
         return signals;
@@ -302,24 +335,24 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     ) internal view returns (bool) {
         // The snarkjs-generated verifier uses fixed-size arrays.
         // We need to call it with the right signature based on pubSignals length.
-        // For 1x2: uint[6] (root, pubAmount, extDataHash, 1 null, 2 commits)
-        // For 2x2: uint[7] (root, pubAmount, extDataHash, 2 nulls, 2 commits)
+        // For 1x2: uint[7] (root, pubAmount, extDataHash, protocolFee, 1 null, 2 commits)
+        // For 2x2: uint[8] (root, pubAmount, extDataHash, protocolFee, 2 nulls, 2 commits)
         uint256 len = pubSignals.length;
         bytes memory callData;
 
-        if (len == 6) {
-            uint256[6] memory fixed6;
-            for (uint256 i = 0; i < 6; i++) fixed6[i] = pubSignals[i];
-            callData = abi.encodeWithSignature(
-                "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[6])",
-                pA, pB, pC, fixed6
-            );
-        } else if (len == 7) {
+        if (len == 7) {
             uint256[7] memory fixed7;
             for (uint256 i = 0; i < 7; i++) fixed7[i] = pubSignals[i];
             callData = abi.encodeWithSignature(
                 "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[7])",
                 pA, pB, pC, fixed7
+            );
+        } else if (len == 8) {
+            uint256[8] memory fixed8;
+            for (uint256 i = 0; i < 8; i++) fixed8[i] = pubSignals[i];
+            callData = abi.encodeWithSignature(
+                "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[8])",
+                pA, pB, pC, fixed8
             );
         } else {
             revert UnsupportedCircuit(); // [SC-C1] explicit error instead of silent false

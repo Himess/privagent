@@ -60,6 +60,7 @@ export interface JoinSplitInput {
   inputs: UTXO[]; // UTXOs being consumed
   outputs: UTXO[]; // UTXOs being created
   publicAmount: bigint; // >0 deposit, <0 withdraw, 0 transfer
+  protocolFee: bigint; // circuit-enforced fee (V4.4)
   tree: MerkleTree;
   extDataHash: bigint;
   privateKey: bigint;
@@ -195,6 +196,7 @@ function buildCircuitInput(
     root: tree.getRoot().toString(),
     publicAmount: publicAmountStr,
     extDataHash: extDataHash.toString(),
+    protocolFee: params.protocolFee.toString(),
     inputNullifiers,
     outputCommitments,
     inAmount,
