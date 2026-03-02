@@ -272,6 +272,8 @@ export interface ZkExactPayloadV4 {
   nIns: number;
   nOuts: number;
   senderEcdhPubKey: string; // hex-encoded buyer's secp256k1 public key
+  protocolFee: string; // circuit-enforced protocol fee (V4.4)
+  viewTags: number[]; // 1-byte per output for note scanning (V4.4)
 }
 
 export interface V4PaymentPayload {

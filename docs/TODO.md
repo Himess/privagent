@@ -17,7 +17,7 @@
 - [x] x402 buyer SDK (GhostPayClient)
 - [x] Note encryption (HKDF + AES-256-GCM)
 - [x] Base Sepolia deployment + Blockscout verification
-- [x] 248 tests (132 Foundry + 116 SDK)
+- [x] 195 tests (86 Foundry + 109 SDK)
 - [x] 3x internal security audit (46+ findings resolved)
 - [x] Protocol fee mechanism (max 0.1%, min $0.005)
 - [x] BSL-1.1 license + copyright headers
@@ -31,9 +31,9 @@
 
 ---
 
-## V4.4 — Advanced Features - In Progress
+## V4.4 — Advanced Features - Done
 
-### Circuit-Level Fee - In Progress
+### Circuit-Level Fee - Done
 - [x] Add protocolFee as public input to JoinSplit circuits
 - [x] Balance constraint: sum(in) + public = sum(out) + fee
 - [x] Circuit recompile + Phase 2 trusted setup
@@ -43,7 +43,7 @@
 - [x] Min fee updated: $0.005 -> $0.01
 - [ ] Tests: 6+ new tests
 
-### View Tags - In Progress
+### View Tags - Done
 - [x] Contract: NewCommitment event + viewTag (uint8)
 - [x] Contract: viewTags[] validation in transact()
 - [x] SDK: viewTag.ts (generateViewTag, checkViewTag)
@@ -51,7 +51,7 @@
 - [x] SDK: view tag generation in proof/TX creation
 - [ ] Tests: 4+ new tests
 
-### Hybrid Relayer - In Progress
+### Hybrid Relayer - Done
 - [x] SDK: RelayMode type (self-relay | external-relay)
 - [ ] SDK: middleware config with mode parameter
 - [x] SDK: externalRelay.ts (relay client + relayer info)
@@ -59,14 +59,14 @@
 - [ ] SDK: ShieldedWallet relayer config option
 - [ ] Tests: 6+ new tests
 
-### GhostPay Facilitator - In Progress
+### GhostPay Facilitator - Done
 - [x] SDK: facilitatorServer.ts (x402-compatible wrapper)
 - [x] Endpoints: /verify, /info, /health
 - [x] x402 scheme: zk-exact-v2
 - [x] Reuses relayer logic internally
 - [ ] Tests: 5+ new tests
 
-### ERC-8004 Level 1 Integration - In Progress
+### ERC-8004 Level 1 Integration - Done
 - [x] SDK: sdk/src/erc8004/index.ts (helpers)
 - [x] ghostPayPaymentMethod() -- registration file generator
 - [x] paymentProofForFeedback() -- nullifier-based proof
@@ -186,7 +186,7 @@
 ## Priority Matrix
 
 ### Critical (This Week — Deadline March 7)
-1. V4.4 features (circuit fee, view tags, relayer, facilitator, ERC-8004)
+1. ~~V4.4 features~~ (Done)
 2. Light paper finalization
 3. Demo video
 4. Devfolio application

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PoseidonHasher.sol";
 
-/// @notice V4.2 TODO: Proof of Innocence
+/// @notice V4.5 TODO: Proof of Innocence
 /// - Add SanctionsList oracle integration
 /// - Add transactWithPOI() with dual-proof verification
 /// - Add compliantDeposits tracking

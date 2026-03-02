@@ -380,7 +380,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Metric | Value |
 |--------|-------|
 | GhostPay development time | ~72 hours (V3 → V4.4) |
-| Test coverage | 217 tests (111 Foundry + 101 SDK + 5 Relayer) |
+| Test coverage | 195 tests (86 Foundry + 109 SDK) |
 | Internal audits completed | 3 (46+ findings resolved) |
 | Lines of Solidity | ~800+ |
 | Lines of TypeScript | ~3500+ |
@@ -397,7 +397,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 - Hybrid relayer with external relay support
 - x402-compatible GhostPay Facilitator
 - ERC-8004 Level 1 integration (registration + payment proof)
-- 217 tests passing, 3 internal audits
+- 195 tests passing, 3 internal audits
 
 **What we'll build in the program (V4.5):**
 

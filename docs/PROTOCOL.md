@@ -10,7 +10,7 @@ GhostPay implements a privacy-preserving payment protocol for HTTP 402 flows. V4
 
 - **Poseidon(3) UTXO commitments** for binding amount + pubkey + blinding
 - **JoinSplit Groth16 proofs** for proving UTXO ownership and balance conservation
-- **Merkle tree inclusion** (depth 16) for proving a commitment exists in the pool
+- **Merkle tree inclusion** (depth 20) for proving a commitment exists in the pool
 - **Nullifier tracking** for preventing double-spends
 - **ECDH note encryption** (AES-256-GCM) for private amount verification
 - **extDataHash binding** for preventing front-running
@@ -35,7 +35,7 @@ The `zk-exact-v2` scheme extends x402 with JoinSplit ZK proof payloads and encry
       "network": "eip155:84532",
       "amount": "1000000",
       "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      "poolAddress": "0x17B6209385c2e36E6095b89572273175902547f9",
+      "poolAddress": "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
       "payToPubkey": "12345678901234567890...",
       "serverEcdhPubKey": "0x02abc...",
       "relayer": "0xRelayerAddress",
@@ -156,8 +156,10 @@ function transact(TransactArgs calldata args, ExtData calldata extData) external
 | `root` | `bytes32` | Merkle tree root |
 | `publicAmount` | `int256` | >0 deposit, <0 withdraw, 0 transfer |
 | `extDataHash` | `bytes32` | Hash of external data |
+| `protocolFee` | `uint256` | Circuit-enforced protocol fee (V4.4) |
 | `inputNullifiers` | `bytes32[]` | Spent UTXO nullifiers |
 | `outputCommitments` | `bytes32[]` | New UTXO commitments |
+| `viewTags` | `uint8[]` | 1-byte per output for note scanning (V4.4) |
 
 #### ExtData
 
@@ -183,15 +185,16 @@ function transact(TransactArgs calldata args, ExtData calldata extData) external
    - `publicAmount < 0`: withdraw — transfer to recipient, fee to relayer
    - `publicAmount == 0`: pure private transfer (no USDC movement)
 
-### Public Signal Order (V4)
+### Public Signal Order (V4.4)
 
 | Index | Signal | Description |
 |-------|--------|-------------|
 | 0 | `root` | Merkle tree root |
 | 1 | `publicAmount` | External amount (field-wrapped for negative) |
 | 2 | `extDataHash` | External data hash |
-| 3..3+nIns-1 | `inputNullifiers[i]` | Input nullifiers |
-| 3+nIns..3+nIns+nOuts-1 | `outputCommitments[i]` | Output commitments |
+| 3 | `protocolFee` | Circuit-enforced protocol fee |
+| 4..4+nIns-1 | `inputNullifiers[i]` | Input nullifiers |
+| 4+nIns..4+nIns+nOuts-1 | `outputCommitments[i]` | Output commitments |
 
 For withdraw: `publicAmount` is field-wrapped: `FIELD_SIZE - uint256(-amount)`
 

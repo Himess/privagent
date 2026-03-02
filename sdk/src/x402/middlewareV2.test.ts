@@ -262,6 +262,8 @@ describe("V4 ghostPaywallV4 Middleware", () => {
         nIns: 1,
         nOuts: 2,
         senderEcdhPubKey: "0x" + Buffer.from(buyerEcdhPub).toString("hex"),
+        protocolFee: "10000",
+        viewTags: [42, 0],
       },
     };
 
@@ -332,6 +334,8 @@ describe("V4 ghostPaywallV4 Middleware", () => {
         nIns: 1,
         nOuts: 2,
         senderEcdhPubKey: "0x" + Buffer.from(buyerEcdhPub).toString("hex"),
+        protocolFee: "10000",
+        viewTags: [42, 0],
       },
     };
 

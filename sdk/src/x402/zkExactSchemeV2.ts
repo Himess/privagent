@@ -16,6 +16,7 @@ import { computeExtDataHash } from "../v4/extData.js";
 import type { ExtData } from "../v4/extData.js";
 import { encryptNote } from "../v4/noteEncryption.js";
 import { generateJoinSplitProof, proofToArray } from "../v4/joinSplitProver.js";
+import { generateViewTag } from "../v4/viewTag.js";
 
 // ============================================================================
 // Types
@@ -180,6 +181,11 @@ export class ZkPaymentHandlerV4 {
         p.toString()
       );
 
+      // Compute view tags for each output UTXO (V4.4)
+      const viewTags = [paymentUTXO, changeUTXO].map((u) =>
+        generateViewTag(this.wallet.privateKey, u.pubkey)
+      );
+
       const zkPayload: ZkExactPayloadV4 = {
         from: "shielded-v4",
         proof: proofArray,
@@ -198,6 +204,8 @@ export class ZkPaymentHandlerV4 {
         nIns,
         nOuts,
         senderEcdhPubKey: bytesToHex(this.ecdhPublicKey),
+        protocolFee: protocolFee.toString(),
+        viewTags,
       };
 
       const v4Payload: V4PaymentPayload = {

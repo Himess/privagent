@@ -1,6 +1,8 @@
 # GhostPay Security Audit Report
 
-## Summary
+> **V4.4 Audit:** See [docs/AUDIT-V4.4.md](docs/AUDIT-V4.4.md) for the latest comprehensive audit.
+
+## Summary (V3)
 
 Full audit of GhostPay privacy x402 payment protocol. All findings fixed in V3.
 

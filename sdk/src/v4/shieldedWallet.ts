@@ -530,8 +530,8 @@ export class ShieldedWallet {
         this.utxos.push(outUTXO);
         await this.noteStore.save(this.utxoToStoredNote(outUTXO, receipt.hash));
       } else if (outUTXO.amount > 0n) {
-        // [SDK-M5] Warn about untracked UTXO (sent to different pubkey)
-        console.warn(`Untracked UTXO at leaf ${outUTXO.leafIndex}: pubkey mismatch`);
+        // [SDK-M5] This warning proves privacy works — Agent A cannot read Agent B's note
+        console.warn(`Untracked UTXO at leaf ${outUTXO.leafIndex}: pubkey mismatch (recipient's note — only they can decrypt it)`);
       }
     }
 

@@ -4,15 +4,13 @@
   "private": true,
   "description": "Privacy-preserving x402 payment protocol on Base",
   "scripts": {
-    "build:circuits": "cd circuits && bash scripts/build.sh",
+    "build:circuits": "cd circuits && bash scripts/build-v4.sh",
     "build:contracts": "cd contracts && forge build",
     "build:sdk": "cd sdk && pnpm build",
-    "build:relayer": "cd relayer && pnpm build",
-    "build": "pnpm build:contracts && pnpm build:sdk && pnpm build:relayer",
+    "build": "pnpm build:contracts && pnpm build:sdk",
     "test:contracts": "cd contracts && forge test -vvv",
     "test:sdk": "cd sdk && pnpm test",
-    "test:relayer": "cd relayer && pnpm test",
-    "test": "pnpm test:contracts && pnpm test:sdk && pnpm test:relayer",
+    "test": "pnpm test:contracts && pnpm test:sdk",
     "deploy:base-sepolia": "cd contracts && forge script script/Deploy.s.sol --rpc-url base-sepolia --broadcast --verify"
   }
 }

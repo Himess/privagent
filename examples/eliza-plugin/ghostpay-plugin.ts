@@ -5,8 +5,8 @@
  * Uses JoinSplit ZK proofs to hide all transaction details.
  */
 
-import { ShieldedWallet } from "ghostpay-sdk";
-import { ghostFetchV4 } from "ghostpay-sdk/x402";
+import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
+import { createGhostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 
 // ElizaOS plugin interface (simplified)
@@ -33,7 +33,7 @@ interface Plugin {
   initialize: () => Promise<void>;
 }
 
-const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 let wallet: ShieldedWallet;
@@ -49,7 +49,8 @@ export const ghostPayPlugin: Plugin = {
         const url = ctx.params.url;
         if (!url) return { success: false, message: "URL required" };
 
-        const response = await ghostFetchV4(url, wallet);
+        const ghostFetch = createGhostFetchV4(wallet);
+        const response = await ghostFetch(url);
         if (response.ok) {
           const data = await response.json();
           return { success: true, data };
@@ -101,9 +102,10 @@ export const ghostPayPlugin: Plugin = {
       poolAddress: POOL_ADDRESS,
       usdcAddress: USDC_ADDRESS,
       circuitDir: "./circuits/build",
-      deployBlock: 22580000,
+      deployBlock: 38347380,
     });
 
+    await initPoseidon();
     await wallet.initialize();
     await wallet.syncTree();
     console.log("[GhostPay] Plugin initialized, wallet synced");

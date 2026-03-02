@@ -31,6 +31,7 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 | `root` | Merkle tree root (proves inputs exist) |
 | `publicAmount` | External amount (>0 deposit, <0 withdraw, 0 transfer) |
 | `extDataHash` | Hash of external data (recipient, relayer, fee, encrypted outputs) |
+| `protocolFee` | Circuit-enforced protocol fee (V4.4) |
 | `inputNullifiers[nIns]` | One per input UTXO (prevents double-spend) |
 | `outputCommitments[nOuts]` | One per output UTXO (new commitments) |
 
@@ -60,7 +61,7 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 2. **Commitment:** `commitment = Poseidon(amount, publicKey, blinding)` — 3-input Poseidon
 3. **Nullifier:** `nullifier = Poseidon(commitment, pathIndex, privateKey)` — 3-input Poseidon
 4. **Nullifier match:** `inputNullifiers[i] === nullifier` — equality constraint
-5. **Merkle proof:** `MerkleProofVerifier(commitment, pathIndex, pathElements) → computedRoot` — depth-16 path
+5. **Merkle proof:** `MerkleProofVerifier(commitment, pathIndex, pathElements) → computedRoot` — depth-20 path
 6. **Conditional root check:** `ForceEqualIfEnabled(root, computedRoot, amount)` — skip for dummy (amount=0) inputs
 7. **Range check:** `Num2Bits(120)` on amount — prevents field overflow
 
@@ -72,15 +73,15 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 
 #### Global
 
-1. **Balance conservation:** `sum(inAmount) + publicAmount === sum(outAmount)`
+1. **Balance conservation:** `sum(inAmount) + publicAmount === sum(outAmount) + protocolFee`
 2. **extDataHash binding:** `extDataHashSquare = extDataHash * extDataHash` — quadratic constraint prevents optimizer removal
 
 ### Constraint Counts
 
 | Circuit | Non-linear | Approx Total |
 |---------|-----------|-------------|
-| joinSplit_1x2 (1 in, 2 out, depth 16) | 5,572 | ~11,000 |
-| joinSplit_2x2 (2 in, 2 out, depth 16) | 10,375 | ~20,000 |
+| joinSplit_1x2 (1 in, 2 out, depth 20) | ~5,900 | ~12,000 |
+| joinSplit_2x2 (2 in, 2 out, depth 20) | ~11,000 | ~22,000 |
 
 #### Breakdown (1x2)
 
@@ -89,7 +90,7 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 | Poseidon(1) keypair | 1 | ~220 |
 | Poseidon(3) input commitment | 1 | ~660 |
 | Poseidon(3) nullifier | 1 | ~660 |
-| MerkleProofVerifier (16 levels) | 1 | ~16 × 220 = ~3,520 |
+| MerkleProofVerifier (20 levels) | 1 | ~20 × 220 = ~4,400 |
 | Poseidon(3) output commitments | 2 | ~1,320 |
 | Num2Bits(120) range checks | 3 | ~360 |
 | ForceEqualIfEnabled | 1 | ~2 |
@@ -100,14 +101,14 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 | Aspect | V3 (privatePayment) | V4 (joinSplit) |
 |--------|---------------------|----------------|
 | Model | Single input, single change | N inputs, M outputs |
-| Depth | 20 | 16 |
+| Depth | 20 | 20 |
 | Commitment | `Poseidon(amount, nullifierSecret, randomness)` | `Poseidon(amount, pubkey, blinding)` |
 | Nullifier | `Poseidon(nullifierSecret, commitment)` | `Poseidon(commitment, pathIndex, privateKey)` |
 | Key model | Per-note secret | Per-wallet keypair |
-| Balance check | `LessEqThan(64)` | `sum(in) + pubAmount === sum(out)` |
+| Balance check | `LessEqThan(64)` | `sum(in) + pubAmount === sum(out) + protocolFee` |
 | Change output | Conditional (IsZero gate) | Always produced (can be zero-amount) |
 | Range check | 64-bit (amount + fee) | 120-bit (each UTXO amount) |
-| Public signals | 7 (root, null, commit, recipient, amount, relayer, fee) | 3 + nIns + nOuts (root, pubAmount, extDataHash, nullifiers, commitments) |
+| Public signals | 7 (root, null, commit, recipient, amount, relayer, fee) | 4 + nIns + nOuts (root, pubAmount, extDataHash, protocolFee, nullifiers, commitments) |
 | Amount visibility | PUBLIC (in public signals) | HIDDEN (only in encrypted notes) |
 
 ### Sub-templates
@@ -148,10 +149,10 @@ Verifies a leaf is in a Merkle tree at a given index. Uses Poseidon(2) at each l
 
 ### Powers of Tau (Phase 1)
 
-Uses `powersOfTau28_hez_final_16.ptau` from the Hermez trusted setup ceremony:
-- Supports circuits up to 2^16 = 65,536 non-linear constraints
+Uses `powersOfTau28_hez_final_17.ptau` from the Hermez trusted setup ceremony:
+- Supports circuits up to 2^17 = 131,072 non-linear constraints
 - Community ceremony with 54 participants
-- Download: `https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_16.ptau`
+- Download: `https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_17.ptau`
 
 ### Phase 2
 

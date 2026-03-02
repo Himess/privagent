@@ -5,10 +5,10 @@
  * All amounts and parties are hidden on-chain during private transfers.
  */
 
-import { ShieldedWallet } from "ghostpay-sdk";
+import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 
-const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 async function main() {
@@ -24,9 +24,10 @@ async function main() {
     poolAddress: POOL_ADDRESS,
     usdcAddress: USDC_ADDRESS,
     circuitDir: "./circuits/build",
-    deployBlock: 22580000,
+    deployBlock: 38347380,
   });
 
+  await initPoseidon();
   await aliceWallet.initialize();
   await aliceWallet.syncTree();
 

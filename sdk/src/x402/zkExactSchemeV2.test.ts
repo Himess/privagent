@@ -202,6 +202,8 @@ describe("V4 ZkPaymentHandlerV4", () => {
         nIns: 1,
         nOuts: 2,
         senderEcdhPubKey: "0xabcd",
+        protocolFee: "10000",
+        viewTags: [42, 0],
       },
     };
 

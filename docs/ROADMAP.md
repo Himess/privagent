@@ -6,8 +6,8 @@
 2026 Q1          2026 Q2            2026 Q3            2026 Q4          2027+
 ──────────────────────────────────────────────────────────────────────────────
 V4.3 Done        V4.5                V5 Alpha           V5 Stable
-V4.4 In Progress
-[WE ARE HERE]
+V4.4 Done
+     [WE ARE HERE]
 
 ├── ZK-UTXO       ├── Facilitator    ├── Decentralized  ├── ZK reputation
 ├── x402           │   deploy          │   relayers       ├── Multi-token
@@ -24,13 +24,13 @@ V4.4 In Progress
 ## Phase Details
 
 ### V4.3 — Foundation - Done
-**Status: Live on Base Sepolia (248 tests)**
+**Status: Live on Base Sepolia**
 
 Core protocol: ZK-UTXO JoinSplit, x402 middleware, stealth addresses,
 protocol fees, BSL-1.1 license. Tree depth 20 (1M capacity).
 
-### V4.4 — Advanced Features - In Progress
-**Status: In Development**
+### V4.4 — Advanced Features - Done
+**Status: Complete (Base Sepolia, 195 tests)**
 
 - **Circuit-Level Fee**: Protocol fee on ALL transactions including private transfers
 - **View Tags**: ~50x note scanning speedup (1-byte tag pre-filtering)
@@ -96,7 +96,7 @@ Fee: max(0.1%, $0.01) protocol fee on all transactions.
 | Milestone | Target | Status |
 |-----------|--------|--------|
 | V4.3 complete | March 2026 | Done |
-| V4.4 complete | March 2026 | In Progress |
+| V4.4 complete | March 2026 | Done |
 | Base Batch application | March 7, 2026 | Planned |
 | Facilitator deploy | April 2026 | Planned |
 | ERC-8004 Level 2 | May 2026 | Planned |

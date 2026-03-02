@@ -5,11 +5,11 @@
  * The agent can pay for API access without revealing amounts or identity.
  */
 
-import { ShieldedWallet } from "ghostpay-sdk";
-import { ghostFetchV4 } from "ghostpay-sdk/x402";
+import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
+import { createGhostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 
-const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 async function main() {
@@ -25,9 +25,10 @@ async function main() {
     poolAddress: POOL_ADDRESS,
     usdcAddress: USDC_ADDRESS,
     circuitDir: "./circuits/build",
-    deployBlock: 22580000,
+    deployBlock: 38347380,
   });
 
+  await initPoseidon();
   await wallet.initialize();
 
   // 3. Sync existing UTXOs from chain
@@ -43,9 +44,9 @@ async function main() {
 
   // 5. Make private API call
   console.log("Calling paid API with private payment...");
-  const response = await ghostFetchV4(
-    "https://api.example.com/premium/weather",
-    wallet
+  const ghostFetch = createGhostFetchV4(wallet);
+  const response = await ghostFetch(
+    "https://api.example.com/premium/weather"
   );
 
   if (response.ok) {

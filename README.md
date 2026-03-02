@@ -7,7 +7,7 @@
 *The missing privacy layer for x402 payments and ERC-8004 agents on Base*
 
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-217%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-195%20passing-brightgreen)]()
 [![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)]()
@@ -44,7 +44,7 @@ const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 const wallet = new ShieldedWallet({
   provider,
   signer,
-  poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
   usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   circuitDir: './circuits/build',
 });
@@ -93,7 +93,7 @@ import { ghostPaywallV4 } from 'ghostpay-sdk/x402';
 const app = express();
 
 app.use('/api/weather', ghostPaywallV4({
-  poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
   usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   signer,          // ethers.Signer for on-chain relay
   price: '1000000' // 1 USDC (6 decimals)
@@ -107,7 +107,7 @@ app.get('/api/weather', (req, res) => {
 ```typescript
 // External relay mode — server doesn't pay gas, no ETH needed
 app.use('/api/weather', ghostPaywallV4({
-  poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
   usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   mode: 'external-relay',
   relayerUrl: 'https://relay.ghostpay.xyz',
@@ -171,30 +171,27 @@ ghostpay/
 
 | Contract | Address | Verified |
 |----------|---------|----------|
-| ShieldedPoolV4 | `0x17B6209385c2e36E6095b89572273175902547f9` | Yes |
-| Groth16Verifier_1x2 | `0xe473aF953d269601402DEBcB2cc899aB594Ad31e` | Yes |
-| Groth16Verifier_2x2 | `0x10D5BB24327d40c4717676E3B7351D76deb33848` | Yes |
-| PoseidonHasher | `0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd` | Yes |
+| ShieldedPoolV4 | `0x8F1ae8209156C22dFD972352A415880040fB0b0c` | Yes |
+| Groth16Verifier_1x2 | `0xC53c8E05661450919951f51E4da829a3AABD76A2` | Yes |
+| Groth16Verifier_2x2 | `0xE77ad940291c97Ae4dC43a6b9Ffb43a3AdCd4769` | Yes |
+| PoseidonHasher | `0x70Aa742C113218a12A6582f60155c2B299551A43` | Yes |
 
-Deploy block: `38256581`
+Deploy block: `38347380`
 
 ## Testing
 
 ```bash
-# Foundry tests (contracts — 111 tests)
+# Foundry tests (contracts — 86 tests)
 cd contracts && forge test -vvv
 
-# SDK tests (TypeScript — 101 tests)
+# SDK tests (TypeScript — 109 tests)
 cd sdk && pnpm test
-
-# Relayer tests (5 tests)
-cd sdk && pnpm test -- --grep relayer
 
 # Run E2E on Base Sepolia
 PRIVATE_KEY=0x... npx ts-node scripts/e2e-base-sepolia.ts
 ```
 
-**Total: 217 tests** (111 Foundry + 101 SDK + 5 Relayer)
+**Total: 195 tests** (86 Foundry + 109 SDK)
 
 ## Fee Structure
 
@@ -224,7 +221,7 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 | [Light Paper](docs/LIGHTPAPER.md) | Vision, architecture, revenue model |
 | [Protocol](docs/PROTOCOL.md) | Technical protocol specification |
 | [Circuits](docs/CIRCUITS.md) | ZK circuit design and constraints |
-| [Stealth](docs/STEALTH.md) | Stealth address system |
+| [Stealth](docs/STEALTH.md) | Stealth address system (V3 legacy) |
 | [Trusted Setup](circuits/CEREMONY.md) | Trusted setup ceremony guide |
 | [POI Roadmap](docs/POI-ROADMAP.md) | Proof of Innocence design |
 | [Audit Report](AUDIT.md) | Internal audit findings |
@@ -244,7 +241,7 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 ## Security
 
 - 3 internal security audits completed (46+ findings resolved)
-- 217 tests passing (111 Foundry + 101 SDK + 5 Relayer)
+- 195 tests passing (86 Foundry + 109 SDK)
 - Professional audit planned pre-mainnet
 - Bug reports: security@ghostpay.xyz
 

@@ -4,4 +4,4 @@ include "../joinSplit.circom";
 
 // 4 inputs, 2 outputs, depth 20 (1M leaves)
 // Large consolidation: merge four UTXOs
-component main {public [root, publicAmount, extDataHash, inputNullifiers, outputCommitments]} = JoinSplit(4, 2, 20);
+component main {public [root, publicAmount, extDataHash, protocolFee, inputNullifiers, outputCommitments]} = JoinSplit(4, 2, 20);

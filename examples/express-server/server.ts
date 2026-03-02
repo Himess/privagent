@@ -12,7 +12,7 @@ import { JsonRpcProvider, Wallet } from "ethers";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1";
 
-const POOL_ADDRESS = "0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f";
+const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const PORT = 3001;
 
@@ -45,6 +45,7 @@ async function main() {
     ghostPaywallV4({
       price: "1000000", // 1 USDC
       asset: USDC_ADDRESS,
+      network: "eip155:84532",
       signer,
       poolAddress: POOL_ADDRESS,
       poseidonPubkey: poseidonPubkey.toString(),
@@ -69,6 +70,7 @@ async function main() {
     ghostPaywallV4({
       price: "5000000", // 5 USDC
       asset: USDC_ADDRESS,
+      network: "eip155:84532",
       signer,
       poolAddress: POOL_ADDRESS,
       poseidonPubkey: poseidonPubkey.toString(),

@@ -18,9 +18,17 @@ interface RateLimitEntry {
   resetAt: number;
 }
 const rateLimitStore: Map<string, RateLimitEntry> = new Map();
+let lastCleanup = Date.now();
 
 function checkRateLimit(ip: string, maxRequests: number = 60, windowMs: number = 60000): boolean {
   const now = Date.now();
+  // [H6] Periodic cleanup to prevent memory leak
+  if (now - lastCleanup > windowMs) {
+    for (const [key, entry] of rateLimitStore) {
+      if (now > entry.resetAt) rateLimitStore.delete(key);
+    }
+    lastCleanup = now;
+  }
   const entry = rateLimitStore.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitStore.set(ip, { count: 1, resetAt: now + windowMs });
@@ -31,7 +39,7 @@ function checkRateLimit(ip: string, maxRequests: number = 60, windowMs: number =
 }
 
 const POOL_V4_ABI = [
-  "function transact((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, bytes32 root, int256 publicAmount, bytes32 extDataHash, bytes32[] inputNullifiers, bytes32[] outputCommitments) args, (address recipient, address relayer, uint256 fee, bytes encryptedOutput1, bytes encryptedOutput2) extData) external",
+  "function transact((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, bytes32 root, int256 publicAmount, bytes32 extDataHash, uint256 protocolFee, bytes32[] inputNullifiers, bytes32[] outputCommitments, uint8[] viewTags) args, (address recipient, address relayer, uint256 fee, bytes encryptedOutput1, bytes encryptedOutput2) extData) external",
   "function isKnownRoot(bytes32) external view returns (bool)",
   "function nullifiers(bytes32) external view returns (bool)",
 ];
@@ -201,7 +209,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
         return;
       }
 
-      if (decrypted.amount.toString() !== config.price) {
+      if (decrypted.amount < BigInt(config.price)) {
         res.status(400).json({ error: "Invalid payment amount" });
         return;
       }
@@ -244,11 +252,12 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
     const vkey = config.verificationKeys?.[circuitKey];
     if (vkey) {
       try {
-        // Public signals: [root, publicAmount, extDataHash, ...nullifiers, ...commitments]
+        // Public signals V4.4: [root, publicAmount, extDataHash, protocolFee, ...nullifiers, ...commitments]
         const publicSignals = [
           BigInt(p.root).toString(),
           BigInt(p.publicAmount).toString(),
           BigInt(p.extDataHash).toString(),
+          BigInt(p.protocolFee).toString(),
           ...p.nullifiers.map((n) => BigInt(n).toString()),
           ...p.commitments.map((c) => BigInt(c).toString()),
         ];
@@ -297,8 +306,10 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
           root: rootBytes32,
           publicAmount: BigInt(p.publicAmount),
           extDataHash: toBytes32(BigInt(p.extDataHash)),
+          protocolFee: BigInt(p.protocolFee),
           inputNullifiers: nullifierBytes32,
           outputCommitments: commitmentBytes32,
+          viewTags: p.viewTags,
         },
         {
           recipient: p.extData.recipient,
@@ -319,9 +330,9 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
       // Attach payment info
       req.paymentInfo = {
         nullifierHash: p.nullifiers[0],
-        from: p.from,
+        from: p.from ?? "shielded",
         amount: config.price,
-        asset: payload.accepted.asset,
+        asset: config.asset,
         recipient: config.poseidonPubkey,
         txHash: tx.hash,
         blockNumber: receipt.blockNumber,
