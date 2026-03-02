@@ -108,12 +108,13 @@ export function createUTXO(amount: bigint, pubkey: bigint): UTXO {
  * which always derives pubkey from privateKey.
  */
 export function createDummyUTXO(): UTXO {
+  const blinding = randomFieldElement(); // unique blinding per dummy → unique nullifier
   const dummyPubkey = derivePublicKey(0n); // Poseidon(0)
-  const commitment = computeCommitmentV4(0n, dummyPubkey, 0n);
+  const commitment = computeCommitmentV4(0n, dummyPubkey, blinding);
   return {
     amount: 0n,
     pubkey: dummyPubkey,
-    blinding: 0n,
+    blinding,
     commitment,
     spent: false,
     pending: false,

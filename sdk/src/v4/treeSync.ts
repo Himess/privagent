@@ -4,7 +4,7 @@ import { MerkleTree } from "../merkle.js";
 import { V4_MERKLE_DEPTH } from "./utxo.js";
 
 const POOL_ABI_EVENTS = [
-  "event NewCommitment(bytes32 indexed commitment, uint256 indexed leafIndex, bytes encryptedOutput)",
+  "event NewCommitment(bytes32 indexed commitment, uint256 indexed leafIndex, bytes encryptedOutput, uint8 viewTag)",
   "event NewNullifier(bytes32 indexed nullifier)",
 ];
 

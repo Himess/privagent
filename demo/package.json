@@ -10,7 +10,8 @@
     "seller-v4": "tsx agent-seller-v4.ts",
     "buyer-v4": "tsx agent-buyer-v4.ts",
     "e2e-v4": "tsx e2e-v4-test.ts",
-    "demo-v4": "concurrently \"pnpm seller-v4\" \"sleep 4 && pnpm buyer-v4\""
+    "demo-v4": "concurrently \"pnpm seller-v4\" \"sleep 4 && pnpm buyer-v4\"",
+    "privacy-demo": "tsx agent-privacy-demo.ts"
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",

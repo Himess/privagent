@@ -35,7 +35,7 @@ export function selectUTXOs(
   const sorted = [...eligible].sort((a, b) => {
     if (a.amount < b.amount) return -1;
     if (a.amount > b.amount) return 1;
-    return a.leafIndex - b.leafIndex;
+    return (a.leafIndex ?? 0) - (b.leafIndex ?? 0);
   });
 
   // 3. Try single UTXO that covers the target (smallest sufficient)

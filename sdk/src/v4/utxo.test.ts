@@ -58,7 +58,7 @@ describe("V4 UTXO", () => {
     expect(dummy.amount).toBe(0n);
     // pubkey = Poseidon(0), not 0n (matches circuit behavior)
     expect(dummy.pubkey).toBe(derivePublicKey(0n));
-    expect(dummy.blinding).toBe(0n);
+    expect(dummy.blinding).not.toBe(0n); // random blinding for unique nullifiers
     expect(dummy.commitment).toBeDefined();
   });
 

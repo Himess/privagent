@@ -250,16 +250,17 @@ export class ShieldedWallet {
       this.config.signer
     );
 
-    // Approve exact USDC amount (trust-minimized, no unlimited allowance)
+    // Approve USDC: deposit amount + protocol fee (contract does 2 transferFrom calls)
+    const totalApproval = amount + protocolFee;
     const signerAddr = await this.config.signer.getAddress();
     const allowance = await usdcContract.allowance(
       signerAddr,
       this.config.poolAddress
     );
-    if (BigInt(allowance) < amount) {
+    if (BigInt(allowance) < totalApproval) {
       const approveTx = await usdcContract.approve(
         this.config.poolAddress,
-        amount
+        totalApproval
       );
       await approveTx.wait();
     }

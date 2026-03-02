@@ -151,12 +151,9 @@ function buildCircuitInput(
       // Dummy input — use zero path
       inPathIndices.push("0");
       inPathElements.push(Array(levels).fill("0"));
-      // Compute nullifier for dummy (amount=0, so root check skipped by circuit)
-      // Circuit derives pubkey = Poseidon(privateKey=0) internally
-      const dummyPubkey = derivePublicKey(0n);
-      const dummyCommitment = computeCommitmentV4(0n, dummyPubkey, 0n);
+      // Compute nullifier using the UTXO's actual commitment (random blinding → unique nullifier)
       inputNullifiers.push(
-        computeNullifierV4(dummyCommitment, 0, 0n).toString()
+        computeNullifierV4(utxo.commitment, 0, 0n).toString()
       );
     } else {
       // Real input — get Merkle proof

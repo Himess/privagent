@@ -36,6 +36,10 @@ contract DeployV4 is Script {
         );
         console.log("ShieldedPoolV4:", address(pool));
 
+        // 5. Set treasury for protocol fee collection (deployer = treasury)
+        pool.setTreasury(vm.addr(deployerPrivateKey));
+        console.log("Treasury set to deployer:", vm.addr(deployerPrivateKey));
+
         vm.stopBroadcast();
     }
 }
