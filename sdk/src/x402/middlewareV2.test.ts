@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { initPoseidon } from "../poseidon.js";
-import { ghostPaywallV4 } from "./middlewareV2.js";
+import { privAgentPaywallV4 } from "./middlewareV2.js";
 import { createUTXO, derivePublicKey } from "../v4/utxo.js";
 import { encryptNote } from "../v4/noteEncryption.js";
 import { computeExtDataHash, ExtData } from "../v4/extData.js";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { randomBytes } from "crypto";
 import { ethers } from "ethers";
-import type { GhostPaywallConfigV4, V4PaymentPayload } from "../types.js";
+import type { PrivAgentwallConfigV4, V4PaymentPayload } from "../types.js";
 
 // Mock Express req/res/next
 function mockReq(headers: Record<string, string> = {}): Record<string, unknown> {
@@ -44,10 +44,10 @@ function mockRes(): {
   return res;
 }
 
-describe("V4 ghostPaywallV4 Middleware", () => {
+describe("V4 privAgentPaywallV4 Middleware", () => {
   let serverEcdhPriv: Uint8Array;
   let serverEcdhPub: Uint8Array;
-  let config: GhostPaywallConfigV4;
+  let config: PrivAgentwallConfigV4;
 
   beforeAll(async () => {
     await initPoseidon();
@@ -67,12 +67,12 @@ describe("V4 ghostPaywallV4 Middleware", () => {
 
   it("should throw if no signer provided", () => {
     expect(() =>
-      ghostPaywallV4({ ...config, signer: undefined as unknown as ethers.Signer })
+      privAgentPaywallV4({ ...config, signer: undefined as unknown as ethers.Signer })
     ).toThrow("requires a signer");
   });
 
   it("should return 402 when no Payment header", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -90,7 +90,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject invalid base64 Payment header", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const req = mockReq({ payment: "not-valid-base64!!!" });
     const res = mockRes();
     const next = vi.fn();
@@ -102,7 +102,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject wrong x402 version", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const payload = { x402Version: 2, payload: {} };
     const header = Buffer.from(JSON.stringify(payload)).toString("base64");
     const req = mockReq({ payment: header });
@@ -118,7 +118,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject invalid proof length", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const payload = {
       x402Version: 4,
       payload: {
@@ -146,7 +146,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject nullifier/commitment count mismatch", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const payload = {
       x402Version: 4,
       payload: {
@@ -176,7 +176,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject wrong extDataHash", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
     const payload = {
       x402Version: 4,
       payload: {
@@ -210,7 +210,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
   });
 
   it("should reject wrong payment amount via note decryption", async () => {
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
 
     // Create a UTXO with WRONG amount (500000 instead of 1000000)
     const serverPoseidonPubkey = derivePublicKey(100n);
@@ -285,7 +285,7 @@ describe("V4 ghostPaywallV4 Middleware", () => {
     // This test verifies that amount decryption succeeds for correct amount.
     // The middleware will then try pre-flight checks which will fail (no real contract),
     // but the amount verification itself passes.
-    const middleware = ghostPaywallV4(config);
+    const middleware = privAgentPaywallV4(config);
 
     const serverPoseidonPubkey = derivePublicKey(100n);
     const correctAmountUTXO = createUTXO(1000000n, serverPoseidonPubkey); // correct price

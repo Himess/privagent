@@ -7,7 +7,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ghost: {
+        privagent: {
           green: "#00ff88",
           dark: "#0a0a0f",
           card: "#111118",

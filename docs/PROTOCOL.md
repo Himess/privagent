@@ -1,8 +1,8 @@
-# GhostPay Protocol Specification
+# PrivAgent Protocol Specification
 
 ## Overview
 
-GhostPay implements a privacy-preserving payment protocol for HTTP 402 flows. V4 uses a UTXO JoinSplit model where all transfer amounts are **hidden on-chain**.
+PrivAgent implements a privacy-preserving payment protocol for HTTP 402 flows. V4 uses a UTXO JoinSplit model where all transfer amounts are **hidden on-chain**.
 
 **V3 → V4 upgrade:** Single-note withdraw (amounts PUBLIC) replaced with JoinSplit UTXO (amounts HIDDEN via `publicAmount=0` + encrypted note verification).
 
@@ -126,7 +126,7 @@ Key V4 changes from V3:
 
 ### Differences from Standard x402
 
-| Aspect | Standard x402 | GhostPay zk-exact-v2 |
+| Aspect | Standard x402 | PrivAgent zk-exact-v2 |
 |--------|---------------|----------------------|
 | Payment | ERC-3009 transfer | JoinSplit ZK proof |
 | Privacy | Public transfer | All amounts HIDDEN |

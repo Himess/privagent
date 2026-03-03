@@ -1,18 +1,18 @@
-# GhostPay + Virtuals Agent Integration
+# PrivAgent + Virtuals Agent Integration
 
 Add private USDC payments to your Virtuals Protocol agent.
 
 ## Setup
 
 ```bash
-npm install ghostpay-sdk ethers
+npm install privagent-sdk ethers
 ```
 
 ## Usage
 
 ```typescript
-import { ShieldedWallet, initPoseidon } from 'ghostpay-sdk';
-import { ghostFetchV4 } from 'ghostpay-sdk/x402';
+import { ShieldedWallet, initPoseidon } from 'privagent-sdk';
+import { privAgentFetchV4 } from 'privagent-sdk/x402';
 import { JsonRpcProvider, Wallet } from 'ethers';
 
 // Initialize
@@ -33,7 +33,7 @@ const wallet = new ShieldedWallet({
 await wallet.deposit(100_000000n); // 100 USDC
 
 // Make private API call (auto-handles 402 + ZK proof)
-const response = await ghostFetchV4('https://api.example.com/data', wallet);
+const response = await privAgentFetchV4('https://api.example.com/data', wallet);
 const data = await response.json();
 ```
 

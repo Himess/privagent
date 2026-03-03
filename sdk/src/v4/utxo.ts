@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import { randomBytes } from "crypto";
 import { hash1, hash3 } from "../poseidon.js";
 import { FIELD_SIZE } from "../types.js";

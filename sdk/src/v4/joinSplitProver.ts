@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import * as snarkjs from "snarkjs";
 import * as fs from "fs";
 import { MerkleTree } from "../merkle.js";

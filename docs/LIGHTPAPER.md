@@ -1,11 +1,11 @@
-# GhostPay: Privacy Infrastructure for the Agent Economy
+# PrivAgent: Privacy Infrastructure for the Agent Economy
 
 ## Abstract
 
-GhostPay is a privacy-preserving payment protocol for AI agents on Base.
+PrivAgent is a privacy-preserving payment protocol for AI agents on Base.
 It combines ZK-UTXO architecture with Coinbase's x402 payment standard
 to enable private, verifiable micropayments between autonomous agents.
-GhostPay is designed as the missing privacy layer for ERC-8004 agent identity
+PrivAgent is designed as the missing privacy layer for ERC-8004 agent identity
 and x402 payment infrastructure.
 
 ## The Problem
@@ -39,13 +39,13 @@ Current agent stack:
 | Payment Protocol | x402 | Public (no privacy) |
 | Settlement | Base L2 | Public (transparent) |
 
-GhostPay fills the missing privacy layer.
+PrivAgent fills the missing privacy layer.
 
 ## The Solution
 
-### GhostPay: Private Payments for Base
+### PrivAgent: Private Payments for Base
 
-GhostPay brings Railgun-level privacy to Base's agent economy:
+PrivAgent brings Railgun-level privacy to Base's agent economy:
 
 **ZK-UTXO Architecture**
 - Groth16 zero-knowledge proofs with Poseidon hashing
@@ -63,7 +63,7 @@ GhostPay brings Railgun-level privacy to Base's agent economy:
 **ERC-8004 Complementary**
 - Agent identity remains PUBLIC (ERC-8004 Identity Registry)
 - Agent reputation remains PUBLIC (ERC-8004 Reputation Registry)
-- Agent payments become PRIVATE (GhostPay)
+- Agent payments become PRIVATE (PrivAgent)
 - "Verifiable agents, private payments"
 
 **Circuit-Level Fee (V4.4)**
@@ -79,19 +79,19 @@ GhostPay brings Railgun-level privacy to Base's agent economy:
 
 **Hybrid Relayer (V4.4)**
 - Self-relay: server submits transactions directly
-- External relay: server delegates to GhostPay relayer — zero gas for API providers
+- External relay: server delegates to PrivAgent relayer — zero gas for API providers
 - Agents operate with USDC only — no ETH funding required
 
-**GhostPay Facilitator (V4.4)**
+**PrivAgent Facilitator (V4.4)**
 - x402-standard compatible privacy facilitator
 - Any x402 server adds privacy by changing one URL — zero code changes
 - Endpoints: /verify (settle), /info (discovery), /health
 - Scheme: `zk-exact-v2`
 
 **ERC-8004 Level 1 Integration (V4.4)**
-- Agent registration file spec with GhostPay payment method
+- Agent registration file spec with PrivAgent payment method
 - Payment proof for feedback: nullifier-based sybil resistance
-- Helper SDK: `ghostPayPaymentMethod()`, `paymentProofForFeedback()`
+- Helper SDK: `privAgentPaymentMethod()`, `paymentProofForFeedback()`
 
 ### How It Works
 
@@ -116,7 +116,7 @@ On-chain: only cryptographic commitments visible
 
 **Facilitator Mode (V4.4):**
 ```
-Agent → x402 Server → GhostPay Facilitator → pool.transact() → Base
+Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 (Server changes only facilitator URL — zero code changes for privacy)
 ```
 
@@ -124,7 +124,7 @@ Agent → x402 Server → GhostPay Facilitator → pool.transact() → Base
 
 | What | Visible? |
 |------|----------|
-| Agent uses GhostPay (deposit) | Yes (acceptable, like using a bank) |
+| Agent uses PrivAgent (deposit) | Yes (acceptable, like using a bank) |
 | Payment amount | No (encrypted + ZK proof) |
 | Payment recipient | No (stealth addresses) |
 | Payment sender (in transfers) | No (nullifier-based) |
@@ -143,7 +143,7 @@ Agent → x402 Server → GhostPay Facilitator → pool.transact() → Base
 |  ERC-8004: Identity + Reputation         |
 |  (Agent discovery & trust)               |
 +------------------------------------------+
-|  GhostPay: Payment Privacy Layer         |
+|  PrivAgent: Payment Privacy Layer         |
 |  (ZK-UTXO + stealth + encrypted notes)  |
 +------------------------------------------+
 |  x402: Payment Protocol                  |
@@ -184,8 +184,8 @@ All contracts verified on Blockscout. Deploy block: `38347380`.
 |----------|--------|-----------|
 | Protocol fee (ALL transactions) | max(0.1%, $0.01) | Treasury (governance) |
 | Relayer fee (per TX) | $0.01-0.05 | Server operator / Relayer |
-| Facilitator fee | $0.01-0.05/TX | GhostPay facilitator |
-| Enterprise SDK license | $50K/year | GhostPay team |
+| Facilitator fee | $0.01-0.05/TX | PrivAgent facilitator |
+| Enterprise SDK license | $50K/year | PrivAgent team |
 
 ### Unit Economics
 
@@ -222,7 +222,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 - Visa as x402 Foundation member → traditional finance bridge
 - Base leading x402 volume → Coinbase ecosystem advantage
 
-### GhostPay Revenue Model
+### PrivAgent Revenue Model
 
 **Fee Structure:** max(0.1%, $0.01 minimum) on ALL transactions (circuit-level enforcement)
 
@@ -236,7 +236,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 **Assumptions:**
 - Average x402 TX value: ~$0.30 (derived: $43M ÷ 140M TX = ~$0.31)
 - x402 annual growth: 300-500% (based on observed 500% rate, discounted for maturation)
-- GhostPay privacy adoption: 3-10% of Base x402 volume (conservative — privacy is opt-in)
+- PrivAgent privacy adoption: 3-10% of Base x402 volume (conservative — privacy is opt-in)
 - Min fee ($0.01) applies to ~90% of transactions (micropayments dominant)
 
 **2026 Conservative:**
@@ -245,7 +245,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 |--------|-------|-------|
 | Total x402 volume (all chains) | ~$200M | $43M × 4-5x growth |
 | Base share (~50%) | ~$100M | Base leads in x402 adoption |
-| GhostPay privacy share (3%) | ~$3M | Early adoption, few integrations |
+| PrivAgent privacy share (3%) | ~$3M | Early adoption, few integrations |
 | Transaction count | ~10M | $3M ÷ $0.30 avg |
 | Protocol fee revenue | ~$100K | 10M TX × $0.01 min fee |
 | Facilitator fee | ~$50K | Subset of TX through facilitator |
@@ -258,7 +258,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 |--------|-------|-------|
 | Total x402 volume (all chains) | ~$500M | Stripe + Google Cloud catalyst |
 | Base share (~50%) | ~$250M | |
-| GhostPay privacy share (5%) | ~$12.5M | Agent frameworks integrated |
+| PrivAgent privacy share (5%) | ~$12.5M | Agent frameworks integrated |
 | Transaction count | ~40M | $12.5M ÷ $0.30 avg |
 | Protocol fee revenue | ~$400K | 40M TX × $0.01 |
 | Facilitator fee | ~$200K | |
@@ -271,7 +271,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 |--------|-------|-------|
 | Total x402 volume (all chains) | ~$2-5B | Stripe + enterprise adoption at scale |
 | Base share (~45%) | ~$1-2.25B | |
-| GhostPay privacy share (7%) | ~$70-160M | Privacy as default for agent fleets |
+| PrivAgent privacy share (7%) | ~$70-160M | Privacy as default for agent fleets |
 | Transaction count | ~230-530M | |
 | Protocol fee revenue | ~$2.3-5.3M | |
 | Facilitator + enterprise | ~$700K-1.5M | |
@@ -279,7 +279,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 
 **2028+ Upside Scenario:**
 - a16z projects $30T in autonomous transactions by 2030
-- If even 0.1% flows through GhostPay: $30B × 0.001 = $30M volume
+- If even 0.1% flows through PrivAgent: $30B × 0.001 = $30M volume
 - At $0.01/TX on 100M transactions: $1M protocol fee alone
 - With enterprise + facilitator: $3-5M total
 
@@ -295,7 +295,7 @@ The dominant revenue driver is **transaction count**, not volume (because min fe
 | 500M TX/year | ~$5M protocol fee |
 | 1B TX/year | ~$10M protocol fee |
 
-For context: x402 already processes 140M+ cumulative transactions in its first 8 months. If GhostPay captures even 1% of x402 transaction count, that's millions of transactions per year.
+For context: x402 already processes 140M+ cumulative transactions in its first 8 months. If PrivAgent captures even 1% of x402 transaction count, that's millions of transactions per year.
 
 ### Path to Profitability
 
@@ -305,7 +305,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Monthly revenue | ~$0 | ~$5-20K | ~$50-250K |
 | Status | Building | Break-even | Profitable |
 
-**Key insight:** GhostPay's operational costs are minimal (~$150/month for VPS + RPC). Even 500K transactions/month ($5K revenue) achieves profitability. This is achievable with a single agent framework integration.
+**Key insight:** PrivAgent's operational costs are minimal (~$150/month for VPS + RPC). Even 500K transactions/month ($5K revenue) achieves profitability. This is achievable with a single agent framework integration.
 
 ### Operational Costs
 
@@ -318,7 +318,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 
 ## Competitive Landscape
 
-| Feature | GhostPay | Railgun | Tornado Cash | Aztec |
+| Feature | PrivAgent | Railgun | Tornado Cash | Aztec |
 |---------|----------|---------|-------------|-------|
 | Base L2 | Yes | No | No (sanctioned) | No |
 | x402 native | Yes | No | No | No |
@@ -333,7 +333,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | x402 facilitator | Yes (V4.4) | No | No | No |
 | No ETH required | Yes (V4.4) | No | No | No |
 
-**GhostPay is the only privacy protocol on Base with x402 and ERC-8004 integration.**
+**PrivAgent is the only privacy protocol on Base with x402 and ERC-8004 integration.**
 
 ## Compliance & Risk Management
 
@@ -358,8 +358,8 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
 | **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, Base Sepolia deployment |
-| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, GhostPay facilitator, ERC-8004 Level 1 integration, 3 internal audits, 195 tests |
-| **V4.5** | Weeks 1-8 (Program) | GhostPay Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
+| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1 integration, 3 internal audits, 195 tests |
+| **V4.5** | Weeks 1-8 (Program) | PrivAgent Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
 | **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
 | **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |
 
@@ -379,7 +379,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 
 | Metric | Value |
 |--------|-------|
-| GhostPay development time | ~72 hours (V3 → V4.4) |
+| PrivAgent development time | ~72 hours (V3 → V4.4) |
 | Test coverage | 195 tests (86 Foundry + 109 SDK) |
 | Internal audits completed | 3 (46+ findings resolved) |
 | Lines of Solidity | ~800+ |
@@ -395,14 +395,14 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 - Circuit-level fee enforcement on all transactions
 - View tags for 50x note scanning optimization
 - Hybrid relayer with external relay support
-- x402-compatible GhostPay Facilitator
+- x402-compatible PrivAgent Facilitator
 - ERC-8004 Level 1 integration (registration + payment proof)
 - 195 tests passing, 3 internal audits
 
 **What we'll build in the program (V4.5):**
 
-1. **GhostPay Facilitator Deploy** — Any x402 server adds privacy by changing one URL. No code changes. Drop-in privacy-as-a-service.
-2. **ERC-8004 Integration** — GhostPay as the payment privacy layer for the 24,000+ registered agents. Verifiable agents, private payments.
+1. **PrivAgent Facilitator Deploy** — Any x402 server adds privacy by changing one URL. No code changes. Drop-in privacy-as-a-service.
+2. **ERC-8004 Integration** — PrivAgent as the payment privacy layer for the 24,000+ registered agents. Verifiable agents, private payments.
 3. **Mainnet Launch** — Multi-party ceremony, professional audit, Base mainnet deployment.
 4. **First Enterprise Integration** — Partner with 1-2 agent frameworks (Virtuals, ElizaOS) for SDK integration.
 
@@ -418,11 +418,11 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 
 ## Links
 
-- **GitHub**: https://github.com/Himess/ghostpay
+- **GitHub**: https://github.com/Himess/privagent
 - **Contracts (Base Sepolia)**: Verified on Blockscout
 - **Documentation**: See /docs in repository
 
 ---
 
-*GhostPay is licensed under the Business Source License 1.1.
+*PrivAgent is licensed under the Business Source License 1.1.
 Commercial use requires a license. Converts to GPL-2.0 on March 1, 2028.*

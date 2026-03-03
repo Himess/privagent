@@ -1,7 +1,7 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 /**
- * [C3] GhostPay Relayer Server — real TX submission.
+ * [C3] PrivAgent Relayer Server — real TX submission.
  *
  * A relayer accepts ZK proofs from clients and submits on-chain
  * transactions on their behalf, earning a fee for the gas cost.
@@ -78,7 +78,7 @@ export function createRelayerServer(config: RelayerConfig) {
     app.use((req: any, res: any, nextFn: any) => {
       // Allow health check without auth
       if (req.path === "/v1/health") return nextFn();
-      const key = req.headers["x-ghostpay-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
+      const key = req.headers["x-privagent-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
       if (key !== config.apiKey) {
         return res.status(401).json({ success: false, message: "Unauthorized: invalid API key" });
       }
@@ -221,7 +221,7 @@ export function createRelayerServer(config: RelayerConfig) {
         } catch (verifyError: unknown) {
           // [M3] Reject if off-chain verification fails — don't waste gas
           console.error(
-            "[ghostpay] Off-chain verify error:",
+            "[privagent] Off-chain verify error:",
             verifyError instanceof Error ? verifyError.message : verifyError
           );
           return res

@@ -1,13 +1,13 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 export { initPoseidon, hash1, hash2, hash3, computeCommitment, computeNullifierHash, isInitialized, getF } from "./poseidon.js";
 export { MerkleTree } from "./merkle.js";
 export * from "./types.js";
 
 // ERC-8004 Integration
 export {
-  ghostPayPaymentMethod,
+  privAgentPaymentMethod,
   paymentProofForFeedback,
-  GhostPayPaymentMethod,
+  PrivAgentPaymentMethod,
   PaymentProofForFeedback,
 } from "./erc8004/index.js";
 

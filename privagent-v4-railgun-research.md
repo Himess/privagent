@@ -1,6 +1,6 @@
-# GhostPay V4 — Railgun Privacy Model Research Report
+# PrivAgent V4 — Railgun Privacy Model Research Report
 
-> Deep technical analysis of Railgun's privacy architecture for GhostPay V4 design.
+> Deep technical analysis of Railgun's privacy architecture for PrivAgent V4 design.
 > Covers circuits, contracts, SDK, UTXO model, Base feasibility, alternatives, and implementation plan.
 
 ---
@@ -11,7 +11,7 @@
 2. [Circuit Constraint Details & Benchmarks](#2-circuit-constraint-details--benchmarks)
 3. [UTXO Model Specification](#3-utxo-model-specification)
 4. [Range Proof Implementation Options](#4-range-proof-implementation-options)
-5. [GhostPay V4 Architecture Proposal](#5-ghostpay-v4-architecture-proposal)
+5. [PrivAgent V4 Architecture Proposal](#5-privagent-v4-architecture-proposal)
 6. [Base Feasibility Analysis](#6-base-feasibility-analysis)
 7. [x402 + UTXO Wire Format Proposal](#7-x402--utxo-wire-format-proposal)
 8. [Implementation Timeline & Effort Estimate](#8-implementation-timeline--effort-estimate)
@@ -157,9 +157,9 @@ component main{public [merkleRoot, boundParamsHash, nullifiers, commitmentsOut]}
 
 **Key insight:** Adding 1 input costs ~4,700 constraints (Merkle proof dominates). Adding 1 output costs only ~360 constraints.
 
-### 2.3 GhostPay V3 vs Railgun Comparison
+### 2.3 PrivAgent V3 vs Railgun Comparison
 
-| Aspect | GhostPay V3 | Railgun V2 |
+| Aspect | PrivAgent V3 | Railgun V2 |
 |--------|------------|------------|
 | Circuit model | Single note, 1 input → 1 output + change | JoinSplit, N inputs → M outputs |
 | Constraints (NL) | 5,762 | 9K-60K depending on config |
@@ -178,7 +178,7 @@ component main{public [merkleRoot, boundParamsHash, nullifiers, commitmentsOut]}
 
 | System | Circuit | Time | Environment |
 |--------|---------|------|-------------|
-| GhostPay V3 | ~12K constraints | ~1.2s | Node.js, snarkjs |
+| PrivAgent V3 | ~12K constraints | ~1.2s | Node.js, snarkjs |
 | Railgun | ~15K (2x2) | ~1.5s (est.) | Browser, snarkjs WASM |
 | Railgun | ~40K (8x2) | ~5-10s (est.) | Browser, snarkjs WASM |
 | Tornado Nova | ~30K | ~5-10s | Browser, snarkjs WASM |
@@ -188,7 +188,7 @@ component main{public [merkleRoot, boundParamsHash, nullifiers, commitmentsOut]}
 
 Railgun uses **2^28 Powers of Tau** (~4 GB ptau file, 268M constraint limit). Phase 2 ceremony per circuit.
 
-GhostPay V3 uses `powersOfTau28_hez_final_14.ptau` (2^14 = 16,384 NL constraint limit). **A larger ptau file is needed for V4** — minimum 2^17 (131K constraints) for comfortable headroom.
+PrivAgent V3 uses `powersOfTau28_hez_final_14.ptau` (2^14 = 16,384 NL constraint limit). **A larger ptau file is needed for V4** — minimum 2^17 (131K constraints) for comfortable headroom.
 
 ---
 
@@ -230,7 +230,7 @@ nullifier = Poseidon(nullifyingKey, leafIndex)
 - Deterministic: same note always produces same nullifier
 - Unlinkable: can't connect nullifier to commitment without viewing key
 
-**vs GhostPay V3:** `nullifier = Poseidon(nullifierSecret, commitment)` — per-note secret provides better compartmentalization but requires tracking more secrets.
+**vs PrivAgent V3:** `nullifier = Poseidon(nullifierSecret, commitment)` — per-note secret provides better compartmentalization but requires tracking more secrets.
 
 ### 3.3 Transaction Structure
 
@@ -290,7 +290,7 @@ Broadcaster fee is a regular output note with `OutputType.BroadcasterFee`. Not a
 |----------|------------|-----------|---------|
 | `Num2Bits(120)` | 120 | 2^120 - 1 (~1.3×10^36) | Railgun |
 | `Num2Bits(248)` | 248 | 2^248 - 1 | Tornado Nova |
-| `LessEqThan(64)` | ~130 | 2^64 - 1 (~1.8×10^19) | GhostPay V3 |
+| `LessEqThan(64)` | ~130 | 2^64 - 1 (~1.8×10^19) | PrivAgent V3 |
 | `Num2Bits_strict` | 254 + alias check | Full field | Security-critical |
 
 ### 4.2 Recommendation for V4
@@ -305,11 +305,11 @@ Broadcaster fee is a regular output note with `OutputType.BroadcasterFee`. Not a
 
 ---
 
-## 5. GhostPay V4 Architecture Proposal
+## 5. PrivAgent V4 Architecture Proposal
 
 ### 5.1 Design Decisions
 
-| Decision | GhostPay V3 | V4 Proposal | Rationale |
+| Decision | PrivAgent V3 | V4 Proposal | Rationale |
 |----------|------------|-------------|-----------|
 | Circuit model | Single note | JoinSplit (2-in, 2-out base) | UTXO consolidation, privacy improvement |
 | Commitment | `Poseidon(balance, secret, random)` | `Poseidon(NPK, tokenHash, value)` | Multi-token ready, standard pattern |
@@ -321,7 +321,7 @@ Broadcaster fee is a regular output note with `OutputType.BroadcasterFee`. Not a
 | Range proof | LessEqThan(64) | Num2Bits(120) + LessEqThan(64) | Safety + USDC-specific |
 | Token support | USDC only | Multi-ERC20 (tokenHash in commitment) | Future flexibility |
 
-### 5.2 Proposed Circuit: `GhostPayJoinSplit(nIns, nOuts, depth)`
+### 5.2 Proposed Circuit: `PrivAgentJoinSplit(nIns, nOuts, depth)`
 
 ```
 Public signals:
@@ -418,7 +418,7 @@ V3 ShieldedPoolClient → V4:
 - x402 `zk-exact` scheme structure (extend, don't replace)
 - Server-as-relayer pattern (buyer generates proof, server submits TX)
 - Poseidon hash function (same curve, same library)
-- Express middleware pattern (ghostPaywall)
+- Express middleware pattern (privAgentPaywall)
 - Off-chain proof verification (snarkjs.groth16.verify)
 
 ---
@@ -432,7 +432,7 @@ All three required precompiles are available on Base (OP Stack = full EVM equiva
 - `0x07` ecMul — 6,000 gas
 - `0x08` ecPairing — 34,000×k + 45,000 gas
 
-GhostPay's existing `Groth16Verifier.sol` at `0x605002BbB689457101104e8Ee3C76a8d5D23e5c8` is empirical proof.
+PrivAgent's existing `Groth16Verifier.sol` at `0x605002BbB689457101104e8Ee3C76a8d5D23e5c8` is empirical proof.
 
 ### 6.2 Gas Costs
 
@@ -440,13 +440,13 @@ GhostPay's existing `Groth16Verifier.sol` at `0x605002BbB689457101104e8Ee3C76a8d
 
 | Public Inputs | Verify Gas | Base Cost (~0.008 Gwei) |
 |---------------|-----------|------------------------|
-| 7 (GhostPay V3) | ~224K | ~$0.005 |
+| 7 (PrivAgent V3) | ~224K | ~$0.005 |
 | 1 (SHA256-hashed, Railgun-style) | ~187K | ~$0.004 |
 | 15 (large UTXO) | ~273K | ~$0.006 |
 
 **Full transaction cost comparison:**
 
-| Operation | GhostPay V3 | Railgun (Ethereum) | V4 Est. (Base) |
+| Operation | PrivAgent V3 | Railgun (Ethereum) | V4 Est. (Base) |
 |-----------|------------|-------------------|---------------|
 | Deposit | 851K gas (~$0.02) | 700-900K | ~500K (~$0.01) |
 | Transfer | N/A | 400-700K | ~600K (~$0.01) |
@@ -483,7 +483,7 @@ For Node.js agents: bundled locally, non-issue. For browser: lazy-download + cac
 
 **Railgun is NOT deployed on Base** (Feb 2026). Deployments: Ethereum ($79M TVL), Arbitrum ($2.8M), BSC ($624K), Polygon ($402K). Total ~$83-108M TVL, $4.5B cumulative volume.
 
-**GhostPay V4 would be the first ZK-based UTXO privacy protocol on Base.**
+**PrivAgent V4 would be the first ZK-based UTXO privacy protocol on Base.**
 
 ### 6.7 Block Time
 
@@ -620,7 +620,7 @@ For x402 agent payments (many small, frequent):
 | **5. x402** | V4 wire format | 2 days | 95% |
 | | Middleware update | 2 days | 95% |
 | | zkExactScheme V2 | 2 days | 95% |
-| | ghostFetch update | 1 day | 95% |
+| | privAgentFetch update | 1 day | 95% |
 | **6. E2E** | Integration test | 3 days | 80% |
 | | Demo agents update | 2 days | 90% |
 | | Base Sepolia deploy + verify | 1 day | 90% |
@@ -726,16 +726,16 @@ For x402 agent payments (many small, frequent):
 - [Base Block Gas Limit](https://docs.base.org/) — 375M gas, 2s blocks, 200ms Flashblocks
 - [EIP-4844 Blobs](https://eips.ethereum.org/EIPS/eip-4844) — L2 data availability cost reduction
 
-### GhostPay V3
-- [GhostPay GitHub](https://github.com/Himess/ghostpay)
+### PrivAgent V3
+- [PrivAgent GitHub](https://github.com/Himess/privagent)
 - [ShieldedPool V3.1](https://base-sepolia.blockscout.com/address/0xbA5c38093CefBbFA08577b08b0494D5c7738E4F6) — Deployed on Base Sepolia
-- [GhostPay AUDIT.md](./AUDIT.md) — V3 + V3.1 audit findings
+- [PrivAgent AUDIT.md](./AUDIT.md) — V3 + V3.1 audit findings
 
 ---
 
 ## Summary
 
-**Railgun's UTXO JoinSplit model is the right architecture for GhostPay V4.** It solves V3's fundamental privacy weakness (amount correlation) by making all amounts private. The closest implementation reference is **Tornado Cash Nova** (same stack: Circom + Groth16 + BN254 + Poseidon), while Railgun provides the production-grade reference for multi-token support, key management, and compliance (POI).
+**Railgun's UTXO JoinSplit model is the right architecture for PrivAgent V4.** It solves V3's fundamental privacy weakness (amount correlation) by making all amounts private. The closest implementation reference is **Tornado Cash Nova** (same stack: Circom + Groth16 + BN254 + Poseidon), while Railgun provides the production-grade reference for multi-token support, key management, and compliance (POI).
 
 **Base L2 is ideal** — BN254 precompiles available, gas costs negligible ($0.01-0.02 per TX), 375M block gas limit, 200ms Flashblocks, and zero ZK-privacy competitors deployed.
 
@@ -743,4 +743,4 @@ For x402 agent payments (many small, frequent):
 
 **Estimated effort: ~11 weeks** for a working V4 MVP on Base Sepolia, with the circuit design and trusted setup being the highest-risk phases.
 
-**GhostPay V4 = first ZK-based UTXO privacy protocol on Base + first privacy-native x402 payment system with encrypted amounts.**
+**PrivAgent V4 = first ZK-based UTXO privacy protocol on Base + first privacy-native x402 payment system with encrypted amounts.**

@@ -1,4 +1,4 @@
-# GhostPay Trusted Setup Ceremony
+# PrivAgent Trusted Setup Ceremony
 
 ## V4 JoinSplit Circuits (Current)
 
@@ -14,7 +14,7 @@
 - **Date:** 2026-02-27
 - **Circuits:** joinSplit_1x2 (5,572 NL), joinSplit_2x2 (10,375 NL)
 - **Contributors:** Single contributor (development)
-- **Entropy:** Deterministic `ghostpay-v4-dev-entropy-{config}` — **NOT suitable for production**
+- **Entropy:** Deterministic `privagent-v4-dev-entropy-{config}` — **NOT suitable for production**
 
 > **WARNING:** Phase 2 uses hardcoded entropy strings. For mainnet, use `openssl rand -hex 32` piped to each contribution, and run a multi-party ceremony with 3+ independent contributors.
 
@@ -51,7 +51,7 @@ Outputs per variant:
 - **Date:** 2026-02-27
 - **Circuit:** privatePayment (V3)
 - **Contributors:** Single contributor (development)
-- **Entropy:** Random (`ghostpay-v3` + timestamp)
+- **Entropy:** Random (`privagent-v3` + timestamp)
 
 ## Production Ceremony Guide
 

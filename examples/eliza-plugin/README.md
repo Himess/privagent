@@ -1,21 +1,21 @@
-# GhostPay Plugin for ElizaOS
+# PrivAgent Plugin for ElizaOS
 
 Add private payment capabilities to your ElizaOS agent.
 
 ## Setup
 
 ```bash
-npm install ghostpay-sdk ethers
+npm install privagent-sdk ethers
 ```
 
 ## Plugin Registration
 
 ```typescript
-import { ghostPayPlugin } from './ghostpay-plugin';
+import { privAgentPlugin } from './privagent-plugin';
 
 // Register in your ElizaOS agent config
 const agent = createAgent({
-  plugins: [ghostPayPlugin],
+  plugins: [privAgentPlugin],
   // ... other config
 });
 ```
@@ -28,6 +28,6 @@ const agent = createAgent({
 
 ## How It Works
 
-The plugin wraps GhostPay's `ShieldedWallet` and `ghostFetchV4` into ElizaOS
+The plugin wraps PrivAgent's `ShieldedWallet` and `privAgentFetchV4` into ElizaOS
 actions. When the agent needs to pay for an API, it uses the `PRIVATE_PAY`
 action which generates a JoinSplit ZK proof and sends it in the Payment header.

@@ -7,7 +7,7 @@ PTAU=powersOfTau28_hez_final_15.ptau
 
 cd "$(dirname "$0")/.."
 
-echo "=== GhostPay Circuit Build ==="
+echo "=== PrivAgent Circuit Build ==="
 
 # Create build directory
 mkdir -p $BUILD_DIR
@@ -36,7 +36,7 @@ snarkjs groth16 setup $BUILD_DIR/$CIRCUIT.r1cs $PTAU $BUILD_DIR/${CIRCUIT}_0000.
 
 # Contribute to Phase 2 (single entropy for dev)
 echo "Contributing to Phase 2..."
-echo "ghostpay-dev-entropy" | snarkjs zkey contribute $BUILD_DIR/${CIRCUIT}_0000.zkey $BUILD_DIR/${CIRCUIT}_final.zkey --name="GhostPay Dev" -v
+echo "privagent-dev-entropy" | snarkjs zkey contribute $BUILD_DIR/${CIRCUIT}_0000.zkey $BUILD_DIR/${CIRCUIT}_final.zkey --name="PrivAgent Dev" -v
 
 # Export verification key
 echo "Exporting verification key..."

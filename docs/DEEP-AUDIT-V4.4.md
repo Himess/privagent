@@ -1,4 +1,4 @@
-# GhostPay V4.4 — Deep Audit Report
+# PrivAgent V4.4 — Deep Audit Report
 
 **Tarih:** 2026-03-03
 **Kapsam:** Tüm repo (contracts, SDK, circuits, x402, docs, examples, tests, CI/CD)
@@ -21,7 +21,7 @@
 
 ## Özet Değerlendirme
 
-GhostPay, **kriptografik açıdan sağlam** ve **iyi test edilmiş** bir privacy protokolüdür. Solidity kontratları ve circuit tasarımı production-grade kalitededir. Ancak SDK'nın x402 katmanında **kritik production-readiness eksiklikleri** (TX doğrulama, auth, race condition) ve **dokümantasyon tutarsızlıkları** (V4.3 vs V4.4 adres karışıklığı) genel puanı düşürmektedir.
+PrivAgent, **kriptografik açıdan sağlam** ve **iyi test edilmiş** bir privacy protokolüdür. Solidity kontratları ve circuit tasarımı production-grade kalitededir. Ancak SDK'nın x402 katmanında **kritik production-readiness eksiklikleri** (TX doğrulama, auth, race condition) ve **dokümantasyon tutarsızlıkları** (V4.3 vs V4.4 adres karışıklığı) genel puanı düşürmektedir.
 
 **Güçlü yanlar:** ZK circuit tasarımı, Poseidon implementasyonu, kontrat güvenliği, test kapsamı (195 test)
 **Zayıf yanlar:** Relayer/facilitator auth eksikliği, TX confirmation olmadan UTXO state güncellemesi, adres tutarsızlıkları
@@ -129,7 +129,7 @@ GhostPay, **kriptografik açıdan sağlam** ve **iyi test edilmiş** bir privacy
 
 ### CRITICAL: Trusted Setup DEV Entropy
 - **Konum:** Phase 2 ceremony
-- **Sorun:** `ghostpay-v4-dev-entropy-{config}` hardcoded — toxic waste deterministik
+- **Sorun:** `privagent-v4-dev-entropy-{config}` hardcoded — toxic waste deterministik
 - **Etki:** Herkes proof forge edebilir
 - **Durum:** Testnet için kabul edilebilir, **mainnet için KESİNLİKLE düzeltilmeli**
 - **Öneri:** 3+ bağımsız contributor ile multi-party ceremony
@@ -210,7 +210,7 @@ Per-input overhead: ~12,151 constraint (2. input eklemek için). Tornado Cash No
 - Recipient pubkey check: Decrypt edilen pubkey server config ile eşleşmeli
 
 ### zkFetchV2.ts (5.5/10)
-- Clean factory pattern: `createGhostFetchV4` reusable fetcher
+- Clean factory pattern: `createPrivAgentFetchV4` reusable fetcher
 - Response cloning: Original response korunuyor
 - Dry-run support: Test mode desteği
 
@@ -328,7 +328,7 @@ Per-input overhead: ~12,151 constraint (2. input eklemek için). Tornado Cash No
 **4 dosyada yanlış V4.3 adresi var** — hepsi `0x8F1ae8209156C22dFD972352A415880040fB0b0c` olmalı.
 
 ### HIGH: Example'lar Compile Olmayacak
-- **eliza-plugin**: `createGhostFetchV4` çağrısında ECDH key parametreleri eksik
+- **eliza-plugin**: `createPrivAgentFetchV4` çağrısında ECDH key parametreleri eksik
 - **virtuals-integration**: Aynı sorun — ECDH key generation yok
 - 5 example'dan 2'si runtime'da fail edecek
 
@@ -399,7 +399,7 @@ Per-input overhead: ~12,151 constraint (2. input eklemek için). Tornado Cash No
 
 # KARŞILAŞTIRMALI DEĞERLENDİRME
 
-| Kriter | GhostPay | Tornado Cash | Railgun |
+| Kriter | PrivAgent | Tornado Cash | Railgun |
 |--------|----------|-------------|---------|
 | Circuit tasarımı | 9/10 | 9/10 | 9/10 |
 | Kontrat güvenliği | 8.5/10 | 8/10 | 9/10 |
@@ -468,7 +468,7 @@ Per-input overhead: ~12,151 constraint (2. input eklemek için). Tornado Cash No
 
 # SONUÇ
 
-GhostPay V4.4, **kriptografik temelleri sağlam** bir privacy protokolüdür. Circuit tasarımı ve Solidity kontratları production-grade kalitededir. Ana zayıflıklar SDK'nın x402 katmanında (auth, TX verification, race condition) ve dokümantasyon tutarsızlıklarındadır.
+PrivAgent V4.4, **kriptografik temelleri sağlam** bir privacy protokolüdür. Circuit tasarımı ve Solidity kontratları production-grade kalitededir. Ana zayıflıklar SDK'nın x402 katmanında (auth, TX verification, race condition) ve dokümantasyon tutarsızlıklarındadır.
 
 **Testnet için:** ✅ Kullanılabilir durumda
 **Demo/hackathon için:** ✅ Mükemmel

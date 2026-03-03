@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 /**
  * [H3] Public signal indices for JoinSplit circuits.

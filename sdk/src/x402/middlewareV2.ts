@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { Contract, ethers } from "ethers";
 import * as snarkjs from "snarkjs";
@@ -6,7 +6,7 @@ import type {
   ZkPaymentRequirementsV4,
   V4PaymentPayload,
   PaymentRequiredV4,
-  GhostPaywallConfigV4,
+  PrivAgentwallConfigV4,
   PaymentInfo,
 } from "../types.js";
 import { computeExtDataHash } from "../v4/extData.js";
@@ -55,15 +55,15 @@ declare global {
 }
 
 /**
- * Express middleware that puts a GhostPay V4 ZK paywall on a route.
+ * Express middleware that puts a PrivAgent V4 ZK paywall on a route.
  *
  * V4: Amount is HIDDEN. Server acts as relayer: receives JoinSplit proof
  * in Payment header, decrypts encrypted note to verify amount off-chain,
  * then calls ShieldedPoolV4.transact() on-chain.
  */
-export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
+export function privAgentPaywallV4(config: PrivAgentwallConfigV4): RequestHandler {
   if (!config.signer) {
-    throw new Error("ghostPaywallV4 requires a signer for on-chain transactions");
+    throw new Error("privAgentPaywallV4 requires a signer for on-chain transactions");
   }
 
   const network = config.network ?? "eip155:84532"; // Base Sepolia default
@@ -184,7 +184,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
         return;
       }
     } catch (err) {
-      console.error("[ghostpay] extData validation failed:", err instanceof Error ? err.message : err);
+      console.error("[privagent] extData validation failed:", err instanceof Error ? err.message : err);
       res.status(400).json({ error: "Invalid extData" });
       return;
     }
@@ -224,7 +224,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
         return;
       }
     } catch (err) {
-      console.error("[ghostpay] Note decryption failed:", err instanceof Error ? err.message : err);
+      console.error("[privagent] Note decryption failed:", err instanceof Error ? err.message : err);
       res.status(400).json({ error: "Payment verification failed" });
       return;
     }
@@ -262,7 +262,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
     } catch (err) {
       for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
       // [M2] Log validation failure
-      console.error("[ghostpay] Pre-flight check failed:", err instanceof Error ? err.message : err);
+      console.error("[privagent] Pre-flight check failed:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Payment verification failed" });
       return;
     }
@@ -305,7 +305,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
           return;
         }
       } catch (err) {
-        console.error("[ghostpay] Proof verification error:", err instanceof Error ? err.message : err);
+        console.error("[privagent] Proof verification error:", err instanceof Error ? err.message : err);
         res.status(400).json({ error: "Proof verification failed" });
         return;
       }
@@ -368,7 +368,7 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
       // [C2] Release nullifier lock on error
       for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
       // [M2] Log TX submission failure
-      console.error("[ghostpay] TX submission failed:", err instanceof Error ? err.message : err);
+      console.error("[privagent] TX submission failed:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Payment processing failed" });
     }
   };

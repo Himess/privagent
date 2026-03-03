@@ -1,5 +1,5 @@
 /**
- * @deprecated V3 uses server-as-relayer middleware (ghostPaywall in sdk/src/x402/middleware.ts).
+ * @deprecated V3 uses server-as-relayer middleware (privAgentPaywall in sdk/src/x402/middleware.ts).
  * This standalone relayer is kept for reference but is not used in the V3 flow.
  * The seller server now submits withdraw() on-chain directly.
  */
@@ -135,7 +135,7 @@ if (isMain) {
 
   const app = createRelayer(config);
   app.listen(config.port, () => {
-    console.log(`GhostPay Relayer listening on port ${config.port}`);
+    console.log(`PrivAgent Relayer listening on port ${config.port}`);
     console.log(`  Pool: ${config.poolAddress}`);
     console.log(`  Fee: ${config.fee.toString()} (${Number(config.fee) / 1e6} USDC)`);
   });

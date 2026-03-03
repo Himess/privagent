@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import { ethers } from "ethers";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { initPoseidon } from "../poseidon.js";

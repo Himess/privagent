@@ -1,10 +1,10 @@
-# GhostPay Security Audit Report
+# PrivAgent Security Audit Report
 
 > **V4.4 Audit:** See [docs/AUDIT-V4.4.md](docs/AUDIT-V4.4.md) for the latest comprehensive audit.
 
 ## Summary (V3)
 
-Full audit of GhostPay privacy x402 payment protocol. All findings fixed in V3.
+Full audit of PrivAgent privacy x402 payment protocol. All findings fixed in V3.
 
 - **Total findings:** 28 (7 Critical, 9 High, 12 Medium, 8 Low) — all fixed in V3
 - **V3.1 fixes:** 5 additional (middleware validation, off-chain verify, duplicate commitment, fee trapping, exact approval)
@@ -83,7 +83,7 @@ Full audit of GhostPay privacy x402 payment protocol. All findings fixed in V3.
 
 ### H6: consumeNote without TX verification
 **Status:** FIXED
-**Fix:** ghostFetch checks `X-Payment-TxHash` header before calling `consumeNote()`. No header = no state update.
+**Fix:** privAgentFetch checks `X-Payment-TxHash` header before calling `consumeNote()`. No header = no state update.
 **Files:** `sdk/src/x402/zkFetch.ts`
 
 ### H7: onPayment callback timing

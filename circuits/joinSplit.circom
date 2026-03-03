@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 pragma circom 2.0.0;
 
 include "merkleProof.circom";
@@ -7,7 +7,7 @@ include "node_modules/circomlib/circuits/bitify.circom";
 include "node_modules/circomlib/circuits/comparators.circom";
 
 /**
- * GhostPay V4 — JoinSplit UTXO Circuit
+ * PrivAgent V4 — JoinSplit UTXO Circuit
  *
  * Based on Tornado Cash Nova's transaction.circom pattern.
  * Proves ownership of input UTXOs and creates new output UTXOs

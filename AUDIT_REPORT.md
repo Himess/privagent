@@ -1,7 +1,7 @@
-# GhostPay V2 — Kapsamli Guvenlik Denetimi
+# PrivAgent V2 — Kapsamli Guvenlik Denetimi
 
 **Tarih:** 27 Subat 2026
-**Proje:** GhostPay — Privacy-Preserving x402 Payment Protocol
+**Proje:** PrivAgent — Privacy-Preserving x402 Payment Protocol
 **Versiyon:** V2 (Server-as-relayer flow)
 **Ag:** Base Sepolia
 **Durum:** E2E testi gecti — 62 test (14 Foundry + 48 SDK)
@@ -27,7 +27,7 @@
 
 ## 1. Yonetici Ozeti
 
-GhostPay, x402 HTTP odeme protokolunu ZK kanitlariyla birlestiren bir privacy odeme sistemidir. V2'de "server-as-relayer" mimarisi benimsenmistir: alici ZK kanit uretir, sunucu on-chain withdraw() cagrisini yapar.
+PrivAgent, x402 HTTP odeme protokolunu ZK kanitlariyla birlestiren bir privacy odeme sistemidir. V2'de "server-as-relayer" mimarisi benimsenmistir: alici ZK kanit uretir, sunucu on-chain withdraw() cagrisini yapar.
 
 **Denetim Sonucu:**
 
@@ -121,7 +121,7 @@ Buyer (SDK)                    Seller (Express + Middleware)
 | C1 | KRITIK | Stealth adreslere gonderilen fonlar kurtarilamaz | `stealth.ts` | 109-119 |
 | C2 | KRITIK | Full-spend: devre/SDK uyumsuzlugu | `pool.ts` / `privatePayment.circom` | 238 / 82-86 |
 | C3 | KRITIK | Middleware: recipient dogrulamasi yok | `middleware.ts` | 138 |
-| C4 | KRITIK | Concurrent ghostFetch double-spend | `zkFetch.ts` | 29-68 |
+| C4 | KRITIK | Concurrent privAgentFetch double-spend | `zkFetch.ts` | 29-68 |
 | C5 | KRITIK | Middleware: relayer/fee dogrulamasi yok | `middleware.ts` | 138-146 |
 | C6 | KRITIK | Commitment nullifierSecret bind etmiyor | `privatePayment.circom` | 44-48 |
 | C7 | KRITIK | Deposit tutari commitment'a baglanmamis — pool drain edilebilir | `ShieldedPool.sol` | 100-112 |
@@ -250,17 +250,17 @@ if (p.recipient.toLowerCase() !== config.recipient.toLowerCase()) {
 
 ---
 
-### C4: Concurrent ghostFetch Double-Spend
+### C4: Concurrent privAgentFetch Double-Spend
 
 **Dosya:** `sdk/src/x402/zkFetch.ts:29-68`
 **Etki:** Ayni note birden fazla kez harcanabilir
 
 **Aciklama:**
-`ghostFetch` senkronize degil. Birden fazla concurrent cagri ayni note'u secebilir cunku `consumeNote()` ancak HTTP 2xx donusunde cagiriliyor:
+`privAgentFetch` senkronize degil. Birden fazla concurrent cagri ayni note'u secebilir cunku `consumeNote()` ancak HTTP 2xx donusunde cagiriliyor:
 
 ```
-ghostFetch(url1) → note A secildi → proof uretiliyor...
-ghostFetch(url2) → note A hala mevcut → ayni note secildi → proof uretiliyor...
+privAgentFetch(url1) → note A secildi → proof uretiliyor...
+privAgentFetch(url2) → note A hala mevcut → ayni note secildi → proof uretiliyor...
 ```
 
 Her iki proof da ayni nullifier'i kullanir. Ilki basarili olur, ikincisi on-chain revert eder ama SDK state'i bozuk kalir.
@@ -451,7 +451,7 @@ HTTP 2xx, on-chain TX'in basarili oldugunu garanti etmez. Sunucu 200 donup TX'i 
 
 **Dosya:** `sdk/src/x402/zkFetch.ts:97`
 
-`ghostFetchWithCallback` fonksiyonunda `onPayment(result)` retry request'inden **once** cagiriliyor. Eger retry basarisiz olursa, callback yanlis bilgi vermis olur.
+`privAgentFetchWithCallback` fonksiyonunda `onPayment(result)` retry request'inden **once** cagiriliyor. Eger retry basarisiz olursa, callback yanlis bilgi vermis olur.
 
 **Oneri:** Callback'i retry sonrasina tasiyin veya basari durumunu callback'e ekleyin.
 
@@ -530,7 +530,7 @@ Yeterli leaf bulunamazsa 3 kademeli backward scan yapiliyor (50K → 500K → ge
 
 **Dosya:** `sdk/src/x402/zkFetch.test.ts`
 
-Testler JS primitive'lerini test ediyor (Response constructor, btoa/atob), `ghostFetch` fonksiyonunu gercekten cagirmiyor. Etkili kapsam: **~0%**.
+Testler JS primitive'lerini test ediyor (Response constructor, btoa/atob), `privAgentFetch` fonksiyonunu gercekten cagirmiyor. Etkili kapsam: **~0%**.
 
 ### M9: middleware.test.ts Happy Path Yok
 

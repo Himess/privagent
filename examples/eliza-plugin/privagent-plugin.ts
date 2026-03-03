@@ -1,12 +1,12 @@
 /**
- * GhostPay Plugin for ElizaOS
+ * PrivAgent Plugin for ElizaOS
  *
  * Adds private USDC payment actions to an ElizaOS agent.
  * Uses JoinSplit ZK proofs to hide all transaction details.
  */
 
-import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
-import { createGhostFetchV4 } from "ghostpay-sdk/x402";
+import { ShieldedWallet, initPoseidon } from "privagent-sdk";
+import { createPrivAgentFetchV4 } from "privagent-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1";
@@ -42,8 +42,8 @@ let wallet: ShieldedWallet;
 let ecdhPrivateKey: Uint8Array;
 let ecdhPublicKey: Uint8Array;
 
-export const ghostPayPlugin: Plugin = {
-  name: "ghostpay",
+export const privAgentPlugin: Plugin = {
+  name: "privagent",
 
   actions: [
     {
@@ -53,8 +53,8 @@ export const ghostPayPlugin: Plugin = {
         const url = ctx.params.url;
         if (!url) return { success: false, message: "URL required" };
 
-        const ghostFetch = createGhostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
-        const response = await ghostFetch(url);
+        const privAgentFetch = createPrivAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
+        const response = await privAgentFetch(url);
         if (response.ok) {
           const data = await response.json();
           return { success: true, data };
@@ -115,6 +115,6 @@ export const ghostPayPlugin: Plugin = {
     await initPoseidon();
     await wallet.initialize();
     await wallet.syncTree();
-    console.log("[GhostPay] Plugin initialized, wallet synced");
+    console.log("[PrivAgent] Plugin initialized, wallet synced");
   },
 };

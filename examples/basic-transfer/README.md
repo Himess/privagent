@@ -1,11 +1,11 @@
-# GhostPay Basic Transfer — Private USDC
+# PrivAgent Basic Transfer — Private USDC
 
-Deposit, privately transfer, and withdraw USDC using GhostPay.
+Deposit, privately transfer, and withdraw USDC using PrivAgent.
 
 ## Setup
 
 ```bash
-npm install ghostpay-sdk ethers
+npm install privagent-sdk ethers
 ```
 
 ## Flow

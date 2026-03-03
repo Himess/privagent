@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# GhostPay Demo — runs seller + buyer agents
+# PrivAgent Demo — runs seller + buyer agents
 #
 # Usage:
 #   PRIVATE_KEY_SELLER=0x... PRIVATE_KEY_BUYER=0x... ./demo/run-demo.sh
@@ -20,7 +20,7 @@ if [ -z "$PRIVATE_KEY_BUYER" ]; then
   exit 1
 fi
 
-echo "=== GhostPay Demo ==="
+echo "=== PrivAgent Demo ==="
 echo ""
 
 # Start seller in background

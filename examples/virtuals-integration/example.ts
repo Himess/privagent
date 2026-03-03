@@ -1,12 +1,12 @@
 /**
- * GhostPay + Virtuals Agent Integration Example
+ * PrivAgent + Virtuals Agent Integration Example
  *
  * Shows how to add private USDC payments to a Virtuals Protocol agent.
  * The agent can pay for API access without revealing amounts or identity.
  */
 
-import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
-import { createGhostFetchV4 } from "ghostpay-sdk/x402";
+import { ShieldedWallet, initPoseidon } from "privagent-sdk";
+import { createPrivAgentFetchV4 } from "privagent-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1";
@@ -48,8 +48,8 @@ async function main() {
   console.log("Calling paid API with private payment...");
   const ecdhPrivateKey = randomBytes(32);
   const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
-  const ghostFetch = createGhostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
-  const response = await ghostFetch(
+  const privAgentFetch = createPrivAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
+  const response = await privAgentFetch(
     "https://api.example.com/premium/weather"
   );
 

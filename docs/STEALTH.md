@@ -1,4 +1,4 @@
-# GhostPay Stealth Address Design (V3)
+# PrivAgent Stealth Address Design (V3)
 
 > **LEGACY V3 DOCUMENT**
 > This document describes V3 stealth addresses, which are NOT used in V4.
@@ -6,7 +6,7 @@
 
 ## Overview
 
-GhostPay V3 uses secp256k1 ECDH stealth addresses for private receiving. Each payment goes to a fresh one-time address that only the recipient can identify and spend from.
+PrivAgent V3 uses secp256k1 ECDH stealth addresses for private receiving. Each payment goes to a fresh one-time address that only the recipient can identify and spend from.
 
 ## Key Generation
 

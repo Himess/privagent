@@ -2,14 +2,14 @@
 
 ## Status: PLANNED (V4.2)
 
-GhostPay's UTXO JoinSplit architecture is designed to support
+PrivAgent's UTXO JoinSplit architecture is designed to support
 Proof of Innocence as an additive circuit constraint, following
 Railgun's proven compliance model.
 
 ## What is POI?
 
 POI allows users to prove their funds come from non-sanctioned sources
-WITHOUT revealing their identity. This makes GhostPay both private AND
+WITHOUT revealing their identity. This makes PrivAgent both private AND
 regulation-compliant.
 
 ## Architecture (Planned)
@@ -42,7 +42,7 @@ regulation-compliant.
 ### References
 - Railgun PPOI: https://github.com/Railgun-Privacy/circuits-ppoi
 - Chainalysis Oracle: 0x40C57923924B5c5c5455c48D93317139ADDaC8fb
-- GhostPay POI Design Doc: (internal)
+- PrivAgent POI Design Doc: (internal)
 
 ### Timeline
 - Design: 1 week

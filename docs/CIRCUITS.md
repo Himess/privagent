@@ -1,4 +1,4 @@
-# GhostPay Circuit Documentation
+# PrivAgent Circuit Documentation
 
 ## JoinSplit Circuit (V4)
 

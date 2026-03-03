@@ -1,4 +1,4 @@
-# GhostPay V4 — Deep Audit Report
+# PrivAgent V4 — Deep Audit Report
 
 **Date:** 2026-02-28
 **Scope:** Full codebase analysis — contracts, SDK, circuits, tests, architecture, documentation
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-GhostPay V4 is a privacy-preserving x402 payment protocol on Base Sepolia implementing a UTXO JoinSplit model with Poseidon commitments, Groth16 proofs, and ECDH note encryption. The codebase demonstrates strong engineering discipline with 192 tests, comprehensive documentation, and a well-executed V3-to-V4 migration.
+PrivAgent V4 is a privacy-preserving x402 payment protocol on Base Sepolia implementing a UTXO JoinSplit model with Poseidon commitments, Groth16 proofs, and ECDH note encryption. The codebase demonstrates strong engineering discipline with 192 tests, comprehensive documentation, and a well-executed V3-to-V4 migration.
 
 ### Overall Scores
 
@@ -230,7 +230,7 @@ All `.ts` files in `sdk/src/`, `sdk/src/v4/`, and `sdk/src/x402/` (excluding tes
 
 **[CIR-M3] Trusted Setup Entropy is Hardcoded**
 - **File:** `build-v4.sh:51-54`
-- Phase 2 contribution uses deterministic string `"ghostpay-v4-dev-entropy-${config}"` instead of cryptographic randomness.
+- Phase 2 contribution uses deterministic string `"privagent-v4-dev-entropy-${config}"` instead of cryptographic randomness.
 - **Status:** Acceptable for testnet. For mainnet, use `openssl rand -hex 32` and multi-party ceremony.
 
 **[CIR-L1]** 120-bit range checks are excessive for USDC (60 bits sufficient). Adds ~60 unnecessary constraints per amount.
@@ -305,7 +305,7 @@ The circuits agent flagged a potential mismatch between V3 contract public signa
 ### Project Structure: Excellent
 
 ```
-ghostpay/
+privagent/
   contracts/     Foundry — ShieldedPoolV4, PoseidonHasher, Verifiers
   circuits/      Circom — JoinSplit (1x2, 2x2), MerkleProof
   sdk/           TypeScript SDK — v4/ (UTXO engine) + x402/ (payment protocol)

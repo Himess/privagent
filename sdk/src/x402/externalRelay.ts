@@ -1,4 +1,4 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 export interface RelayRequest {
   proof: {
@@ -60,7 +60,7 @@ function validateRelayerUrl(url: string): void {
 const FETCH_TIMEOUT_MS = 60_000; // 60s for relay, 10s for info
 
 /**
- * Relay a transaction via an external GhostPay relayer.
+ * Relay a transaction via an external PrivAgent relayer.
  * The relayer submits the on-chain transaction and charges a fee.
  */
 export async function relayViaExternal(
@@ -73,7 +73,7 @@ export async function relayViaExternal(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (apiKey) headers["X-GhostPay-API-Key"] = apiKey;
+  if (apiKey) headers["X-PrivAgent-API-Key"] = apiKey;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);

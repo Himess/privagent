@@ -25,9 +25,9 @@ import {
   ShieldedWallet,
   BASE_SEPOLIA_USDC,
   derivePublicKey,
-} from "ghostpay-sdk";
-import { ghostPaywallV4, createGhostFetchV4 } from "ghostpay-sdk/x402";
-import type { GhostPaywallConfigV4 } from "ghostpay-sdk";
+} from "privagent-sdk";
+import { privAgentPaywallV4, createPrivAgentFetchV4 } from "privagent-sdk/x402";
+import type { PrivAgentwallConfigV4 } from "privagent-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +49,7 @@ const POOL_V4_ABI = [
 ];
 
 async function main() {
-  console.log("=== GhostPay V4 E2E Test (Base Sepolia) ===");
+  console.log("=== PrivAgent V4 E2E Test (Base Sepolia) ===");
   console.log("=== JoinSplit UTXO: amounts HIDDEN on-chain ===\n");
 
   // Load key
@@ -86,7 +86,7 @@ async function main() {
 
   const app = express();
 
-  const paywallConfig: GhostPaywallConfigV4 = {
+  const paywallConfig: PrivAgentwallConfigV4 = {
     price: "1000000", // 1 USDC
     asset: USDC_ADDRESS,
     poolAddress: POOL_V4_ADDRESS,
@@ -99,7 +99,7 @@ async function main() {
     relayerFee: "0",
   };
 
-  app.use("/api/weather", ghostPaywallV4(paywallConfig));
+  app.use("/api/weather", privAgentPaywallV4(paywallConfig));
 
   app.get("/api/weather", (req, res) => {
     res.json({
@@ -170,17 +170,17 @@ async function main() {
     const balanceBefore = wallet.getBalance();
     console.log(`  Shielded balance: ${Number(balanceBefore) / 1e6} USDC`);
 
-    // =================== STEP 3: ghostFetchV4 → 402 → JoinSplit proof → 200 ===================
-    console.log("\n--- Step 3: ghostFetchV4 (JoinSplit proof → server relayer → transact) ---");
+    // =================== STEP 3: privAgentFetchV4 → 402 → JoinSplit proof → 200 ===================
+    console.log("\n--- Step 3: privAgentFetchV4 (JoinSplit proof → server relayer → transact) ---");
 
-    const ghostFetch = createGhostFetchV4(wallet, buyerEcdhPriv, buyerEcdhPub);
+    const privAgentFetch = createPrivAgentFetchV4(wallet, buyerEcdhPriv, buyerEcdhPub);
     const sellerUrl = `http://localhost:${port}/api/weather`;
 
     console.log(`  Fetching ${sellerUrl}...`);
     console.log("  Flow: GET → 402 → coin select → JoinSplit proof → encrypt notes → retry → server verify → transact()");
 
     const paymentStart = Date.now();
-    const response = await ghostFetch(sellerUrl);
+    const response = await privAgentFetch(sellerUrl);
     const paymentElapsed = Date.now() - paymentStart;
 
     console.log(`  Response: ${response.status} (${paymentElapsed}ms)`);

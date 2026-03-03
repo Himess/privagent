@@ -1,6 +1,6 @@
 <div align="center">
 
-# GhostPay
+# PrivAgent
 
 **Privacy Infrastructure for the Agent Economy**
 
@@ -20,22 +20,22 @@
 
 ## The Problem
 
-AI agents transact $50M+ through x402 payments on Base — all publicly visible. Every agent's strategy, spending pattern, and business relationships are exposed on-chain. GhostPay fixes this.
+AI agents transact $50M+ through x402 payments on Base — all publicly visible. Every agent's strategy, spending pattern, and business relationships are exposed on-chain. PrivAgent fixes this.
 
 ## The Solution
 
-GhostPay brings **Railgun-level privacy** to Base's agent economy:
+PrivAgent brings **Railgun-level privacy** to Base's agent economy:
 
 - **ZK-UTXO Architecture** — Groth16 proofs, Poseidon hashing, encrypted amounts
 - **Circuit-Level Fee** — Protocol fee enforced at ZK circuit level on ALL transactions
 - **View Tags** — 50x note scanning optimization with 1-byte Poseidon-based pre-filtering
-- **x402 Native** — Drop-in middleware + GhostPay Facilitator for any x402 server
+- **x402 Native** — Drop-in middleware + PrivAgent Facilitator for any x402 server
 - **Hybrid Relayer** — Self-relay or external relay modes — agents need zero ETH
 - **ERC-8004 Compatible** — Verifiable agents, private payments
 - **Agent-First SDK** — Privacy payments with the ShieldedWallet API
 
 ```typescript
-import { ShieldedWallet } from 'ghostpay-sdk';
+import { ShieldedWallet } from 'privagent-sdk';
 import { ethers } from 'ethers';
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -61,7 +61,7 @@ await wallet.deposit(10_000_000n);  // 10 USDC -> shielded
 +-----------------------------------+
 |  ERC-8004: Identity + Trust       |
 +-----------------------------------+
-|  GhostPay: Privacy Layer          |
+|  PrivAgent: Privacy Layer          |
 |  (ZK-UTXO + Facilitator)         |
 +-----------------------------------+
 |  x402: Payment Protocol           |
@@ -88,11 +88,11 @@ Add private payments to your x402 API with the V4 middleware:
 
 ```typescript
 import express from 'express';
-import { ghostPaywallV4 } from 'ghostpay-sdk/x402';
+import { privAgentPaywallV4 } from 'privagent-sdk/x402';
 
 const app = express();
 
-app.use('/api/weather', ghostPaywallV4({
+app.use('/api/weather', privAgentPaywallV4({
   poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
   usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   signer,          // ethers.Signer for on-chain relay
@@ -106,11 +106,11 @@ app.get('/api/weather', (req, res) => {
 
 ```typescript
 // External relay mode — server doesn't pay gas, no ETH needed
-app.use('/api/weather', ghostPaywallV4({
+app.use('/api/weather', privAgentPaywallV4({
   poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
   usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   mode: 'external-relay',
-  relayerUrl: 'https://relay.ghostpay.xyz',
+  relayerUrl: 'https://relay.privagent.xyz',
   price: '1000000'
 }));
 ```
@@ -118,8 +118,8 @@ app.use('/api/weather', ghostPaywallV4({
 ### For Agent Developers (Client)
 
 ```typescript
-import { ShieldedWallet } from 'ghostpay-sdk';
-import { ghostFetchV4, createGhostFetchV4 } from 'ghostpay-sdk/x402';
+import { ShieldedWallet } from 'privagent-sdk';
+import { privAgentFetchV4, createPrivAgentFetchV4 } from 'privagent-sdk/x402';
 
 // Initialize wallet
 const wallet = new ShieldedWallet({ provider, signer, poolAddress, usdcAddress, circuitDir });
@@ -130,14 +130,14 @@ await wallet.syncTree();
 await wallet.deposit(10_000_000n);  // 10 USDC
 
 // Private API payment (x402 flow: 402 -> ZK proof -> private payment -> 200)
-const fetch = createGhostFetchV4(wallet);
+const fetch = createPrivAgentFetchV4(wallet);
 const response = await fetch('https://api.example.com/weather');
 ```
 
 ## Project Structure
 
 ```
-ghostpay/
+privagent/
 ├── contracts/          # Solidity — ShieldedPoolV4, Verifiers, PoseidonHasher, StealthRegistry
 │   ├── src/            # Contract source files
 │   └── test/           # Foundry tests (111 tests)
@@ -199,7 +199,7 @@ PRIVATE_KEY=0x... npx ts-node scripts/e2e-base-sepolia.ts
 |-----|--------|-----------|
 | Protocol fee | max(0.1%, $0.01) | Treasury |
 | Relayer fee | $0.01-0.05/TX | Server operator / Relayer |
-| Facilitator fee | $0.01-0.05/TX | GhostPay facilitator |
+| Facilitator fee | $0.01-0.05/TX | PrivAgent facilitator |
 
 Protocol fees apply to ALL transactions including private transfers (circuit-level enforcement). Agents operate with USDC only — no ETH funding required when using external relayer.
 
@@ -232,7 +232,7 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 
 | Example | Description |
 |---------|-------------|
-| [Virtuals Integration](examples/virtuals-integration/) | Add GhostPay to Virtuals agents |
+| [Virtuals Integration](examples/virtuals-integration/) | Add PrivAgent to Virtuals agents |
 | [ElizaOS Plugin](examples/eliza-plugin/) | ElizaOS action plugin |
 | [Express Server](examples/express-server/) | Privacy paywall middleware |
 | [Basic Transfer](examples/basic-transfer/) | Deposit -> transfer -> withdraw |
@@ -243,7 +243,7 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 - 3 internal security audits completed (46+ findings resolved)
 - 195 tests passing (86 Foundry + 109 SDK)
 - Professional audit planned pre-mainnet
-- Bug reports: security@ghostpay.xyz
+- Bug reports: security@privagent.xyz
 
 ## License
 
@@ -262,7 +262,7 @@ Licensed under [Business Source License 1.1](LICENSE).
 
 Converts to GPL-2.0 on **March 1, 2028**.
 
-For commercial licensing: license@ghostpay.xyz
+For commercial licensing: license@privagent.xyz
 
 ---
 

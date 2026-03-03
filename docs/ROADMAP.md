@@ -1,4 +1,4 @@
-# GhostPay Roadmap
+# PrivAgent Roadmap
 
 ## Timeline
 
@@ -35,13 +35,13 @@ protocol fees, BSL-1.1 license. Tree depth 20 (1M capacity).
 - **Circuit-Level Fee**: Protocol fee on ALL transactions including private transfers
 - **View Tags**: ~50x note scanning speedup (1-byte tag pre-filtering)
 - **Hybrid Relayer**: Self-relay + external relay modes
-- **GhostPay Facilitator**: x402-standard compatible privacy facilitator
+- **PrivAgent Facilitator**: x402-standard compatible privacy facilitator
 - **ERC-8004 Level 1**: Agent registration spec + payment proof helpers
 
 ### V4.5 — Production Ready - Planned
 **Status: Planned (Base Batch Program, 8 weeks)**
 
-- **Facilitator Deploy**: facilitator.ghostpay.xyz live service
+- **Facilitator Deploy**: facilitator.privagent.xyz live service
 - **ERC-8004 Level 2**: Reputation + sybil-resistant feedback
 - **POI**: Proof of Innocence (Railgun model)
 - **Ceremony**: Multi-party trusted setup (10+ contributors)
@@ -65,19 +65,19 @@ protocol fees, BSL-1.1 license. Tree depth 20 (1M capacity).
 
 ```
 V4.3 (Now):
-Agent -> GhostPay SDK -> Server (self-relay) -> Base
+Agent -> PrivAgent SDK -> Server (self-relay) -> Base
                          ^ server sends TX
 
 V4.4 (This Week):
-Agent -> GhostPay SDK -> Server -> GhostPay Relayer -> Base
+Agent -> PrivAgent SDK -> Server -> PrivAgent Relayer -> Base
                          ^ server does NOT send TX (optional)
 
 V4.5 (Program):
-Agent -> GhostPay SDK -> x402 Server -> GhostPay Facilitator -> Base
+Agent -> PrivAgent SDK -> x402 Server -> PrivAgent Facilitator -> Base
                          ^ server changes 1 URL, zero code changes
 
 V5 (Post-launch):
-Agent -> GhostPay SDK -> Decentralized Relayer Network -> Base
+Agent -> PrivAgent SDK -> Decentralized Relayer Network -> Base
                          ^ permissionless, stake + slash
 ```
 

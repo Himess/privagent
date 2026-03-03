@@ -13,7 +13,7 @@ const CONTRACTS = {
 };
 
 const BLOCKSCOUT = "https://base-sepolia.blockscout.com/address/";
-const GITHUB = "https://github.com/Himess/ghostpay";
+const GITHUB = "https://github.com/Himess/privagent";
 
 // ============ Types ============
 
@@ -66,15 +66,15 @@ function LogPanel({ logs }: { logs: LogEntry[] }) {
           animate={{ opacity: 1, x: 0 }}
           className={`font-mono ${
             log.type === "success"
-              ? "text-ghost-green"
+              ? "text-privagent-green"
               : log.type === "error"
               ? "text-red-400"
               : log.type === "pending"
               ? "text-yellow-400"
-              : "text-ghost-muted"
+              : "text-privagent-muted"
           }`}
         >
-          <span className="text-ghost-muted/50 mr-2">
+          <span className="text-privagent-muted/50 mr-2">
             {new Date(log.timestamp).toLocaleTimeString()}
           </span>
           {log.type === "pending" && (
@@ -89,9 +89,9 @@ function LogPanel({ logs }: { logs: LogEntry[] }) {
 
 function StatusBadge({ status }: { status: "idle" | "running" | "done" }) {
   const colors = {
-    idle: "bg-ghost-muted/20 text-ghost-muted",
+    idle: "bg-privagent-muted/20 text-privagent-muted",
     running: "bg-yellow-500/20 text-yellow-400",
-    done: "bg-ghost-green/20 text-ghost-green",
+    done: "bg-privagent-green/20 text-privagent-green",
   };
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${colors[status]}`}>
@@ -116,25 +116,25 @@ function BuyerPanel({
   logs: LogEntry[];
 }) {
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4 flex flex-col">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider">
+        <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider">
           Buyer Agent
         </h2>
         <StatusBadge status={status} />
       </div>
 
-      <div className="mb-3 p-3 bg-ghost-dark rounded border border-ghost-border">
-        <div className="text-[10px] text-ghost-muted uppercase mb-1">Shielded Balance</div>
-        <div className="text-xl font-bold text-ghost-green font-mono">{balance}</div>
+      <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
+        <div className="text-[10px] text-privagent-muted uppercase mb-1">Shielded Balance</div>
+        <div className="text-xl font-bold text-privagent-green font-mono">{balance}</div>
       </div>
 
       <div className="flex gap-2 mb-3">
         <button
           onClick={onDeposit}
           disabled={status === "running"}
-          className="flex-1 bg-ghost-green/10 border border-ghost-green/30 text-ghost-green
-                     py-2 px-3 rounded text-xs font-semibold hover:bg-ghost-green/20
+          className="flex-1 bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
+                     py-2 px-3 rounded text-xs font-semibold hover:bg-privagent-green/20
                      transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Deposit USDC
@@ -142,15 +142,15 @@ function BuyerPanel({
         <button
           onClick={onBuy}
           disabled={status === "running"}
-          className="flex-1 bg-ghost-green/10 border border-ghost-green/30 text-ghost-green
-                     py-2 px-3 rounded text-xs font-semibold hover:bg-ghost-green/20
+          className="flex-1 bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
+                     py-2 px-3 rounded text-xs font-semibold hover:bg-privagent-green/20
                      transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Buy Data
         </button>
       </div>
 
-      <div className="text-[10px] text-ghost-muted uppercase mb-1">Transaction Log</div>
+      <div className="text-[10px] text-privagent-muted uppercase mb-1">Transaction Log</div>
       <LogPanel logs={logs} />
     </div>
   );
@@ -166,8 +166,8 @@ function PrivacyPanel({
   isProving: boolean;
 }) {
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4 flex flex-col">
-      <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider mb-3">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4 flex flex-col">
+      <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider mb-3">
         Privacy Proof
       </h2>
 
@@ -177,8 +177,8 @@ function PrivacyPanel({
           { label: "Sender", hidden: true },
           { label: "Receiver", hidden: true },
         ].map((item) => (
-          <div key={item.label} className="flex justify-between items-center p-2 bg-ghost-dark rounded border border-ghost-border">
-            <span className="text-xs text-ghost-muted">{item.label}</span>
+          <div key={item.label} className="flex justify-between items-center p-2 bg-privagent-dark rounded border border-privagent-border">
+            <span className="text-xs text-privagent-muted">{item.label}</span>
             <span className="pulse-hidden text-xs font-bold">HIDDEN</span>
           </div>
         ))}
@@ -194,7 +194,7 @@ function PrivacyPanel({
             <span className="animate-spin">*</span>
             Generating JoinSplit ZK Proof...
           </div>
-          <div className="mt-1 h-1 bg-ghost-dark rounded overflow-hidden">
+          <div className="mt-1 h-1 bg-privagent-dark rounded overflow-hidden">
             <motion.div
               className="h-full bg-yellow-400"
               initial={{ width: "0%" }}
@@ -211,7 +211,7 @@ function PrivacyPanel({
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
         >
-          <div className="text-[10px] text-ghost-muted uppercase mb-1">On-Chain Data</div>
+          <div className="text-[10px] text-privagent-muted uppercase mb-1">On-Chain Data</div>
           {[
             { label: "Nullifier", value: proofData.nullifier },
             { label: "Commitment", value: proofData.commitment },
@@ -219,9 +219,9 @@ function PrivacyPanel({
             { label: "Gas Used", value: proofData.gas },
             { label: "TX Hash", value: proofData.txHash },
           ].map((item) => (
-            <div key={item.label} className="flex justify-between text-[11px] p-1.5 bg-ghost-dark rounded">
-              <span className="text-ghost-muted">{item.label}</span>
-              <span className="text-ghost-green font-mono">{truncate(item.value, 6)}</span>
+            <div key={item.label} className="flex justify-between text-[11px] p-1.5 bg-privagent-dark rounded">
+              <span className="text-privagent-muted">{item.label}</span>
+              <span className="text-privagent-green font-mono">{truncate(item.value, 6)}</span>
             </div>
           ))}
         </motion.div>
@@ -242,26 +242,26 @@ function SellerPanel({
   logs: LogEntry[];
 }) {
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4 flex flex-col">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider">
+        <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider">
           Seller Agent
         </h2>
         <StatusBadge status={status} />
       </div>
 
-      <div className="mb-3 p-3 bg-ghost-dark rounded border border-ghost-border">
-        <div className="text-[10px] text-ghost-muted uppercase mb-1">API Endpoint</div>
+      <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
+        <div className="text-[10px] text-privagent-muted uppercase mb-1">API Endpoint</div>
         <div className="text-xs font-mono text-white">/api/weather</div>
-        <div className="text-[10px] text-ghost-muted mt-1">Price: 1 USDC</div>
+        <div className="text-[10px] text-privagent-muted mt-1">Price: 1 USDC</div>
       </div>
 
-      <div className="mb-3 p-3 bg-ghost-dark rounded border border-ghost-border">
-        <div className="text-[10px] text-ghost-muted uppercase mb-1">Total Earned</div>
-        <div className="text-xl font-bold text-ghost-green font-mono">{earnings}</div>
+      <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
+        <div className="text-[10px] text-privagent-muted uppercase mb-1">Total Earned</div>
+        <div className="text-xl font-bold text-privagent-green font-mono">{earnings}</div>
       </div>
 
-      <div className="text-[10px] text-ghost-muted uppercase mb-1">Request Log</div>
+      <div className="text-[10px] text-privagent-muted uppercase mb-1">Request Log</div>
       <LogPanel logs={logs} />
     </div>
   );
@@ -271,65 +271,65 @@ function SellerPanel({
 
 function ComparisonTable() {
   const rows = [
-    { feature: "Amount visible", normal: true, ghost: false },
-    { feature: "Sender visible", normal: true, ghost: false },
-    { feature: "Receiver visible", normal: true, ghost: false },
-    { feature: "Proof time", normal: "N/A", ghost: "~1.5s" },
-    { feature: "Extra gas cost", normal: "$0", ghost: "~$0.02" },
-    { feature: "Compliance ready", normal: "N/A", ghost: "POI planned" },
+    { feature: "Amount visible", normal: true, privagent: false },
+    { feature: "Sender visible", normal: true, privagent: false },
+    { feature: "Receiver visible", normal: true, privagent: false },
+    { feature: "Proof time", normal: "N/A", privagent: "~1.5s" },
+    { feature: "Extra gas cost", normal: "$0", privagent: "~$0.02" },
+    { feature: "Compliance ready", normal: "N/A", privagent: "POI planned" },
   ];
 
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4">
-      <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider mb-3">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4">
+      <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider mb-3">
         Privacy Comparison
       </h2>
 
-      <div className="mb-3 p-3 bg-ghost-dark rounded border border-ghost-border space-y-1">
+      <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border space-y-1">
         <div className="text-xs">
-          <span className="text-ghost-muted">Normal x402: </span>
+          <span className="text-privagent-muted">Normal x402: </span>
           <span className="text-white">Alice pays 1 USDC to Bob</span>
           <span className="text-red-400 ml-2">EVERYONE SEES</span>
         </div>
         <div className="text-xs">
-          <span className="text-ghost-muted">GhostPay: </span>
-          <span className="text-ghost-green">??? pays ??? to ???</span>
-          <span className="text-ghost-green ml-2">NOBODY SEES</span>
+          <span className="text-privagent-muted">PrivAgent: </span>
+          <span className="text-privagent-green">??? pays ??? to ???</span>
+          <span className="text-privagent-green ml-2">NOBODY SEES</span>
         </div>
       </div>
 
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-ghost-muted border-b border-ghost-border">
+          <tr className="text-privagent-muted border-b border-privagent-border">
             <th className="text-left py-2 font-normal">Feature</th>
             <th className="text-center py-2 font-normal">Normal</th>
-            <th className="text-center py-2 font-normal">GhostPay</th>
+            <th className="text-center py-2 font-normal">PrivAgent</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.feature} className="border-b border-ghost-border/50">
-              <td className="py-2 text-ghost-muted">{row.feature}</td>
+            <tr key={row.feature} className="border-b border-privagent-border/50">
+              <td className="py-2 text-privagent-muted">{row.feature}</td>
               <td className="py-2 text-center">
                 {typeof row.normal === "boolean" ? (
                   row.normal ? (
                     <span className="text-red-400">Visible</span>
                   ) : (
-                    <span className="text-ghost-green">Hidden</span>
+                    <span className="text-privagent-green">Hidden</span>
                   )
                 ) : (
-                  <span className="text-ghost-muted">{row.normal}</span>
+                  <span className="text-privagent-muted">{row.normal}</span>
                 )}
               </td>
               <td className="py-2 text-center">
-                {typeof row.ghost === "boolean" ? (
-                  row.ghost ? (
+                {typeof row.privagent === "boolean" ? (
+                  row.privagent ? (
                     <span className="text-red-400">Visible</span>
                   ) : (
-                    <span className="text-ghost-green">Hidden</span>
+                    <span className="text-privagent-green">Hidden</span>
                   )
                 ) : (
-                  <span className="text-ghost-green">{row.ghost}</span>
+                  <span className="text-privagent-green">{row.privagent}</span>
                 )}
               </td>
             </tr>
@@ -344,8 +344,8 @@ function ComparisonTable() {
 
 function TechStack() {
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4">
-      <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider mb-3">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4">
+      <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider mb-3">
         Technical Stack
       </h2>
       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -359,8 +359,8 @@ function TechStack() {
           { label: "Tests", value: "237+ passing" },
           { label: "Audits", value: "2 complete" },
         ].map((item) => (
-          <div key={item.label} className="p-2 bg-ghost-dark rounded border border-ghost-border">
-            <div className="text-[10px] text-ghost-muted uppercase">{item.label}</div>
+          <div key={item.label} className="p-2 bg-privagent-dark rounded border border-privagent-border">
+            <div className="text-[10px] text-privagent-muted uppercase">{item.label}</div>
             <div className="text-white font-mono">{item.value}</div>
           </div>
         ))}
@@ -373,19 +373,19 @@ function TechStack() {
 
 function ContractLinks() {
   return (
-    <div className="bg-ghost-card border border-ghost-border rounded-lg p-4">
-      <h2 className="text-ghost-green font-bold text-sm uppercase tracking-wider mb-3">
+    <div className="bg-privagent-card border border-privagent-border rounded-lg p-4">
+      <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider mb-3">
         Deployed Contracts (Base Sepolia)
       </h2>
       <div className="space-y-1.5">
         {Object.entries(CONTRACTS).map(([name, addr]) => (
-          <div key={name} className="flex justify-between items-center text-xs p-1.5 bg-ghost-dark rounded">
-            <span className="text-ghost-muted">{name}</span>
+          <div key={name} className="flex justify-between items-center text-xs p-1.5 bg-privagent-dark rounded">
+            <span className="text-privagent-muted">{name}</span>
             <a
               href={`${BLOCKSCOUT}${addr}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ghost-green hover:underline font-mono"
+              className="text-privagent-green hover:underline font-mono"
             >
               {truncate(addr)}
             </a>
@@ -397,9 +397,9 @@ function ContractLinks() {
           href={GITHUB}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-ghost-green text-xs hover:underline"
+          className="text-privagent-green text-xs hover:underline"
         >
-          github.com/Himess/ghostpay
+          github.com/Himess/privagent
         </a>
       </div>
     </div>
@@ -528,14 +528,14 @@ export default function Home() {
         className="text-center mb-8"
       >
         <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          <span className="text-ghost-green">Ghost</span>
+          <span className="text-privagent-green">PrivAgent</span>
           <span className="text-white">Pay</span>
-          <span className="text-ghost-muted text-lg ml-2">V4</span>
+          <span className="text-privagent-muted text-lg ml-2">V4</span>
         </h1>
-        <p className="text-ghost-muted text-sm">
+        <p className="text-privagent-muted text-sm">
           Private AI Agent Payments on Base
         </p>
-        <p className="text-ghost-muted/50 text-xs mt-1">
+        <p className="text-privagent-muted/50 text-xs mt-1">
           UTXO JoinSplit | Groth16 ZK Proofs | x402 HTTP Protocol
         </p>
       </motion.div>
@@ -577,11 +577,11 @@ export default function Home() {
       </motion.div>
 
       {/* Footer */}
-      <div className="text-center mt-8 text-ghost-muted/40 text-xs space-y-1">
+      <div className="text-center mt-8 text-privagent-muted/40 text-xs space-y-1">
         <p>Built for Base Batch | Simulation mode (no real transactions)</p>
         <p>
-          <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="hover:text-ghost-green transition-colors">
-            github.com/Himess/ghostpay
+          <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="hover:text-privagent-green transition-colors">
+            github.com/Himess/privagent
           </a>
         </p>
       </div>

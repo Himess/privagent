@@ -1,5 +1,5 @@
 /**
- * Agent Seller V4 — serves weather data behind a GhostPay V4 ZK paywall
+ * Agent Seller V4 — serves weather data behind a PrivAgent V4 ZK paywall
  *
  * V4: Amounts are HIDDEN. Uses JoinSplit UTXO model.
  * Server acts as relayer: receives JoinSplit proof, decrypts note to verify
@@ -11,9 +11,9 @@ import express from "express";
 import { ethers } from "ethers";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { initPoseidon, derivePublicKey } from "ghostpay-sdk";
-import { ghostPaywallV4 } from "ghostpay-sdk/x402";
-import type { GhostPaywallConfigV4 } from "ghostpay-sdk";
+import { initPoseidon, derivePublicKey } from "privagent-sdk";
+import { privAgentPaywallV4 } from "privagent-sdk/x402";
+import type { PrivAgentwallConfigV4 } from "privagent-sdk";
 
 async function main() {
   const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -31,7 +31,7 @@ async function main() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
-  console.log("=== GhostPay V4 Seller Agent ===\n");
+  console.log("=== PrivAgent V4 Seller Agent ===\n");
   console.log(`Wallet:  ${signer.address}`);
   console.log(`Pool V4: ${POOL_ADDRESS}`);
 
@@ -51,7 +51,7 @@ async function main() {
   const app = express();
 
   // V4 Paywall: 1 USDC for weather data — amounts HIDDEN
-  const config: GhostPaywallConfigV4 = {
+  const config: PrivAgentwallConfigV4 = {
     price: "1000000", // 1 USDC (6 decimals)
     asset: USDC_ADDRESS,
     poolAddress: POOL_ADDRESS,
@@ -64,7 +64,7 @@ async function main() {
     relayerFee: "0",
   };
 
-  app.use("/api/weather", ghostPaywallV4(config));
+  app.use("/api/weather", privAgentPaywallV4(config));
 
   app.get("/api/weather", (req, res) => {
     const paymentInfo = req.paymentInfo;
@@ -86,7 +86,7 @@ async function main() {
 
   app.get("/", (_req, res) => {
     res.json({
-      name: "GhostPay V4 Weather Agent (JoinSplit)",
+      name: "PrivAgent V4 Weather Agent (JoinSplit)",
       version: "v4",
       endpoints: {
         "/api/weather": "GET — 1 USDC (x402 zk-exact-v2, amounts HIDDEN)",

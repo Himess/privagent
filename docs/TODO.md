@@ -1,4 +1,4 @@
-# GhostPay — Development TODO & Roadmap
+# PrivAgent — Development TODO & Roadmap
 
 > Last updated: March 2026
 > Status legend: Done | In Progress | Planned | Idea
@@ -14,7 +14,7 @@
 - [x] Poseidon hashing (contract + SDK + circuit)
 - [x] Stealth address system (ECDH + StealthRegistry)
 - [x] x402 V2 middleware (Express/Hono)
-- [x] x402 buyer SDK (GhostPayClient)
+- [x] x402 buyer SDK (PrivAgentClient)
 - [x] Note encryption (HKDF + AES-256-GCM)
 - [x] Base Sepolia deployment + Blockscout verification
 - [x] 195 tests (86 Foundry + 109 SDK)
@@ -59,7 +59,7 @@
 - [x] SDK: ShieldedWallet relayer config option
 - [x] Tests: 6+ new tests
 
-### GhostPay Facilitator - Done
+### PrivAgent Facilitator - Done
 - [x] SDK: facilitatorServer.ts (x402-compatible wrapper)
 - [x] Endpoints: /verify, /info, /health
 - [x] x402 scheme: zk-exact-v2
@@ -68,7 +68,7 @@
 
 ### ERC-8004 Level 1 Integration - Done
 - [x] SDK: sdk/src/erc8004/index.ts (helpers)
-- [x] ghostPayPaymentMethod() -- registration file generator
+- [x] privAgentPaymentMethod() -- registration file generator
 - [x] paymentProofForFeedback() -- nullifier-based proof
 - [x] verifyPaymentProof() -- on-chain verification
 - [x] examples/erc8004-integration/ (full example)
@@ -80,7 +80,7 @@
 ## V4.5 — Production Ready (Base Batch Program, Weeks 1-8) - Planned
 
 ### Facilitator Deploy
-- [ ] Deploy facilitator.ghostpay.xyz
+- [ ] Deploy facilitator.privagent.xyz
 - [ ] Health monitoring + status page
 - [ ] Rate limiting + DDoS protection
 - [ ] Apply to x402 facilitator listing (Coinbase)
@@ -125,7 +125,7 @@
 - [ ] Competitive fee market
 - [ ] Slash conditions: failed TX, censorship, downtime
 - [ ] Permissionless relayer joining
-- [ ] Documentation: "How to run a GhostPay relayer"
+- [ ] Documentation: "How to run a PrivAgent relayer"
 
 ### ZK Reputation (ERC-8004 Level 3)
 - [ ] ZK reputation circuit design
@@ -153,7 +153,7 @@
 
 ### Removed from Roadmap
 - ~~Halo2 Migration~~ — Groth16 is industry standard, migration cost too high
-- ~~Cross-Chain Privacy~~ — GhostPay is Base-exclusive by design
+- ~~Cross-Chain Privacy~~ — PrivAgent is Base-exclusive by design
 
 ---
 

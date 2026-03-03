@@ -1,11 +1,11 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import { ethers } from "ethers";
 import { ShieldedWallet } from "../v4/shieldedWallet.js";
 import {
   ZkPaymentHandlerV4,
   type PaymentResultV4,
 } from "./zkExactSchemeV2.js";
-import type { GhostFetchOptionsV4 } from "../types.js";
+import type { PrivAgentFetchOptionsV4 } from "../types.js";
 
 /**
  * Creates an x402 V4-aware fetch function bound to a ShieldedWallet.
@@ -13,17 +13,17 @@ import type { GhostFetchOptionsV4 } from "../types.js";
  * Automatically handles 402 responses by creating JoinSplit ZK proofs and retrying.
  * After server confirms payment (2xx + X-Payment-TxHash), updates local UTXO state.
  */
-export function createGhostFetchV4(
+export function createPrivAgentFetchV4(
   wallet: ShieldedWallet,
   ecdhPrivateKey: Uint8Array,
   ecdhPublicKey: Uint8Array,
-  defaultOptions?: Partial<GhostFetchOptionsV4>
-): (url: string | URL, options?: GhostFetchOptionsV4) => Promise<Response> {
-  return (url: string | URL, options?: GhostFetchOptionsV4) =>
-    ghostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey, url, {
+  defaultOptions?: Partial<PrivAgentFetchOptionsV4>
+): (url: string | URL, options?: PrivAgentFetchOptionsV4) => Promise<Response> {
+  return (url: string | URL, options?: PrivAgentFetchOptionsV4) =>
+    privAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey, url, {
       ...defaultOptions,
       ...options,
-    } as GhostFetchOptionsV4);
+    } as PrivAgentFetchOptionsV4);
 }
 
 /**
@@ -37,12 +37,12 @@ export function createGhostFetchV4(
  * 5. Server verifies note, submits transact() on-chain
  * 6. On 2xx + TX hash confirmed, update local UTXO state
  */
-export async function ghostFetchV4(
+export async function privAgentFetchV4(
   wallet: ShieldedWallet,
   ecdhPrivateKey: Uint8Array,
   ecdhPublicKey: Uint8Array,
   url: string | URL,
-  options: GhostFetchOptionsV4 = {} as GhostFetchOptionsV4
+  options: PrivAgentFetchOptionsV4 = {} as PrivAgentFetchOptionsV4
 ): Promise<Response> {
   const { maxPayment, allowedNetworks, dryRun, ...fetchOptions } = options;
 
@@ -102,14 +102,14 @@ export async function ghostFetchV4(
 export type PaymentCallbackV4 = (result: PaymentResultV4, success: boolean) => void;
 
 /**
- * Like ghostFetchV4 but calls a callback when a payment is made.
+ * Like privAgentFetchV4 but calls a callback when a payment is made.
  */
-export async function ghostFetchV4WithCallback(
+export async function privAgentFetchV4WithCallback(
   wallet: ShieldedWallet,
   ecdhPrivateKey: Uint8Array,
   ecdhPublicKey: Uint8Array,
   url: string | URL,
-  options: GhostFetchOptionsV4 = {} as GhostFetchOptionsV4,
+  options: PrivAgentFetchOptionsV4 = {} as PrivAgentFetchOptionsV4,
   onPayment: PaymentCallbackV4
 ): Promise<Response> {
   const { maxPayment, allowedNetworks, dryRun, ...fetchOptions } = options;

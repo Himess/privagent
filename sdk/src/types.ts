@@ -16,7 +16,7 @@ export const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 // SDK Configuration
 // ============================================================================
 
-export interface GhostPayConfig {
+export interface PrivAgentConfig {
   provider: Provider;
   signer?: Signer;
   poolAddress: string;
@@ -213,7 +213,7 @@ export interface PaymentInfo {
   blockNumber: number;
 }
 
-export interface GhostPaywallConfig {
+export interface PrivAgentwallConfig {
   price: string;
   asset: string;
   recipient: string;
@@ -231,7 +231,7 @@ export interface GhostPaywallConfig {
   verificationKey?: Record<string, unknown>;
 }
 
-export interface GhostFetchOptions extends RequestInit {
+export interface PrivAgentFetchOptions extends RequestInit {
   maxPayment?: bigint;
   allowedNetworks?: string[];
   dryRun?: boolean;
@@ -290,7 +290,7 @@ export interface PaymentRequiredV4 {
   error?: string;
 }
 
-export interface GhostPaywallConfigV4 {
+export interface PrivAgentwallConfigV4 {
   price: string;
   asset: string;
   network?: string;
@@ -307,7 +307,7 @@ export interface GhostPaywallConfigV4 {
   verificationKeys?: Record<string, Record<string, unknown>>;
 }
 
-export interface GhostFetchOptionsV4 extends RequestInit {
+export interface PrivAgentFetchOptionsV4 extends RequestInit {
   maxPayment?: bigint;
   allowedNetworks?: string[];
   dryRun?: boolean;

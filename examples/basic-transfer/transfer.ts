@@ -1,11 +1,11 @@
 /**
- * GhostPay Basic Transfer Example
+ * PrivAgent Basic Transfer Example
  *
  * Demonstrates the full lifecycle: deposit → private transfer → withdraw.
  * All amounts and parties are hidden on-chain during private transfers.
  */
 
-import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
+import { ShieldedWallet, initPoseidon } from "privagent-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 
 const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";

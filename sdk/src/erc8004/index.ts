@@ -1,12 +1,12 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 /**
- * ERC-8004 integration helpers for GhostPay.
+ * ERC-8004 integration helpers for PrivAgent.
  * Generates registration file entries and payment proof for feedback.
  */
 
-export interface GhostPayPaymentMethod {
-  scheme: "x402-ghostpay";
+export interface PrivAgentPaymentMethod {
+  scheme: "x402-privagent";
   network: string;
   token: string;
   pool: string;
@@ -17,7 +17,7 @@ export interface GhostPayPaymentMethod {
 }
 
 export interface PaymentProofForFeedback {
-  type: "ghostpay-nullifier";
+  type: "privagent-nullifier";
   nullifier: string;
   pool: string;
   network: string;
@@ -28,18 +28,18 @@ export interface PaymentProofForFeedback {
  * Generate ERC-8004 compatible payment method entry
  * for agent registration files.
  */
-export function ghostPayPaymentMethod(config: {
+export function privAgentPaymentMethod(config: {
   poolAddress: string;
   facilitatorUrl?: string;
   network?: string;
   token?: string;
-}): GhostPayPaymentMethod {
+}): PrivAgentPaymentMethod {
   return {
-    scheme: "x402-ghostpay",
+    scheme: "x402-privagent",
     network: config.network || "eip155:84532",
     token: config.token || "USDC",
     pool: config.poolAddress,
-    facilitator: config.facilitatorUrl || "https://facilitator.ghostpay.xyz",
+    facilitator: config.facilitatorUrl || "https://facilitator.privagent.xyz",
     privacyLevel: "full-utxo",
     features: [
       "stealth-addresses",
@@ -47,7 +47,7 @@ export function ghostPayPaymentMethod(config: {
       "view-tags",
       "zk-proofs",
     ],
-    description: "Private x402 payment via GhostPay",
+    description: "Private x402 payment via PrivAgent",
   };
 }
 
@@ -62,7 +62,7 @@ export function paymentProofForFeedback(
   network?: string
 ): PaymentProofForFeedback {
   return {
-    type: "ghostpay-nullifier",
+    type: "privagent-nullifier",
     nullifier,
     pool: poolAddress,
     network: network || "eip155:84532",

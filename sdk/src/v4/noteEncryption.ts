@@ -1,11 +1,11 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { UTXO } from "./utxo.js";
 
-const HKDF_SALT = new TextEncoder().encode("ghostpay-v4-note-encryption");
+const HKDF_SALT = new TextEncoder().encode("privagent-v4-note-encryption");
 const HKDF_INFO = new TextEncoder().encode("aes-256-gcm-key");
 
 function deriveEncryptionKey(sharedPoint: Uint8Array): Uint8Array {

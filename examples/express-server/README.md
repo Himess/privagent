@@ -1,25 +1,25 @@
-# GhostPay Express Server — Privacy Paywall
+# PrivAgent Express Server — Privacy Paywall
 
 Add a privacy-preserving paywall to any Express API endpoint.
 
 ## Setup
 
 ```bash
-npm install ghostpay-sdk ethers express
+npm install privagent-sdk ethers express
 ```
 
 ## Usage
 
 ```typescript
 import express from 'express';
-import { ghostPaywallV4 } from 'ghostpay-sdk/x402';
+import { privAgentPaywallV4 } from 'privagent-sdk/x402';
 import { JsonRpcProvider, Wallet } from 'ethers';
 
 const app = express();
 const signer = new Wallet(process.env.PRIVATE_KEY!, new JsonRpcProvider(process.env.BASE_SEPOLIA_RPC));
 
 // Add privacy paywall to premium endpoints
-app.get('/api/premium', ghostPaywallV4({
+app.get('/api/premium', privAgentPaywallV4({
   price: 1_000000n,  // 1 USDC
   signer,
   poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',

@@ -1,7 +1,7 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 /**
- * [C3] GhostPay Facilitator Server — x402-compatible privacy wrapper.
+ * [C3] PrivAgent Facilitator Server — x402-compatible privacy wrapper.
  *
  * A facilitator is a relayer that also exposes x402-standard endpoints
  * (/verify, /info, /health). Real TX submission via pool.transact().
@@ -38,7 +38,7 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
   if (config.apiKey) {
     app.use((req: any, res: any, nextFn: any) => {
       if (req.path === "/health" || req.path === "/info") return nextFn();
-      const key = req.headers["x-ghostpay-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
+      const key = req.headers["x-privagent-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
       if (key !== config.apiKey) {
         return res.status(401).json({ valid: false, error: "Unauthorized: invalid API key" });
       }
@@ -72,7 +72,7 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
 
   app.get("/info", (_req: any, res: any) => {
     res.json({
-      name: config.name || "GhostPay Privacy Facilitator",
+      name: config.name || "PrivAgent Privacy Facilitator",
       version: config.version || "1.0.0",
       schemes: ["zk-exact-v2"],
       networks: ["eip155:84532"], // Base Sepolia

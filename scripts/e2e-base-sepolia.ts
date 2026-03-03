@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 /**
- * GhostPay E2E Test — Base Sepolia
+ * PrivAgent E2E Test — Base Sepolia
  *
  * Tests against REAL deployed contracts on Base Sepolia.
  * Outputs TX hashes + Blockscout links for verification.
@@ -73,7 +73,7 @@ async function main() {
     "+==========================================================+"
   );
   console.log(
-    "|  GhostPay E2E Test — Base Sepolia                         |"
+    "|  PrivAgent E2E Test — Base Sepolia                         |"
   );
   console.log(
     "+==========================================================+\n"

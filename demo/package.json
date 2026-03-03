@@ -1,5 +1,5 @@
 {
-  "name": "ghostpay-demo",
+  "name": "privagent-demo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,8 +18,8 @@
     "circomlibjs": "^0.1.7",
     "ethers": "^6.13.0",
     "express": "^5.0.0",
-    "ghostpay-relayer": "workspace:*",
-    "ghostpay-sdk": "workspace:*",
+    "privagent-relayer": "workspace:*",
+    "privagent-sdk": "workspace:*",
     "snarkjs": "^0.7.6"
   },
   "devDependencies": {

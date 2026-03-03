@@ -55,7 +55,7 @@ describe("External Relay", () => {
 
     await relayViaExternal(mockRequest, "https://relay.example.com", "my-api-key");
     const headers = mockFetch.mock.calls[0][1].headers;
-    expect(headers["X-GhostPay-API-Key"]).toBe("my-api-key");
+    expect(headers["X-PrivAgent-API-Key"]).toBe("my-api-key");
   });
 
   it("should throw on relay failure", async () => {

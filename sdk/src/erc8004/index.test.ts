@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { ghostPayPaymentMethod, paymentProofForFeedback } from "./index.js";
+import { privAgentPaymentMethod, paymentProofForFeedback } from "./index.js";
 
 describe("ERC-8004 Integration", () => {
-  describe("ghostPayPaymentMethod", () => {
+  describe("privAgentPaymentMethod", () => {
     it("should generate correct format with defaults", () => {
-      const method = ghostPayPaymentMethod({
+      const method = privAgentPaymentMethod({
         poolAddress: "0x17B6209385c2e36E6095b89572273175902547f9",
       });
-      expect(method.scheme).toBe("x402-ghostpay");
+      expect(method.scheme).toBe("x402-privagent");
       expect(method.network).toBe("eip155:84532");
       expect(method.token).toBe("USDC");
       expect(method.pool).toBe("0x17B6209385c2e36E6095b89572273175902547f9");
@@ -17,7 +17,7 @@ describe("ERC-8004 Integration", () => {
     });
 
     it("should accept custom config", () => {
-      const method = ghostPayPaymentMethod({
+      const method = privAgentPaymentMethod({
         poolAddress: "0xAAAA",
         facilitatorUrl: "https://custom.relay.xyz",
         network: "eip155:8453",
@@ -35,7 +35,7 @@ describe("ERC-8004 Integration", () => {
         "0x1234567890abcdef",
         "0x17B6209385c2e36E6095b89572273175902547f9"
       );
-      expect(proof.type).toBe("ghostpay-nullifier");
+      expect(proof.type).toBe("privagent-nullifier");
       expect(proof.nullifier).toBe("0x1234567890abcdef");
       expect(proof.pool).toBe("0x17B6209385c2e36E6095b89572273175902547f9");
       expect(proof.network).toBe("eip155:84532");

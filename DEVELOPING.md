@@ -1,4 +1,4 @@
-# GhostPay Development Guide
+# PrivAgent Development Guide
 
 ## Prerequisites
 
@@ -12,8 +12,8 @@
 
 ```bash
 # Clone
-git clone https://github.com/Himess/ghostpay.git
-cd ghostpay
+git clone https://github.com/Himess/privagent.git
+cd privagent
 
 # Install dependencies
 pnpm install
@@ -76,13 +76,13 @@ PRIVATE_KEY=0x... npx tsx demo/e2e-v4-test.ts
 # Run seller + buyer separately
 cd demo
 pnpm seller-v4  # starts Express server on :3001
-pnpm buyer-v4   # deposits + pays via ghostFetch
+pnpm buyer-v4   # deposits + pays via privAgentFetch
 ```
 
 ## Project Structure
 
 ```
-ghostpay/
+privagent/
   contracts/   Foundry — ShieldedPoolV4, PoseidonHasher, Verifiers
   circuits/    Circom — JoinSplit (1x2, 2x2), MerkleProof
   sdk/         TypeScript SDK — v4/ + x402/

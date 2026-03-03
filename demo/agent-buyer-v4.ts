@@ -1,5 +1,5 @@
 /**
- * Agent Buyer V4 — deposits USDC into ShieldedPoolV4, then uses ghostFetchV4
+ * Agent Buyer V4 — deposits USDC into ShieldedPoolV4, then uses privAgentFetchV4
  * to privately purchase weather data from the seller agent.
  *
  * V4: Amounts are HIDDEN in all transactions. Uses JoinSplit UTXO model.
@@ -17,13 +17,13 @@ import {
   initPoseidon,
   ShieldedWallet,
   BASE_SEPOLIA_USDC,
-} from "ghostpay-sdk";
-import { createGhostFetchV4 } from "ghostpay-sdk/x402";
+} from "privagent-sdk";
+import { createPrivAgentFetchV4 } from "privagent-sdk/x402";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
-  console.log("=== GhostPay V4 Buyer Agent ===\n");
+  console.log("=== PrivAgent V4 Buyer Agent ===\n");
 
   // Setup
   const rpcUrl = process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
@@ -85,7 +85,7 @@ async function main() {
   const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
 
   // Create V4 x402-aware fetch (JoinSplit proof generation happens automatically on 402)
-  const ghostFetch = createGhostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
+  const privAgentFetch = createPrivAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
 
   // Buy weather data privately
   const sellerUrl = process.env.SELLER_URL ?? "http://localhost:3002/api/weather";
@@ -97,7 +97,7 @@ async function main() {
   console.log("  Step 5: Server decrypts note, verifies amount, calls transact()\n");
 
   const startTime = Date.now();
-  const response = await ghostFetch(sellerUrl);
+  const response = await privAgentFetch(sellerUrl);
   const elapsed = Date.now() - startTime;
 
   if (!response.ok) {

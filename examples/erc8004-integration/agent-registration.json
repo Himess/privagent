@@ -1,6 +1,6 @@
 {
   "$schema": "https://erc8004.org/schema/agent-registration-v1.json",
-  "agentId": "ghostpay-demo-weather-agent",
+  "agentId": "privagent-demo-weather-agent",
   "version": "1.0.0",
   "name": "Weather Oracle Agent",
   "description": "Provides real-time weather data with private payment support",
@@ -22,11 +22,11 @@
       "description": "Standard x402 payment (public)"
     },
     {
-      "scheme": "x402-ghostpay",
+      "scheme": "x402-privagent",
       "network": "eip155:84532",
       "token": "USDC",
       "pool": "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
-      "facilitator": "https://facilitator.ghostpay.xyz",
+      "facilitator": "https://facilitator.privagent.xyz",
       "privacyLevel": "full-utxo",
       "features": [
         "stealth-addresses",
@@ -34,7 +34,7 @@
         "view-tags",
         "zk-proofs"
       ],
-      "description": "Private x402 payment via GhostPay"
+      "description": "Private x402 payment via PrivAgent"
     }
   ],
   "pricing": {

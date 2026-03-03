@@ -1,4 +1,4 @@
-# GhostPay V4.4 — Comprehensive Audit Report
+# PrivAgent V4.4 — Comprehensive Audit Report
 
 > **Date:** February 27, 2026
 > **Scope:** Entire repository — contracts, SDK, circuits, docs, demos, config
@@ -191,12 +191,12 @@ The LIGHTPAPER also claims 217 tests.
 ### H5: All 4 example files have critical API violations
 
 **Files:**
-- `examples/eliza-plugin/ghostpay-plugin.ts:9,52` — Wrong import `ghostFetchV4` (should be `createGhostFetchV4`), wrong API call signature, missing ECDH keys
+- `examples/eliza-plugin/privagent-plugin.ts:9,52` — Wrong import `privAgentFetchV4` (should be `createPrivAgentFetchV4`), wrong API call signature, missing ECDH keys
 - `examples/virtuals-integration/example.ts:9,46` — Same wrong import + API call
 - `examples/basic-transfer/transfer.ts:11,31` — V3 pool address, missing `initPoseidon()`
 - `examples/express-server/server.ts:15,45` — V3 pool address, missing `network` param
 
-**Issue:** All examples use V3 pool address `0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f`. The eliza-plugin and virtuals-integration examples call `ghostFetchV4(url, wallet)` which doesn't match the actual API `createGhostFetchV4(wallet, ecdhPrivKey, ecdhPubKey)`. These examples **won't compile**.
+**Issue:** All examples use V3 pool address `0x11c8ebc9A95B2A1DA4155b167dadA9B5925dde8f`. The eliza-plugin and virtuals-integration examples call `privAgentFetchV4(url, wallet)` which doesn't match the actual API `createPrivAgentFetchV4(wallet, ecdhPrivKey, ecdhPubKey)`. These examples **won't compile**.
 
 **Impact:** Developers following examples will get compilation errors. Bad first impression.
 
@@ -426,10 +426,10 @@ Well-distributed coverage:
 ### I3: BSL-1.1 license is properly structured
 
 LICENSE file correctly specifies:
-- Licensor: GhostPay Contributors
+- Licensor: PrivAgent Contributors
 - Change Date: March 1, 2028
 - Change License: GPL-2.0-or-later
-- Contact: license@ghostpay.xyz
+- Contact: license@privagent.xyz
 - Explicit testnet/research exemptions
 
 ### I4: LIGHTPAPER is investor-grade
@@ -491,7 +491,7 @@ The light paper includes:
 | `docs/ROADMAP.md` | M3 |
 | `circuits/generated/joinSplit_4x2.circom` | C3 |
 | `circuits/` | M4, M5 |
-| `examples/eliza-plugin/ghostpay-plugin.ts` | H5 |
+| `examples/eliza-plugin/privagent-plugin.ts` | H5 |
 | `examples/virtuals-integration/example.ts` | H5 |
 | `examples/basic-transfer/transfer.ts` | H5 |
 | `examples/express-server/server.ts` | H5 |
@@ -502,4 +502,4 @@ The light paper includes:
 
 ---
 
-*Generated: 2026-02-27 | GhostPay V4.4 Internal Audit*
+*Generated: 2026-02-27 | PrivAgent V4.4 Internal Audit*

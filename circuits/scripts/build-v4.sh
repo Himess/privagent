@@ -3,7 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "=== GhostPay V4 Circuit Build ==="
+echo "=== PrivAgent V4 Circuit Build ==="
 
 BUILD_DIR=build/v4
 PTAU=powersOfTau28_hez_final_17.ptau
@@ -60,10 +60,10 @@ for config in $CONFIGS; do
 
   # Contribute
   echo "  Contributing to Phase 2..."
-  echo "ghostpay-v4-dev-entropy-${config}" | snarkjs zkey contribute \
+  echo "privagent-v4-dev-entropy-${config}" | snarkjs zkey contribute \
     $OUT_DIR/${CIRCUIT_NAME}_0000.zkey \
     $OUT_DIR/${CIRCUIT_NAME}_final.zkey \
-    --name="GhostPay V4 Dev" -v
+    --name="PrivAgent V4 Dev" -v
 
   # Export verification key
   echo "  Exporting verification key..."

@@ -1,13 +1,13 @@
 {
-  "name": "ghostpay-sdk",
+  "name": "privagent-sdk",
   "version": "0.1.0",
   "description": "Privacy-preserving x402 payment SDK for Base — JoinSplit UTXO model with Groth16 ZK proofs",
   "license": "BUSL-1.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Himess/ghostpay"
+    "url": "https://github.com/Himess/privagent"
   },
-  "keywords": ["zk-proof", "privacy", "x402", "ghostpay", "base", "groth16", "utxo"],
+  "keywords": ["zk-proof", "privacy", "x402", "privagent", "base", "groth16", "utxo"],
   "files": ["dist"],
   "type": "module",
   "main": "dist/index.js",

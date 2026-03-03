@@ -1,7 +1,7 @@
-// Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 
 /**
- * [M5] Lightweight structured logger for GhostPay SDK.
+ * [M5] Lightweight structured logger for PrivAgent SDK.
  * No external dependencies — formatted console output.
  */
 

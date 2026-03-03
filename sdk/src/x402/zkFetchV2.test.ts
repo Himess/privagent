@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { initPoseidon } from "../poseidon.js";
-import { ghostFetchV4, createGhostFetchV4 } from "./zkFetchV2.js";
+import { privAgentFetchV4, createPrivAgentFetchV4 } from "./zkFetchV2.js";
 import { ShieldedWallet } from "../v4/shieldedWallet.js";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
@@ -9,7 +9,7 @@ import { ethers } from "ethers";
 // Mock global fetch
 const originalFetch = globalThis.fetch;
 
-describe("V4 ghostFetchV4", () => {
+describe("V4 privAgentFetchV4", () => {
   let wallet: ShieldedWallet;
   let ecdhPriv: Uint8Array;
   let ecdhPub: Uint8Array;
@@ -40,7 +40,7 @@ describe("V4 ghostFetchV4", () => {
       new Response(JSON.stringify({ data: "hello" }), { status: 200 })
     );
 
-    const response = await ghostFetchV4(
+    const response = await privAgentFetchV4(
       wallet,
       ecdhPriv,
       ecdhPub,
@@ -57,7 +57,7 @@ describe("V4 ghostFetchV4", () => {
       new Response(JSON.stringify({ x402Version: 4, accepts: [] }), { status: 402 })
     );
 
-    const response = await ghostFetchV4(
+    const response = await privAgentFetchV4(
       wallet,
       ecdhPriv,
       ecdhPub,
@@ -85,7 +85,7 @@ describe("V4 ghostFetchV4", () => {
       new Response(JSON.stringify(body), { status: 402 })
     );
 
-    const response = await ghostFetchV4(
+    const response = await privAgentFetchV4(
       wallet,
       ecdhPriv,
       ecdhPub,
@@ -96,12 +96,12 @@ describe("V4 ghostFetchV4", () => {
     expect(response.status).toBe(402);
   });
 
-  it("should create factory with createGhostFetchV4", async () => {
+  it("should create factory with createPrivAgentFetchV4", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response("OK", { status: 200 })
     );
 
-    const fetchFn = createGhostFetchV4(wallet, ecdhPriv, ecdhPub);
+    const fetchFn = createPrivAgentFetchV4(wallet, ecdhPriv, ecdhPub);
     const response = await fetchFn("https://example.com/api");
 
     expect(response.status).toBe(200);

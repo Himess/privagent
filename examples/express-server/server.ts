@@ -1,13 +1,13 @@
 /**
- * GhostPay Express Server — Privacy Paywall Example
+ * PrivAgent Express Server — Privacy Paywall Example
  *
  * Adds a privacy-preserving paywall to API endpoints.
  * Payments are verified via ZK proofs — amounts stay hidden.
  */
 
 import express from "express";
-import { ghostPaywallV4 } from "ghostpay-sdk/x402";
-import { initPoseidon, keypairFromPrivateKey, derivePublicKey } from "ghostpay-sdk";
+import { privAgentPaywallV4 } from "privagent-sdk/x402";
+import { initPoseidon, keypairFromPrivateKey, derivePublicKey } from "privagent-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { randomBytes } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1";
@@ -42,7 +42,7 @@ async function main() {
   // Premium endpoint — 1 USDC per request, privacy-preserving
   app.get(
     "/api/weather",
-    ghostPaywallV4({
+    privAgentPaywallV4({
       price: "1000000", // 1 USDC
       asset: USDC_ADDRESS,
       network: "eip155:84532",
@@ -59,7 +59,7 @@ async function main() {
         condition: "Sunny",
         humidity: 45,
         wind: "12 km/h NW",
-        source: "GhostPay Demo API",
+        source: "PrivAgent Demo API",
       });
     }
   );
@@ -67,7 +67,7 @@ async function main() {
   // Premium endpoint — 5 USDC per request
   app.get(
     "/api/market-data",
-    ghostPaywallV4({
+    privAgentPaywallV4({
       price: "5000000", // 5 USDC
       asset: USDC_ADDRESS,
       network: "eip155:84532",
@@ -89,7 +89,7 @@ async function main() {
   );
 
   app.listen(PORT, () => {
-    console.log(`GhostPay API server running on http://localhost:${PORT}`);
+    console.log(`PrivAgent API server running on http://localhost:${PORT}`);
     console.log(`  Free:    GET /api/health`);
     console.log(`  1 USDC:  GET /api/weather`);
     console.log(`  5 USDC:  GET /api/market-data`);

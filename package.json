@@ -1,5 +1,5 @@
 {
-  "name": "ghostpay",
+  "name": "privagent",
   "version": "0.1.0",
   "private": true,
   "description": "Privacy-preserving x402 payment protocol on Base",

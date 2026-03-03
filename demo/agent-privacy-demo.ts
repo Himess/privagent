@@ -1,5 +1,5 @@
 /**
- * GhostPay — Agent Privacy Demo
+ * PrivAgent — Agent Privacy Demo
  *
  * Video-ready terminal demo with real on-chain transactions on Base Sepolia.
  * Shows the full privacy flow: Deposit → Private Transfer → Withdraw
@@ -10,7 +10,7 @@
  * Requires:
  *   - Base Sepolia ETH (>= 0.01 for gas)
  *   - Base Sepolia USDC (>= 3 USDC)
- *   - Deployed GhostPay contracts
+ *   - Deployed PrivAgent contracts
  */
 import { ethers } from "ethers";
 import * as path from "path";
@@ -19,7 +19,7 @@ import {
   initPoseidon,
   ShieldedWallet,
   BASE_SEPOLIA_USDC,
-} from "ghostpay-sdk";
+} from "privagent-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -73,7 +73,7 @@ function printHeader(poolAddress: string) {
     `${CYAN}${BOLD}+======================================================+${RESET}`
   );
   console.log(
-    `${CYAN}${BOLD}|  GhostPay — Agent Privacy Demo                       |${RESET}`
+    `${CYAN}${BOLD}|  PrivAgent — Agent Privacy Demo                       |${RESET}`
   );
   console.log(
     `${CYAN}${BOLD}|  Network: Base Sepolia (84532)                        |${RESET}`
@@ -519,7 +519,7 @@ async function main() {
     `   ${BOLD}+--------------------+----------+--------------+${RESET}`
   );
   console.log(
-    `   ${BOLD}|     Metric         | Normal   |  GhostPay    |${RESET}`
+    `   ${BOLD}|     Metric         | Normal   |  PrivAgent    |${RESET}`
   );
   console.log(
     `   ${BOLD}|                    | USDC     |              |${RESET}`
@@ -592,7 +592,7 @@ async function main() {
 ${CYAN}${BOLD}+======================================================+${RESET}
 ${CYAN}${BOLD}|  ${GREEN}All 3 transactions completed successfully.${CYAN}            |${RESET}
 ${CYAN}${BOLD}|  Privacy: sender, recipient, amount = HIDDEN          |${RESET}
-${CYAN}${BOLD}|  github.com/Himess/ghostpay                           |${RESET}
+${CYAN}${BOLD}|  github.com/Himess/privagent                           |${RESET}
 ${CYAN}${BOLD}+======================================================+${RESET}
 `);
 }
