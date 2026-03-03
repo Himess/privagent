@@ -80,8 +80,8 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 
 | Circuit | Non-linear | Approx Total |
 |---------|-----------|-------------|
-| joinSplit_1x2 (1 in, 2 out, depth 20) | ~5,900 | ~12,000 |
-| joinSplit_2x2 (2 in, 2 out, depth 20) | ~11,000 | ~22,000 |
+| joinSplit_1x2 (1 in, 2 out, depth-20) | ~5,900 | ~12,000 |
+| joinSplit_2x2 (2 in, 2 out, depth-20) | ~11,000 | ~22,000 |
 
 #### Breakdown (1x2)
 
@@ -90,7 +90,7 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 | Poseidon(1) keypair | 1 | ~220 |
 | Poseidon(3) input commitment | 1 | ~660 |
 | Poseidon(3) nullifier | 1 | ~660 |
-| MerkleProofVerifier (20 levels) | 1 | ~20 × 220 = ~4,400 |
+| MerkleProofVerifier (depth-20) | 1 | ~20 × 220 = ~4,400 |
 | Poseidon(3) output commitments | 2 | ~1,320 |
 | Num2Bits(120) range checks | 3 | ~360 |
 | ForceEqualIfEnabled | 1 | ~2 |
@@ -101,7 +101,7 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 | Aspect | V3 (privatePayment) | V4 (joinSplit) |
 |--------|---------------------|----------------|
 | Model | Single input, single change | N inputs, M outputs |
-| Depth | 20 | 20 |
+| Depth | depth-20 | depth-20 |
 | Commitment | `Poseidon(amount, nullifierSecret, randomness)` | `Poseidon(amount, pubkey, blinding)` |
 | Nullifier | `Poseidon(nullifierSecret, commitment)` | `Poseidon(commitment, pathIndex, privateKey)` |
 | Key model | Per-note secret | Per-wallet keypair |
@@ -143,7 +143,7 @@ From Tornado Cash Nova — enforces `in[0] === in[1]` only when `enabled != 0`. 
 
 #### MerkleProofVerifier
 
-Verifies a leaf is in a Merkle tree at a given index. Uses Poseidon(2) at each level. The `pathIndex` is an integer (not bit array) — individual bits are extracted internally.
+Verifies a leaf is in a Merkle tree at a given index (depth-20). Uses Poseidon(2) at each level. The `pathIndex` is an integer (not bit array) — individual bits are extracted internally.
 
 ## Trusted Setup
 

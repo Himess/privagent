@@ -1,6 +1,8 @@
 // Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
 import { ethers } from "ethers";
+import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { initPoseidon } from "../poseidon.js";
+import { FIELD_SIZE } from "../types.js";
 import type {
   ZkPaymentRequirementsV4,
   ZkExactPayloadV4,
@@ -110,6 +112,18 @@ export class ZkPaymentHandlerV4 {
     const relayer = requirements.relayer ?? ethers.ZeroAddress;
     const fee = BigInt(requirements.relayerFee ?? "0");
 
+    // [M1] Validate server keys
+    if (serverPubkey <= 0n || serverPubkey >= FIELD_SIZE) {
+      throw new Error("Invalid server Poseidon pubkey: out of field range");
+    }
+    try {
+      secp256k1.Point.fromHex(
+        Buffer.from(serverEcdhPubKey).toString("hex")
+      );
+    } catch {
+      throw new Error("Invalid server ECDH pubkey: not a valid secp256k1 point");
+    }
+
     // Calculate protocol fee (V4.4)
     const feeParams = await this.wallet.getProtocolFeeParams();
     const protocolFee = ShieldedWallet.calculateProtocolFee(
@@ -153,19 +167,25 @@ export class ZkPaymentHandlerV4 {
       };
       const extDataHash = computeExtDataHash(extData);
 
-      // Generate JoinSplit proof (publicAmount=0 for private transfer)
-      const proofResult = await generateJoinSplitProof(
-        {
-          inputs: selection.inputs,
-          outputs: [paymentUTXO, changeUTXO],
-          publicAmount: 0n,
-          protocolFee,
-          tree: this.wallet.getTree(),
-          extDataHash,
-          privateKey: this.wallet.privateKey,
-        },
-        this.wallet.circuitDir
-      );
+      // [C5] Generate JoinSplit proof with 30s timeout
+      const PROOF_TIMEOUT_MS = 30_000;
+      const proofResult = await Promise.race([
+        generateJoinSplitProof(
+          {
+            inputs: selection.inputs,
+            outputs: [paymentUTXO, changeUTXO],
+            publicAmount: 0n,
+            protocolFee,
+            tree: this.wallet.getTree(),
+            extDataHash,
+            privateKey: this.wallet.privateKey,
+          },
+          this.wallet.circuitDir
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Proof generation timed out (30s)")), PROOF_TIMEOUT_MS)
+        ),
+      ]);
 
       // Extract public signals (V4.4: offset 4 due to protocolFee at [3])
       const ps = proofResult.proofData.publicSignals;

@@ -25,7 +25,7 @@
       "scheme": "x402-ghostpay",
       "network": "eip155:84532",
       "token": "USDC",
-      "pool": "0x17B6209385c2e36E6095b89572273175902547f9",
+      "pool": "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
       "facilitator": "https://facilitator.ghostpay.xyz",
       "privacyLevel": "full-utxo",
       "features": [

@@ -23,6 +23,15 @@ export function encryptNote(
   senderPrivateKey: Uint8Array, // 32 bytes secp256k1
   receiverPubKey: Uint8Array // 33 or 65 bytes secp256k1
 ): Uint8Array {
+  // [M4] Validate receiver pubkey is a valid secp256k1 point
+  try {
+    secp256k1.Point.fromHex(
+      Buffer.from(receiverPubKey).toString("hex")
+    );
+  } catch {
+    throw new Error("Invalid receiver public key: not a valid secp256k1 point");
+  }
+
   // ECDH shared secret → HKDF key derivation (domain-separated)
   const sharedPoint = secp256k1.getSharedSecret(senderPrivateKey, receiverPubKey, true);
   const key = deriveEncryptionKey(sharedPoint);

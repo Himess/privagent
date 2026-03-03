@@ -8,6 +8,8 @@
 import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
 import { createGhostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
+import { randomBytes } from "crypto";
+import { secp256k1 } from "@noble/curves/secp256k1";
 
 const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
@@ -44,7 +46,9 @@ async function main() {
 
   // 5. Make private API call
   console.log("Calling paid API with private payment...");
-  const ghostFetch = createGhostFetchV4(wallet);
+  const ecdhPrivateKey = randomBytes(32);
+  const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
+  const ghostFetch = createGhostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
   const response = await ghostFetch(
     "https://api.example.com/premium/weather"
   );

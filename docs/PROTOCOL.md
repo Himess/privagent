@@ -10,7 +10,7 @@ GhostPay implements a privacy-preserving payment protocol for HTTP 402 flows. V4
 
 - **Poseidon(3) UTXO commitments** for binding amount + pubkey + blinding
 - **JoinSplit Groth16 proofs** for proving UTXO ownership and balance conservation
-- **Merkle tree inclusion** (depth 20) for proving a commitment exists in the pool
+- **Merkle tree inclusion** (depth-20) for proving a commitment exists in the pool
 - **Nullifier tracking** for preventing double-spends
 - **ECDH note encryption** (AES-256-GCM) for private amount verification
 - **extDataHash binding** for preventing front-running

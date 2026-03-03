@@ -22,8 +22,8 @@
 
 | Circuit | Inputs | Outputs | Non-linear Constraints | PTAU Required |
 |---------|--------|---------|----------------------|---------------|
-| joinSplit_1x2 | 1 | 2 | 5,572 | 2^13 (8,192) |
-| joinSplit_2x2 | 2 | 2 | 10,375 | 2^14 (16,384) |
+| joinSplit_1x2 | 1 | 2 | 13,726 | 2^14 (16,384) |
+| joinSplit_2x2 | 2 | 2 | 25,877 | 2^15 (32,768) |
 
 ### V4 Build
 

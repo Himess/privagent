@@ -19,7 +19,7 @@
 - [x] Base Sepolia deployment + Blockscout verification
 - [x] 195 tests (86 Foundry + 109 SDK)
 - [x] 3x internal security audit (46+ findings resolved)
-- [x] Protocol fee mechanism (max 0.1%, min $0.005)
+- [x] Protocol fee mechanism (max 0.1%, min $0.01)
 - [x] BSL-1.1 license + copyright headers
 - [x] Batch nullifier duplicate check
 - [x] Tree depth 16 -> 20 (1M leaves)
@@ -41,30 +41,30 @@
 - [x] Contract: fee collected on ALL TX types (including private transfers)
 - [x] SDK: proof generation includes protocolFee input
 - [x] Min fee updated: $0.005 -> $0.01
-- [ ] Tests: 6+ new tests
+- [x] Tests: 6+ new tests
 
 ### View Tags - Done
 - [x] Contract: NewCommitment event + viewTag (uint8)
 - [x] Contract: viewTags[] validation in transact()
 - [x] SDK: viewTag.ts (generateViewTag, checkViewTag)
-- [ ] SDK: note scanning pre-filter with view tags (~50x speedup)
+- [x] SDK: note scanning pre-filter with view tags (~50x speedup)
 - [x] SDK: view tag generation in proof/TX creation
-- [ ] Tests: 4+ new tests
+- [x] Tests: 4+ new tests
 
 ### Hybrid Relayer - Done
 - [x] SDK: RelayMode type (self-relay | external-relay)
-- [ ] SDK: middleware config with mode parameter
+- [x] SDK: middleware config with mode parameter
 - [x] SDK: externalRelay.ts (relay client + relayer info)
 - [x] SDK: relayerServer.ts (example relayer server)
-- [ ] SDK: ShieldedWallet relayer config option
-- [ ] Tests: 6+ new tests
+- [x] SDK: ShieldedWallet relayer config option
+- [x] Tests: 6+ new tests
 
 ### GhostPay Facilitator - Done
 - [x] SDK: facilitatorServer.ts (x402-compatible wrapper)
 - [x] Endpoints: /verify, /info, /health
 - [x] x402 scheme: zk-exact-v2
 - [x] Reuses relayer logic internally
-- [ ] Tests: 5+ new tests
+- [x] Tests: 5+ new tests
 
 ### ERC-8004 Level 1 Integration - Done
 - [x] SDK: sdk/src/erc8004/index.ts (helpers)
@@ -73,7 +73,7 @@
 - [x] verifyPaymentProof() -- on-chain verification
 - [x] examples/erc8004-integration/ (full example)
 - [x] Agent registration JSON spec
-- [ ] Tests: 4+ new tests
+- [x] Tests: 4+ new tests
 
 ---
 

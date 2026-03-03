@@ -70,7 +70,7 @@ template NullifierHasher() {
  *
  * nIns:   number of input UTXOs (1-4)
  * nOuts:  number of output UTXOs (1-4)
- * levels: Merkle tree depth (16)
+ * levels: Merkle tree depth (20)
  *
  * Balance conservation: sum(inputs) + publicAmount === sum(outputs) + protocolFee
  */
@@ -148,6 +148,21 @@ template JoinSplit(nIns, nOuts, levels) {
         inAmountCheck[i].in <== inAmount[i];
 
         sumIns += inAmount[i];
+    }
+
+    // === DUPLICATE NULLIFIER CHECK (defense-in-depth) ===
+    // Ensures no two input nullifiers are the same within the circuit.
+    // The contract also checks this, but circuit-level enforcement is stronger.
+    component nullifierEq[nIns * (nIns - 1) / 2];
+    var eqIdx = 0;
+    for (var i = 0; i < nIns; i++) {
+        for (var j = i + 1; j < nIns; j++) {
+            nullifierEq[eqIdx] = IsEqual();
+            nullifierEq[eqIdx].in[0] <== inputNullifiers[i];
+            nullifierEq[eqIdx].in[1] <== inputNullifiers[j];
+            nullifierEq[eqIdx].out === 0; // Must NOT be equal
+            eqIdx++;
+        }
     }
 
     // === VERIFY OUTPUTS ===

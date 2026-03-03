@@ -69,9 +69,12 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
   const network = config.network ?? "eip155:84532"; // Base Sepolia default
   const poolContract = new Contract(config.poolAddress, POOL_V4_ABI, config.signer);
 
+  // [C2] Nullifier mutex — prevent race condition between pre-flight check and TX submission
+  const pendingNullifiers = new Set<string>();
+
   return async (req: Request, res: Response, next: NextFunction) => {
-    // [M4] Rate limiting
-    const clientIp = req.ip || (req.socket?.remoteAddress ?? "unknown");
+    // [C3] Rate limiting — use socket address to prevent X-Forwarded-For spoofing
+    const clientIp = req.socket?.remoteAddress ?? "unknown";
     if (!checkRateLimit(clientIp)) {
       res.status(429).json({ error: "Too many requests" });
       return;
@@ -180,7 +183,8 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
         res.status(400).json({ error: "extDataHash mismatch" });
         return;
       }
-    } catch {
+    } catch (err) {
+      console.error("[ghostpay] extData validation failed:", err instanceof Error ? err.message : err);
       res.status(400).json({ error: "Invalid extData" });
       return;
     }
@@ -219,7 +223,8 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
         res.status(400).json({ error: "Invalid payment recipient" });
         return;
       }
-    } catch {
+    } catch (err) {
+      console.error("[ghostpay] Note decryption failed:", err instanceof Error ? err.message : err);
       res.status(400).json({ error: "Payment verification failed" });
       return;
     }
@@ -228,9 +233,20 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
     const rootBytes32 = toBytes32(BigInt(p.root));
     const nullifierBytes32 = p.nullifiers.map((n) => toBytes32(BigInt(n)));
 
+    // [C2] Check nullifier mutex — prevent race condition
+    for (const nb of nullifierBytes32) {
+      if (pendingNullifiers.has(nb)) {
+        res.status(409).json({ error: "Payment already being processed" });
+        return;
+      }
+    }
+    // Lock nullifiers
+    for (const nb of nullifierBytes32) pendingNullifiers.add(nb);
+
     try {
       const rootKnown = await poolContract.isKnownRoot(rootBytes32);
       if (!rootKnown) {
+        for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
         res.status(402).json({ error: "Stale payment, retry", x402Version: 4 });
         return;
       }
@@ -238,11 +254,15 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
       for (const nb of nullifierBytes32) {
         const used = await poolContract.nullifiers(nb);
         if (used) {
+          for (const nb2 of nullifierBytes32) pendingNullifiers.delete(nb2);
           res.status(402).json({ error: "Payment already processed", x402Version: 4 });
           return;
         }
       }
-    } catch {
+    } catch (err) {
+      for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
+      // [M2] Log validation failure
+      console.error("[ghostpay] Pre-flight check failed:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Payment verification failed" });
       return;
     }
@@ -284,7 +304,8 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
           res.status(400).json({ error: "Invalid proof" });
           return;
         }
-      } catch {
+      } catch (err) {
+        console.error("[ghostpay] Proof verification error:", err instanceof Error ? err.message : err);
         res.status(400).json({ error: "Proof verification failed" });
         return;
       }
@@ -322,6 +343,9 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
 
       const receipt = await tx.wait();
 
+      // [C2] Release nullifier lock after TX completes
+      for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
+
       if (!receipt || receipt.status === 0) {
         res.status(500).json({ error: "Payment processing failed" });
         return;
@@ -340,7 +364,11 @@ export function ghostPaywallV4(config: GhostPaywallConfigV4): RequestHandler {
 
       res.setHeader("X-Payment-TxHash", tx.hash);
       next();
-    } catch {
+    } catch (err) {
+      // [C2] Release nullifier lock on error
+      for (const nb of nullifierBytes32) pendingNullifiers.delete(nb);
+      // [M2] Log TX submission failure
+      console.error("[ghostpay] TX submission failed:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Payment processing failed" });
     }
   };

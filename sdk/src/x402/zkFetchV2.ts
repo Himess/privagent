@@ -1,4 +1,5 @@
 // Copyright (c) 2026 GhostPay Contributors — BUSL-1.1
+import { ethers } from "ethers";
 import { ShieldedWallet } from "../v4/shieldedWallet.js";
 import {
   ZkPaymentHandlerV4,
@@ -75,12 +76,17 @@ export async function ghostFetchV4(
     headers: retryHeaders,
   });
 
-  // Update local state based on server response
+  // [C1/H3] Update local state — verify TX on-chain before confirming UTXOs
   if (retryResponse.ok && result._inputUTXOs && result._outputUTXOs) {
     const txHash = retryResponse.headers.get("X-Payment-TxHash");
     if (txHash) {
-      // Server confirmed on-chain transaction — confirm payment
-      await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+      const confirmed = await verifyTxOnChain(wallet.provider, txHash);
+      if (confirmed) {
+        await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+      } else {
+        // TX hash provided but not confirmed on-chain — cancel
+        wallet.cancelPayment(result._inputUTXOs);
+      }
     } else {
       // Server said OK but no TX hash — cancel (unlock UTXOs)
       wallet.cancelPayment(result._inputUTXOs);
@@ -131,10 +137,17 @@ export async function ghostFetchV4WithCallback(
   });
 
   const txHash = retryResponse.headers.get("X-Payment-TxHash");
-  const success = retryResponse.ok && !!txHash;
+  let success = retryResponse.ok && !!txHash;
 
-  if (success) {
-    await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+  // [C1/H3] Verify TX on-chain before confirming
+  if (success && txHash) {
+    const confirmed = await verifyTxOnChain(wallet.provider, txHash);
+    if (confirmed) {
+      await wallet.confirmPayment(result._inputUTXOs, result._outputUTXOs);
+    } else {
+      wallet.cancelPayment(result._inputUTXOs);
+      success = false;
+    }
   } else {
     wallet.cancelPayment(result._inputUTXOs);
   }
@@ -142,4 +155,26 @@ export async function ghostFetchV4WithCallback(
   onPayment(result, success);
 
   return retryResponse;
+}
+
+// [C1] Verify a transaction hash on-chain with retry
+async function verifyTxOnChain(
+  provider: ethers.Provider,
+  txHash: string,
+  maxAttempts: number = 3,
+  delayMs: number = 2000
+): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const receipt = await provider.getTransactionReceipt(txHash);
+      if (receipt && receipt.status === 1) return true;
+      if (receipt && receipt.status === 0) return false;
+    } catch {
+      // RPC error — retry
+    }
+    if (i < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return false;
 }

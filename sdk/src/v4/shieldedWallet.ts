@@ -115,6 +115,10 @@ export class ShieldedWallet {
     return this.config.circuitDir;
   }
 
+  get provider(): Provider {
+    return this.config.provider;
+  }
+
   async initialize(): Promise<void> {
     await initPoseidon();
     // Re-derive pubkey after Poseidon init (if it was generated before init)

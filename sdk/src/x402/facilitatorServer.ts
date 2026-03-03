@@ -34,6 +34,18 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
   const app = express.default ? express.default() : express();
   app.use((express.default || express).json({ limit: "100kb" }));
 
+  // [H2] API key authentication middleware (same as relayer)
+  if (config.apiKey) {
+    app.use((req: any, res: any, nextFn: any) => {
+      if (req.path === "/health" || req.path === "/info") return nextFn();
+      const key = req.headers["x-ghostpay-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
+      if (key !== config.apiKey) {
+        return res.status(401).json({ valid: false, error: "Unauthorized: invalid API key" });
+      }
+      nextFn();
+    });
+  }
+
   // Internal relayer for actual TX submission
   const relayer = createRelayerServer(config);
 

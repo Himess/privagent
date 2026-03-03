@@ -20,6 +20,18 @@ if [ ! -f "$PTAU" ]; then
   curl -L -o "$PTAU" "https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_17.ptau"
 fi
 
+# Verify PTAU integrity
+EXPECTED_HASH="ab77a8bfbf8cc0a5a24a04ddee47ea0dc62be4f64dae4ebdfce00f015b3a3281"
+echo "Verifying PTAU hash..."
+ACTUAL_HASH=$(sha256sum "$PTAU" | cut -d' ' -f1)
+if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+  echo "ERROR: PTAU hash mismatch!"
+  echo "  Expected: $EXPECTED_HASH"
+  echo "  Actual:   $ACTUAL_HASH"
+  exit 1
+fi
+echo "  PTAU hash verified."
+
 # Install circomlib if needed
 if [ ! -d "node_modules/circomlib" ]; then
   echo "Installing circomlib..."
@@ -64,6 +76,13 @@ for config in $CONFIGS; do
   snarkjs zkey export solidityverifier \
     $OUT_DIR/${CIRCUIT_NAME}_final.zkey \
     $OUT_DIR/Groth16Verifier_${config}.sol
+
+  # Verify zkey
+  echo "  Verifying zkey..."
+  snarkjs zkey verify \
+    $OUT_DIR/$CIRCUIT_NAME.r1cs \
+    $PTAU \
+    $OUT_DIR/${CIRCUIT_NAME}_final.zkey
 
   # Copy verifier to contracts
   mkdir -p ../contracts/src/verifiers

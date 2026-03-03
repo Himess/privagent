@@ -169,12 +169,12 @@ Agent → x402 Server → GhostPay Facilitator → pool.transact() → Base
 
 | Contract | Address |
 |----------|---------|
-| ShieldedPoolV4 | `0x17B6209385c2e36E6095b89572273175902547f9` |
+| ShieldedPoolV4 | `0x8F1ae8209156C22dFD972352A415880040fB0b0c` |
 | Groth16Verifier_1x2 | `0xe473aF953d269601402DEBcB2cc899aB594Ad31e` |
 | Groth16Verifier_2x2 | `0x10D5BB24327d40c4717676E3B7351D76deb33848` |
 | PoseidonHasher | `0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd` |
 
-All contracts verified on Blockscout. Deploy block: `38256581`.
+All contracts verified on Blockscout. Deploy block: `38347380`.
 
 ## Revenue Model
 
@@ -349,7 +349,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Risk | Mitigation |
 |------|-----------|
 | Regulatory (Tornado Cash precedent) | POI roadmap, deposit screening planned, BSL license |
-| Smart contract vulnerability | 3 internal audits, 217 tests, professional audit planned |
+| Smart contract vulnerability | 3 internal audits, 195 tests, professional audit planned |
 | Market timing (early) | First-mover advantage, no competition on Base |
 | Solo developer | 80+ PRs in major projects, proven execution, team expansion planned |
 
@@ -358,7 +358,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
 | **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, Base Sepolia deployment |
-| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, GhostPay facilitator, ERC-8004 Level 1 integration, 3 internal audits, 217 tests |
+| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, GhostPay facilitator, ERC-8004 Level 1 integration, 3 internal audits, 195 tests |
 | **V4.5** | Weeks 1-8 (Program) | GhostPay Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
 | **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
 | **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |

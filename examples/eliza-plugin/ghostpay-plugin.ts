@@ -8,6 +8,8 @@
 import { ShieldedWallet, initPoseidon } from "ghostpay-sdk";
 import { createGhostFetchV4 } from "ghostpay-sdk/x402";
 import { JsonRpcProvider, Wallet } from "ethers";
+import { randomBytes } from "crypto";
+import { secp256k1 } from "@noble/curves/secp256k1";
 
 // ElizaOS plugin interface (simplified)
 interface Action {
@@ -37,6 +39,8 @@ const POOL_ADDRESS = "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 let wallet: ShieldedWallet;
+let ecdhPrivateKey: Uint8Array;
+let ecdhPublicKey: Uint8Array;
 
 export const ghostPayPlugin: Plugin = {
   name: "ghostpay",
@@ -49,7 +53,7 @@ export const ghostPayPlugin: Plugin = {
         const url = ctx.params.url;
         if (!url) return { success: false, message: "URL required" };
 
-        const ghostFetch = createGhostFetchV4(wallet);
+        const ghostFetch = createGhostFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
         const response = await ghostFetch(url);
         if (response.ok) {
           const data = await response.json();
@@ -95,6 +99,9 @@ export const ghostPayPlugin: Plugin = {
   initialize: async () => {
     const provider = new JsonRpcProvider(process.env.BASE_SEPOLIA_RPC);
     const signer = new Wallet(process.env.PRIVATE_KEY!, provider);
+
+    ecdhPrivateKey = randomBytes(32);
+    ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
 
     wallet = new ShieldedWallet({
       provider,

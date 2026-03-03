@@ -18,6 +18,8 @@ export interface RelayerConfig {
   rpcUrl: string;
   port?: number;
   minFee?: bigint;
+  apiKey?: string; // [H1] Optional API key for authentication
+  maxRequestsPerMinute?: number; // [H5] Rate limit (default: 30)
   verificationKeys?: {
     vkey1x2Path: string;
     vkey2x2Path: string;
@@ -70,6 +72,38 @@ export function createRelayerServer(config: RelayerConfig) {
   const express = require("express") as any;
   const app = express.default ? express.default() : express();
   app.use((express.default || express).json({ limit: "100kb" }));
+
+  // [H1] API key authentication middleware
+  if (config.apiKey) {
+    app.use((req: any, res: any, nextFn: any) => {
+      // Allow health check without auth
+      if (req.path === "/v1/health") return nextFn();
+      const key = req.headers["x-ghostpay-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
+      if (key !== config.apiKey) {
+        return res.status(401).json({ success: false, message: "Unauthorized: invalid API key" });
+      }
+      nextFn();
+    });
+  }
+
+  // [H5] Per-IP rate limiting
+  const rateLimitMax = config.maxRequestsPerMinute ?? 30;
+  const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+  app.use((req: any, res: any, nextFn: any) => {
+    if (req.path === "/v1/health") return nextFn();
+    const ip = req.socket?.remoteAddress ?? "unknown";
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetAt) {
+      rateLimitMap.set(ip, { count: 1, resetAt: now + 60000 });
+      return nextFn();
+    }
+    entry.count++;
+    if (entry.count > rateLimitMax) {
+      return res.status(429).json({ success: false, message: "Rate limit exceeded" });
+    }
+    nextFn();
+  });
 
   // Lazy-init provider/wallet/pool on first request
   let _pool: any = null;
@@ -185,11 +219,14 @@ export function createRelayerServer(config: RelayerConfig) {
               .json({ success: false, message: "Invalid ZK proof" });
           }
         } catch (verifyError: unknown) {
-          // Off-chain verify failed — on-chain verifier will catch it
+          // [M3] Reject if off-chain verification fails — don't waste gas
           console.error(
-            "Off-chain verify error:",
+            "[ghostpay] Off-chain verify error:",
             verifyError instanceof Error ? verifyError.message : verifyError
           );
+          return res
+            .status(400)
+            .json({ success: false, message: "Proof verification failed" });
         }
       }
 

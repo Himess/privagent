@@ -33,10 +33,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const RPC_URL = process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
 const POOL_V4_ADDRESS =
-  process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x17B6209385c2e36E6095b89572273175902547f9";
+  process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 const USDC_ADDRESS = BASE_SEPOLIA_USDC;
 const CIRCUIT_DIR = path.resolve(__dirname, "../circuits/build");
-const DEPLOY_BLOCK = 38256581;
+const DEPLOY_BLOCK = 38347380;
 
 const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",

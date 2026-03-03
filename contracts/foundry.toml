@@ -7,12 +7,10 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 evm_version = "cancun"
+fs_permissions = [{ access = "read", path = "test/fixtures" }]
 
 [fuzz]
 runs = 256
-
-[profile.default.fs_permissions]
-read = ["test/fixtures"]
 
 [rpc_endpoints]
 base-sepolia = "${BASE_SEPOLIA_RPC}"

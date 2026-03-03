@@ -71,6 +71,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     error ViewTagCountMismatch();
     error ProtocolFeeTooLow();
     error WithdrawToSelf();
+    error ZeroAddress();
 
     // ============ Constants ============
     uint32 public constant MERKLE_TREE_DEPTH = 20;
@@ -145,6 +146,10 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         address _verifier1x2,
         address _verifier2x2
     ) Ownable(msg.sender) {
+        // [L1] Zero-address checks for critical immutables
+        if (_poseidonHasher == address(0)) revert ZeroAddress();
+        if (_usdc == address(0)) revert ZeroAddress();
+
         poseidonHasher = PoseidonHasher(_poseidonHasher);
         usdc = IERC20(_usdc);
 
