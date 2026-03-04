@@ -91,6 +91,9 @@ export class MemoryNoteStore implements NoteStore {
   }
 }
 
+// TODO(V4.5): Encrypt note store at rest using AES-256-GCM with key derived
+// from wallet privkey. Current plaintext JSON is a data breach risk.
+
 /**
  * File-based NoteStore — persistent storage using JSON file.
  * [M2] O(1) nullifier lookup via secondary index (built on load).
@@ -122,7 +125,10 @@ export class FileNoteStore implements NoteStore {
     const dir = path.dirname(this.filePath);
     await fs.mkdir(dir, { recursive: true });
     const data = JSON.stringify(Array.from(this.notes.values()), null, 2);
-    await fs.writeFile(this.filePath, data, "utf8");
+    // [AUDIT-FIX] Atomic write: write to temp file then rename to prevent corruption
+    const tmpPath = this.filePath + ".tmp";
+    await fs.writeFile(tmpPath, data, "utf8");
+    await fs.rename(tmpPath, this.filePath);
   }
 
   async save(note: StoredNote): Promise<void> {

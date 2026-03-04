@@ -12,8 +12,9 @@ npm install privagent-sdk ethers
 
 ```typescript
 import { ShieldedWallet, initPoseidon } from 'privagent-sdk';
-import { privAgentFetchV4 } from 'privagent-sdk/x402';
+import { createPrivAgentFetchV4 } from 'privagent-sdk/x402';
 import { JsonRpcProvider, Wallet } from 'ethers';
+import { randomBytes } from 'crypto';
 
 // Initialize
 await initPoseidon();
@@ -22,18 +23,25 @@ const signer = new Wallet(process.env.PRIVATE_KEY!, provider);
 
 // Create shielded wallet
 const wallet = new ShieldedWallet({
+  provider,
   signer,
   poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
-  circuitWasmPath: './circuits/joinSplit_1x2.wasm',
-  circuitZkeyPath: './circuits/joinSplit_1x2_final.zkey',
-  verificationKeyPath: './circuits/verification_key.json',
+  usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  circuitDir: './circuits/build',
+  deployBlock: 38347380,
 });
+await wallet.initialize();
+
+// ECDH keypair for note encryption
+const ecdhPrivateKey = randomBytes(32);
+const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
 
 // Deposit USDC into shielded pool
 await wallet.deposit(100_000000n); // 100 USDC
 
-// Make private API call (auto-handles 402 + ZK proof)
-const response = await privAgentFetchV4('https://api.example.com/data', wallet);
+// Create x402-aware fetch (auto-handles 402 + ZK proof)
+const privFetch = createPrivAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
+const response = await privFetch('https://api.example.com/data');
 const data = await response.json();
 ```
 

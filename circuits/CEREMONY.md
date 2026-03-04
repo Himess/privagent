@@ -1,5 +1,8 @@
 # PrivAgent Trusted Setup Ceremony
 
+<!-- TODO(MAINNET): Multi-party trusted setup ceremony with 3+ independent contributors
+     required before mainnet. Current single-contributor Phase 2 is NOT production-safe. -->
+
 ## V4 JoinSplit Circuits (Current)
 
 ### Phase 1: Powers of Tau

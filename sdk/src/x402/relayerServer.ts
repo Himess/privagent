@@ -11,6 +11,16 @@
  *   app.listen(3002, () => console.log('Relayer on :3002'));
  */
 
+import crypto from "crypto";
+
+/** [AUDIT-FIX] Constant-time string comparison to prevent timing attacks */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 export interface RelayerConfig {
   privateKey: string;
   poolAddress: string;
@@ -66,12 +76,12 @@ export interface RelaySubmitResponse {
 /**
  * Create a relayer Express app with real on-chain TX submission.
  */
-export function createRelayerServer(config: RelayerConfig) {
+export async function createRelayerServer(config: RelayerConfig): Promise<any> {
   // Dynamic import to avoid bundling express as hard dependency
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const express = require("express") as any;
-  const app = express.default ? express.default() : express();
-  app.use((express.default || express).json({ limit: "100kb" }));
+  const expressModule = await import("express");
+  const express = expressModule.default ?? expressModule;
+  const app = express();
+  app.use(express.json({ limit: "100kb" }));
 
   // [H1] API key authentication middleware
   if (config.apiKey) {
@@ -79,7 +89,7 @@ export function createRelayerServer(config: RelayerConfig) {
       // Allow health check without auth
       if (req.path === "/v1/health") return nextFn();
       const key = req.headers["x-privagent-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
-      if (key !== config.apiKey) {
+      if (!key || !timingSafeCompare(key, config.apiKey!)) {
         return res.status(401).json({ success: false, message: "Unauthorized: invalid API key" });
       }
       nextFn();

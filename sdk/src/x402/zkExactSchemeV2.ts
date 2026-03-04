@@ -40,6 +40,10 @@ export interface PaymentResultV4 {
 // Handler
 // ============================================================================
 
+// NOTE: Server decrypts payment note to verify amount >= price. This is inherent
+// to server-as-relayer model. Privacy is against third-party observers, not the
+// payment recipient. By design.
+
 /**
  * Handles x402 V4 payment flows using JoinSplit ZK proofs.
  *
@@ -62,6 +66,8 @@ export class ZkPaymentHandlerV4 {
     this.wallet = wallet;
     this.ecdhPrivateKey = ecdhPrivateKey;
     this.ecdhPublicKey = ecdhPublicKey;
+    // TODO(V4.5): Zero out ECDH private key material after use: key.fill(0).
+    // JS GC is non-deterministic so key persists in heap indefinitely.
     this.options = options;
   }
 
@@ -155,6 +161,10 @@ export class ZkPaymentHandlerV4 {
 
       // Encrypt notes for the server
       const enc1 = encryptNote(paymentUTXO, this.ecdhPrivateKey, serverEcdhPubKey);
+      // TODO(V4.5): PRIVACY LEAK — Change UTXO is encrypted to server's ECDH pubkey.
+      // Server can decrypt and learn buyer's change amount (remaining balance).
+      // Fix: encrypt change note to buyer's own ECDH pubkey.
+      // Requires payment flow refactor in both zkExactSchemeV2 and middlewareV2.
       const enc2 = encryptNote(changeUTXO, this.ecdhPrivateKey, serverEcdhPubKey);
 
       // Build extData with real encrypted outputs
@@ -202,8 +212,9 @@ export class ZkPaymentHandlerV4 {
       );
 
       // Compute view tags for each output UTXO (V4.4)
+      // [AUDIT-FIX] Use blinding as nonce to prevent deterministic view tag clustering
       const viewTags = [paymentUTXO, changeUTXO].map((u) =>
-        generateViewTag(this.wallet.privateKey, u.pubkey)
+        generateViewTag(this.wallet.privateKey, u.pubkey, u.blinding)
       );
 
       const zkPayload: ZkExactPayloadV4 = {

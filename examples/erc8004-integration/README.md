@@ -17,7 +17,7 @@ Together: **Verifiable agents, private payments.**
 import { privAgentPaymentMethod } from 'privagent-sdk/erc8004';
 
 const method = privAgentPaymentMethod({
-    poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+    poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
     facilitatorUrl: 'https://facilitator.privagent.xyz'
 });
 
@@ -30,7 +30,7 @@ const method = privAgentPaymentMethod({
 import { privAgentPaywallV4 } from 'privagent-sdk/x402';
 
 app.use('/api/weather', privAgentPaywallV4({
-    poolAddress: '0x17B6...',
+    poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
     usdcAddress: '0x036C...',
     signer,
     price: '1000000'

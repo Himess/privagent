@@ -207,3 +207,25 @@
 1. Multi-token
 2. Rapidsnark
 3. Governance
+
+---
+
+## V4.5 — Pre-Mainnet Priorities
+
+### Critical
+- [ ] Multi-party trusted setup ceremony (3+ contributors)
+- [ ] Fix change UTXO privacy leak (encrypt to buyer, not server)
+- [ ] Remove ShieldedWallet privateKey public getter
+- [ ] Add TimelockController + multisig for admin functions
+
+### High
+- [ ] Fix pool insolvency from private transfer fees
+- [ ] Make off-chain proof verification mandatory ✅ (done in V4.4.1)
+- [ ] Encrypt FileNoteStore at rest (AES-256-GCM)
+- [ ] Zero ECDH key material after use
+- [ ] Add protocolFee circuit test coverage
+
+### Medium
+- [ ] Gas optimization pass (~850K → target 600K)
+- [ ] Multi-token support (beyond USDC)
+- [ ] Faster proving (PLONK/Halo2 evaluation)

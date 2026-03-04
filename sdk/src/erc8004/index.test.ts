@@ -5,12 +5,12 @@ describe("ERC-8004 Integration", () => {
   describe("privAgentPaymentMethod", () => {
     it("should generate correct format with defaults", () => {
       const method = privAgentPaymentMethod({
-        poolAddress: "0x17B6209385c2e36E6095b89572273175902547f9",
+        poolAddress: "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
       });
       expect(method.scheme).toBe("x402-privagent");
       expect(method.network).toBe("eip155:84532");
       expect(method.token).toBe("USDC");
-      expect(method.pool).toBe("0x17B6209385c2e36E6095b89572273175902547f9");
+      expect(method.pool).toBe("0x8F1ae8209156C22dFD972352A415880040fB0b0c");
       expect(method.privacyLevel).toBe("full-utxo");
       expect(method.features).toContain("zk-proofs");
       expect(method.features).toContain("stealth-addresses");
@@ -33,11 +33,11 @@ describe("ERC-8004 Integration", () => {
     it("should generate correct proof", () => {
       const proof = paymentProofForFeedback(
         "0x1234567890abcdef",
-        "0x17B6209385c2e36E6095b89572273175902547f9"
+        "0x8F1ae8209156C22dFD972352A415880040fB0b0c"
       );
       expect(proof.type).toBe("privagent-nullifier");
       expect(proof.nullifier).toBe("0x1234567890abcdef");
-      expect(proof.pool).toBe("0x17B6209385c2e36E6095b89572273175902547f9");
+      expect(proof.pool).toBe("0x8F1ae8209156C22dFD972352A415880040fB0b0c");
       expect(proof.network).toBe("eip155:84532");
       expect(proof.timestamp).toBeGreaterThan(0);
     });

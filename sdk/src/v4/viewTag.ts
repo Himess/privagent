@@ -15,14 +15,12 @@ import { hash2, hash3 } from "../poseidon.js";
 export function generateViewTag(
   senderPrivKey: bigint,
   recipientPubKey: bigint,
-  nonce?: bigint
+  nonce: bigint
 ): number {
-  if (nonce !== undefined) {
-    const shared = hash3(senderPrivKey, recipientPubKey, nonce);
-    return Number(shared % 256n);
-  }
-  // Backward compat: no nonce = deterministic (legacy notes)
-  const shared = hash2(senderPrivKey, recipientPubKey);
+  // [AUDIT-FIX] Nonce is now REQUIRED to prevent deterministic view tag clustering.
+  // Without nonce, same sender→recipient pair always produces the same tag,
+  // enabling cross-TX correlation attacks.
+  const shared = hash3(senderPrivKey, recipientPubKey, nonce);
   return Number(shared % 256n);
 }
 
@@ -40,7 +38,7 @@ export function checkViewTag(
   myPrivKey: bigint,
   senderPubKey: bigint,
   viewTag: number,
-  nonce?: bigint
+  nonce: bigint
 ): boolean {
   const expected = generateViewTag(myPrivKey, senderPubKey, nonce);
   return expected === viewTag;

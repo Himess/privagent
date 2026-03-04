@@ -314,8 +314,8 @@ async function main() {
       },
       {
         metric: "Deposit amount",
-        status: "HIDDEN",
-        note: "(encrypted as commitment)",
+        status: "VISIBLE",
+        note: "(transferFrom visible on-chain)",
       },
       {
         metric: "Internal balance",

@@ -73,6 +73,11 @@ contract ProtocolFeeTest is Test {
         return bytes32(uint256(hash) % FIELD_SIZE);
     }
 
+    /// @dev Wrap keccak256 output to BN254 field range for nullifiers/commitments
+    function _toField(bytes memory data) internal pure returns (bytes32) {
+        return bytes32(uint256(keccak256(data)) % FIELD_SIZE);
+    }
+
     function _makeDepositArgs(
         uint256 amount,
         ShieldedPoolV4.ExtData memory extData,
@@ -83,11 +88,11 @@ contract ProtocolFeeTest is Test {
         bytes32 extDataHash = _computeExtDataHash(extData);
 
         bytes32[] memory nullifiers_ = new bytes32[](1);
-        nullifiers_[0] = bytes32(uint256(keccak256(abi.encode("nullifier", amount, salt))));
+        nullifiers_[0] = _toField(abi.encode("nullifier", amount, salt));
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("commit0", amount, salt))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("commit1", amount, salt))));
+        commitments[0] = _toField(abi.encode("commit0", amount, salt));
+        commitments[1] = _toField(abi.encode("commit1", amount, salt));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -116,8 +121,8 @@ contract ProtocolFeeTest is Test {
         nullifiers_[0] = nullifier;
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("wcommit0", amount, nullifier))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("wcommit1", amount, nullifier))));
+        commitments[0] = _toField(abi.encode("wcommit0", amount, nullifier));
+        commitments[1] = _toField(abi.encode("wcommit1", amount, nullifier));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],

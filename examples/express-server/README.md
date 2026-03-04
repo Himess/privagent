@@ -22,7 +22,7 @@ const signer = new Wallet(process.env.PRIVATE_KEY!, new JsonRpcProvider(process.
 app.get('/api/premium', privAgentPaywallV4({
   price: 1_000000n,  // 1 USDC
   signer,
-  poolAddress: '0x17B6209385c2e36E6095b89572273175902547f9',
+  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
 }), (req, res) => {
   res.json({ data: 'premium content' });
 });

@@ -24,7 +24,7 @@ async function main() {
 
   const RPC_URL = process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
   const POOL_ADDRESS =
-    process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x17B6209385c2e36E6095b89572273175902547f9";
+    process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
   const USDC_ADDRESS =
     process.env.USDC_ADDRESS ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 

@@ -16,7 +16,16 @@
  *   app.listen(3001);
  */
 
+import crypto from "crypto";
 import { createRelayerServer, type RelayerConfig } from "./relayerServer.js";
+
+/** [AUDIT-FIX] Constant-time string comparison to prevent timing attacks */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export interface FacilitatorConfig extends RelayerConfig {
   name?: string;
@@ -27,19 +36,19 @@ export interface FacilitatorConfig extends RelayerConfig {
  * Create a facilitator Express app with x402-standard endpoints.
  * Delegates real TX submission to internal relayer.
  */
-export function createFacilitatorServer(config: FacilitatorConfig) {
+export async function createFacilitatorServer(config: FacilitatorConfig): Promise<any> {
   // Dynamic import to avoid bundling express as hard dependency
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const express = require("express") as any;
-  const app = express.default ? express.default() : express();
-  app.use((express.default || express).json({ limit: "100kb" }));
+  const expressModule = await import("express");
+  const express = expressModule.default ?? expressModule;
+  const app = express();
+  app.use(express.json({ limit: "100kb" }));
 
   // [H2] API key authentication middleware (same as relayer)
   if (config.apiKey) {
     app.use((req: any, res: any, nextFn: any) => {
       if (req.path === "/health" || req.path === "/info") return nextFn();
       const key = req.headers["x-privagent-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
-      if (key !== config.apiKey) {
+      if (!key || !timingSafeCompare(key, config.apiKey!)) {
         return res.status(401).json({ valid: false, error: "Unauthorized: invalid API key" });
       }
       nextFn();
@@ -47,7 +56,7 @@ export function createFacilitatorServer(config: FacilitatorConfig) {
   }
 
   // Internal relayer for actual TX submission
-  const relayer = createRelayerServer(config);
+  const relayer = await createRelayerServer(config);
 
   // Lazy-init provider/wallet/pool
   let _pool: any = null;

@@ -7,6 +7,10 @@ import * as fs from "fs";
 // V4 JoinSplit circuit tests
 // Requires: circuits/scripts/build-v4.sh (or manual compile)
 
+// TODO(V4.5): Add test cases for non-zero protocolFee. Currently all tests use
+// protocolFee=0. Need: fee deduction test, mismatched fee rejection, fee >= 2^120 rejection.
+// Also fix DEPTH to 20 (currently 16) to match production circuits.
+
 const BUILD_DIR = path.join(import.meta.dirname ?? __dirname, "build", "v4");
 const DEPTH = 16;
 const TEST_TIMEOUT = 60_000; // 60s per test (proof gen is slow)

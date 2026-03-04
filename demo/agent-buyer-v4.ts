@@ -34,7 +34,7 @@ async function main() {
   }
 
   const poolAddress =
-    process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x17B6209385c2e36E6095b89572273175902547f9";
+    process.env.SHIELDED_POOL_V4_ADDRESS ?? "0x8F1ae8209156C22dFD972352A415880040fB0b0c";
 
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);

@@ -25,7 +25,7 @@ echo ""
 
 # Start seller in background
 echo "Starting seller agent..."
-PRIVATE_KEY="$PRIVATE_KEY_SELLER" npx tsx demo/agent-seller.ts &
+PRIVATE_KEY="$PRIVATE_KEY_SELLER" npx tsx demo/agent-seller-v4.ts &
 SELLER_PID=$!
 
 # Wait for seller to start
@@ -33,7 +33,7 @@ sleep 4
 
 echo ""
 echo "Starting buyer agent..."
-PRIVATE_KEY="$PRIVATE_KEY_BUYER" npx tsx demo/agent-buyer.ts
+PRIVATE_KEY="$PRIVATE_KEY_BUYER" npx tsx demo/agent-buyer-v4.ts
 
 # Cleanup
 echo ""

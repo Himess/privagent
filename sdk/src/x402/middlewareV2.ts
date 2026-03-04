@@ -65,6 +65,13 @@ export function privAgentPaywallV4(config: PrivAgentwallConfigV4): RequestHandle
   if (!config.signer) {
     throw new Error("privAgentPaywallV4 requires a signer for on-chain transactions");
   }
+  if (!config.verificationKeys || Object.keys(config.verificationKeys).length === 0) {
+    throw new Error("privAgentPaywallV4 requires verificationKeys to prevent gas griefing attacks");
+  }
+  // [AUDIT-FIX] Validate pool address format
+  if (!ethers.isAddress(config.poolAddress)) {
+    throw new Error(`Invalid pool address: ${config.poolAddress}`);
+  }
 
   const network = config.network ?? "eip155:84532"; // Base Sepolia default
   const poolContract = new Contract(config.poolAddress, POOL_V4_ABI, config.signer);
@@ -378,7 +385,11 @@ export function privAgentPaywallV4(config: PrivAgentwallConfigV4): RequestHandle
 // Helpers
 // ============================================================================
 
+const FIELD_SIZE_MW = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617");
+
 function toBytes32(value: bigint): string {
+  // [AUDIT-FIX] Range validation to prevent field overflow
+  if (value >= FIELD_SIZE_MW) throw new Error("value exceeds BN254 field size");
   return ethers.zeroPadValue(ethers.toBeHex(value), 32);
 }
 

@@ -303,8 +303,8 @@ export interface PrivAgentwallConfigV4 {
   relayerFee?: string;
   maxFee?: string;
   maxTimeoutSeconds?: number;
-  /** Verification keys keyed by circuit config e.g. "1x2", "2x2" */
-  verificationKeys?: Record<string, Record<string, unknown>>;
+  /** Verification keys keyed by circuit config e.g. "1x2", "2x2" — REQUIRED to prevent gas griefing */
+  verificationKeys: Record<string, Record<string, unknown>>;
 }
 
 export interface PrivAgentFetchOptionsV4 extends RequestInit {

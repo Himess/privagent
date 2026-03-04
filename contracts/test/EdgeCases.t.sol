@@ -105,6 +105,11 @@ contract EdgeCasesTest is Test {
         return bytes32(uint256(hash) % FIELD_SIZE);
     }
 
+    /// @dev Wrap keccak256 output to BN254 field range for nullifiers/commitments
+    function _toField(bytes memory data) internal pure returns (bytes32) {
+        return bytes32(uint256(keccak256(data)) % FIELD_SIZE);
+    }
+
     function _doDeposit(uint256 amount, uint256 salt) internal {
         ShieldedPoolV4.ExtData memory extData = ShieldedPoolV4.ExtData({
             recipient: address(0),
@@ -115,10 +120,10 @@ contract EdgeCasesTest is Test {
         });
 
         bytes32[] memory nullifiers = new bytes32[](1);
-        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("edge_null", salt))));
+        nullifiers[0] = _toField(abi.encode("edge_null", salt));
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("edge_c0", salt))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("edge_c1", salt))));
+        commitments[0] = _toField(abi.encode("edge_c0", salt));
+        commitments[1] = _toField(abi.encode("edge_c1", salt));
 
         ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -217,10 +222,10 @@ contract EdgeCasesTest is Test {
             });
 
             bytes32[] memory nullifiers = new bytes32[](1);
-            nullifiers[0] = bytes32(uint256(keccak256(abi.encode("multi_w", i))));
+            nullifiers[0] = _toField(abi.encode("multi_w", i));
             bytes32[] memory commitments = new bytes32[](2);
-            commitments[0] = bytes32(uint256(keccak256(abi.encode("multi_wc0", i))));
-            commitments[1] = bytes32(uint256(keccak256(abi.encode("multi_wc1", i))));
+            commitments[0] = _toField(abi.encode("multi_wc0", i));
+            commitments[1] = _toField(abi.encode("multi_wc1", i));
 
             ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
                 pA: [uint256(0), uint256(0)],

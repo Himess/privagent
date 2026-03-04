@@ -62,6 +62,10 @@ describe("V4 privAgentPaywallV4 Middleware", () => {
       poseidonPubkey: derivePublicKey(100n).toString(),
       ecdhPrivateKey: serverEcdhPriv,
       ecdhPublicKey: serverEcdhPub,
+      verificationKeys: {
+        "1x2": { vkeyPath: "/tmp/vkey_1x2.json" },
+        "2x2": { vkeyPath: "/tmp/vkey_2x2.json" },
+      },
     };
   });
 

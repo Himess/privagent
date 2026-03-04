@@ -341,16 +341,17 @@ describe("x402 E2E Integration", () => {
     const senderPriv = 42n;
     const recipientPub = derivePublicKey(99n);
 
-    const tag = generateViewTag(senderPriv, recipientPub);
+    const nonce = 42n;
+    const tag = generateViewTag(senderPriv, recipientPub, nonce);
     expect(tag).toBeGreaterThanOrEqual(0);
     expect(tag).toBeLessThan(256);
 
-    // Deterministic
-    expect(generateViewTag(senderPriv, recipientPub)).toBe(tag);
+    // Deterministic with same nonce
+    expect(generateViewTag(senderPriv, recipientPub, nonce)).toBe(tag);
 
     // Check matches
-    expect(checkViewTag(senderPriv, recipientPub, tag)).toBe(true);
-    expect(checkViewTag(senderPriv, recipientPub, (tag + 1) % 256)).toBe(
+    expect(checkViewTag(senderPriv, recipientPub, tag, nonce)).toBe(true);
+    expect(checkViewTag(senderPriv, recipientPub, (tag + 1) % 256, nonce)).toBe(
       tag === (tag + 1) % 256 ? true : false
     );
   });

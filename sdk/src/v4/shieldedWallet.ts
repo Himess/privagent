@@ -107,6 +107,9 @@ export class ShieldedWallet {
     return this.keypair.publicKey;
   }
 
+  // TODO(V4.5): Remove public getter for privateKey. Expose only sign() and prove()
+  // methods that use the key internally. Current getter exposes master secret to any
+  // code with wallet reference.
   get privateKey(): bigint {
     return this.keypair.privateKey;
   }
@@ -278,8 +281,9 @@ export class ShieldedWallet {
     const commitments = ps.slice(4 + nIns, 4 + nIns + nOuts).map((c) => toBytes32(c));
 
     // Generate view tags for outputs
+    // [AUDIT-FIX] Use blinding as nonce to prevent deterministic view tag clustering
     const viewTags = [depositUTXO, dummyOutput].map((u) =>
-      generateViewTag(this.keypair.privateKey, u.pubkey)
+      generateViewTag(this.keypair.privateKey, u.pubkey, u.blinding)
     );
 
     const tx = await poolContract.transact(
@@ -481,8 +485,9 @@ export class ShieldedWallet {
     const protocolFee = ps[3];
 
     // Generate view tags for outputs
+    // [AUDIT-FIX] Use blinding as nonce to prevent deterministic view tag clustering
     const viewTags = outputUTXOs.map((u) =>
-      generateViewTag(this.keypair.privateKey, u.pubkey)
+      generateViewTag(this.keypair.privateKey, u.pubkey, u.blinding)
     );
 
     const tx = await poolContract.transact(

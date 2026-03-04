@@ -51,6 +51,11 @@ contract ShieldedPoolV4Test is Test {
         return vt;
     }
 
+    /// @dev Wrap keccak256 output to BN254 field range for nullifiers/commitments
+    function _toField(bytes memory data) internal pure returns (bytes32) {
+        return bytes32(uint256(keccak256(data)) % FIELD_SIZE);
+    }
+
     function _makeExtData(
         address recipient,
         address relayer,
@@ -85,11 +90,11 @@ contract ShieldedPoolV4Test is Test {
         bytes32 extDataHash = _computeExtDataHash(extData);
 
         bytes32[] memory nullifiers = new bytes32[](1);
-        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("nullifier", amount, block.timestamp))));
+        nullifiers[0] = _toField(abi.encode("nullifier", amount, block.timestamp));
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("commit0", amount))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("commit1", amount))));
+        commitments[0] = _toField(abi.encode("commit0", amount));
+        commitments[1] = _toField(abi.encode("commit1", amount));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -118,8 +123,8 @@ contract ShieldedPoolV4Test is Test {
         nullifiers[0] = nullifier;
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("wcommit0", amount))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("wcommit1", amount))));
+        commitments[0] = _toField(abi.encode("wcommit0", amount));
+        commitments[1] = _toField(abi.encode("wcommit1", amount));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -147,8 +152,8 @@ contract ShieldedPoolV4Test is Test {
         nullifiers[0] = nullifier;
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("tcommit0", nullifier))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("tcommit1", nullifier))));
+        commitments[0] = _toField(abi.encode("tcommit0", nullifier));
+        commitments[1] = _toField(abi.encode("tcommit1", nullifier));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -179,8 +184,8 @@ contract ShieldedPoolV4Test is Test {
         nullifiers[1] = null2;
 
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("2x2commit0", null1))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("2x2commit1", null2))));
+        commitments[0] = _toField(abi.encode("2x2commit0", null1));
+        commitments[1] = _toField(abi.encode("2x2commit1", null2));
 
         return ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -257,10 +262,10 @@ contract ShieldedPoolV4Test is Test {
         for (uint256 i = 0; i < 3; i++) {
             ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
             bytes32[] memory nullifiers = new bytes32[](1);
-            nullifiers[0] = bytes32(uint256(keccak256(abi.encode("null", i))));
+            nullifiers[0] = _toField(abi.encode("null", i));
             bytes32[] memory commitments = new bytes32[](2);
-            commitments[0] = bytes32(uint256(keccak256(abi.encode("c0", i))));
-            commitments[1] = bytes32(uint256(keccak256(abi.encode("c1", i))));
+            commitments[0] = _toField(abi.encode("c0", i));
+            commitments[1] = _toField(abi.encode("c1", i));
 
             ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
                 pA: [uint256(0), uint256(0)],
@@ -502,10 +507,10 @@ contract ShieldedPoolV4Test is Test {
         for (uint256 i = 0; i < 5; i++) {
             ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
             bytes32[] memory nullifiers = new bytes32[](1);
-            nullifiers[0] = bytes32(uint256(keccak256(abi.encode("rh_null", i))));
+            nullifiers[0] = _toField(abi.encode("rh_null", i));
             bytes32[] memory commitments = new bytes32[](2);
-            commitments[0] = bytes32(uint256(keccak256(abi.encode("rh_c0", i))));
-            commitments[1] = bytes32(uint256(keccak256(abi.encode("rh_c1", i))));
+            commitments[0] = _toField(abi.encode("rh_c0", i));
+            commitments[1] = _toField(abi.encode("rh_c1", i));
 
             ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
                 pA: [uint256(0), uint256(0)],
@@ -925,10 +930,10 @@ contract ShieldedPoolV4Test is Test {
 
         ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
         bytes32[] memory nullifiers = new bytes32[](1);
-        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("fuzz_null", amount))));
+        nullifiers[0] = _toField(abi.encode("fuzz_null", amount));
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("fuzz_c0", amount))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("fuzz_c1", amount))));
+        commitments[0] = _toField(abi.encode("fuzz_c0", amount));
+        commitments[1] = _toField(abi.encode("fuzz_c1", amount));
 
         ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -963,7 +968,7 @@ contract ShieldedPoolV4Test is Test {
             extData = _makeExtData(bob, address(0), 0);
         }
 
-        bytes32 nullifier = bytes32(uint256(keccak256(abi.encode("fuzz_w", amount, fee))));
+        bytes32 nullifier = _toField(abi.encode("fuzz_w", amount, fee));
         ShieldedPoolV4.TransactArgs memory args = _makeWithdrawArgs(amount, nullifier, extData);
 
         pool.transact(args, extData);
@@ -991,10 +996,10 @@ contract ShieldedPoolV4Test is Test {
 
             ShieldedPoolV4.ExtData memory extData = _makeExtData(address(0), address(0), 0);
             bytes32[] memory nullifiers = new bytes32[](1);
-            nullifiers[0] = bytes32(uint256(keccak256(abi.encode("fuzz_pa", publicAmount))));
+            nullifiers[0] = _toField(abi.encode("fuzz_pa", publicAmount));
             bytes32[] memory commitments = new bytes32[](2);
-            commitments[0] = bytes32(uint256(keccak256(abi.encode("fuzz_pac0", publicAmount))));
-            commitments[1] = bytes32(uint256(keccak256(abi.encode("fuzz_pac1", publicAmount))));
+            commitments[0] = _toField(abi.encode("fuzz_pac0", publicAmount));
+            commitments[1] = _toField(abi.encode("fuzz_pac1", publicAmount));
 
             ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
                 pA: [uint256(0), uint256(0)],

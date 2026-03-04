@@ -80,8 +80,8 @@ The `1x2` variant handles the most common case: spending a single UTXO, creating
 
 | Circuit | Non-linear | Approx Total |
 |---------|-----------|-------------|
-| joinSplit_1x2 (1 in, 2 out, depth-20) | ~5,900 | ~12,000 |
-| joinSplit_2x2 (2 in, 2 out, depth-20) | ~11,000 | ~22,000 |
+| joinSplit_1x2 (1 in, 2 out, depth-20) | 13,726 | ~27,000 |
+| joinSplit_2x2 (2 in, 2 out, depth-20) | 25,877 | ~51,000 |
 
 #### Breakdown (1x2)
 

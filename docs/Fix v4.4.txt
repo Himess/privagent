@@ -1,0 +1,223 @@
+Final audit round. Two categories: FIX now + add TODOs.
+
+═══════════════════════════════════════
+CATEGORY 1: FIX THESE NOW
+═══════════════════════════════════════
+
+REBRAND + DOCS (must fix):
+
+1. LICENSE file: Replace ALL "GhostPay" → "PrivAgent"
+   and "ghostpay.xyz" → "privagent.xyz"
+
+2. Stale V4.3 addresses:
+   grep -rn "0x17B6" entire repo
+   Replace ALL with 0x8F1ae8209156C22dFD972352A415880040fB0b0c
+   (except AUDIT docs referencing historical findings)
+
+3. docs/CIRCUITS.md: Fix constraint counts:
+   1x2: 13,726 constraints (not ~5,900)
+   2x2: 25,877 constraints (not ~11,000)
+
+4. examples/virtuals-integration/README.md:
+   Fix API to: createPrivAgentFetchV4(wallet, ecdhPrivKey, ecdhPubKey)
+
+5. demo/run-demo.sh: Delete if obsolete, 
+   or update to reference V4 files
+
+6. demo/agent-privacy-demo.ts ~line 317:
+   "Deposit amount: HIDDEN" → "Deposit amount: VISIBLE"
+   Deposits are public (transferFrom visible on-chain)
+
+SECURITY FIXES:
+
+7. relayerServer.ts + facilitatorServer.ts:
+   Replace === API key comparison with:
+   import crypto from 'crypto';
+   crypto.timingSafeEqual(
+     Buffer.from(key), 
+     Buffer.from(config.apiKey)
+   )
+
+8. ShieldedPoolV4.sol: Add event for setVerifier:
+   event VerifierUpdated(uint256 indexed configKey, 
+                         address indexed verifier);
+   Emit in setVerifier() function.
+
+9. Contracts H2 — Field-range validation:
+   In ShieldedPoolV4.sol, add check for commitments
+   and nullifiers:
+   uint256 constant FIELD_SIZE = 
+     21888242871839275222246405745257275088548364400416034343698204186575808495617;
+   
+   For each nullifier: 
+     require(uint256(nullifier) < FIELD_SIZE, "nullifier out of range");
+   For each commitment:
+     require(uint256(commitment) < FIELD_SIZE, "commitment out of range");
+
+10. Architecture M7 — Make verificationKeys mandatory:
+    In middlewareV2.ts, make verificationKeys a 
+    REQUIRED field in PrivAgentPaywallConfigV4 
+    (remove optional ?). 
+    Add validation in middleware constructor:
+    if (!config.verificationKeys) 
+      throw new Error('verificationKeys required');
+
+SDK PRODUCTION HARDENING (M1-M5):
+
+11. SDK M1: relayerServer.ts — Replace require("express")
+    with: import express from 'express';
+    (ESM-compatible)
+
+12. SDK M2: noteStore.ts FileNoteStore — Add simple 
+    file locking:
+    Use a .lock file pattern or write-rename pattern
+    (write to .tmp, rename to .json atomically)
+
+13. SDK M3: viewTag.ts — Make nonce parameter REQUIRED
+    (not optional). Remove the backward-compat path 
+    that omits nonce. Always include nonce in view tag
+    hash to prevent cross-TX correlation.
+
+14. SDK M4: middlewareV2.ts — Add pool address 
+    validation: check ethers.isAddress(config.poolAddress)
+    in middleware constructor.
+
+15. SDK M5: middlewareV2.ts toBytes32() — Add range 
+    validation: 
+    if (BigInt(value) >= FIELD_SIZE) 
+      throw new Error('value exceeds field size');
+
+═══════════════════════════════════════
+CATEGORY 2: ADD TODO COMMENTS + TODO.md
+═══════════════════════════════════════
+
+Add inline TODO comments in code AND add entries to 
+docs/TODO.md under a new "## V4.5 — Pre-Mainnet" section.
+
+16. Contracts H1 — Pool Insolvency:
+    Location: ShieldedPoolV4.sol near the private 
+    transfer fee logic (~line 274)
+    Comment: 
+    // TODO(V4.5): Private transfer fees drain pool 
+    // balance without new token inflow. Redesign fee 
+    // accounting: keep fees in pool, add separate 
+    // treasury claim mechanism, or deduct fees within 
+    // UTXO model to maintain solvency invariant.
+
+17. SDK H1 — Private Key Getter:
+    Location: shieldedWallet.ts ~line 110
+    Comment:
+    // TODO(V4.5): Remove public getter for privateKey.
+    // Expose only sign() and prove() methods that use 
+    // the key internally. Current getter exposes master 
+    // secret to any code with wallet reference.
+
+18. SDK H2 — ECDH Key Not Zeroed:
+    Location: zkExactSchemeV2.ts ~line 52, 
+    noteEncryption.ts ~line 36
+    Comment:
+    // TODO(V4.5): Zero out ECDH private key material 
+    // after use: key.fill(0). JS GC is non-deterministic
+    // so key persists in heap indefinitely.
+
+19. Contracts M1 — Owner Centralization:
+    Location: ShieldedPoolV4.sol near onlyOwner functions
+    Comment:
+    // TODO(V4.5): Add TimelockController for admin 
+    // functions (setVerifier, setTreasury, setFeeParams,
+    // pause). Add 2-of-3 multisig requirement. Current 
+    // owner can pause + emergencyWithdraw = rug risk.
+
+20. Circuits M4 — protocolFee Test Coverage:
+    Location: circuits/joinSplit.test.ts (top of file)
+    Comment:
+    // TODO(V4.5): Add test cases for non-zero 
+    // protocolFee. Currently all tests use 
+    // protocolFee=0. Need: fee deduction test, 
+    // mismatched fee rejection, fee >= 2^120 rejection.
+
+21. Architecture M2 — Multi-Token Support:
+    // TODO(V5): Support multiple ERC20 tokens beyond 
+    // USDC. Requires per-token Merkle trees or unified 
+    // tree with token identifier in commitment.
+
+22. Architecture M3 — Owner Centralization:
+    (Same as Contracts M1, reference it)
+
+23. Architecture M4 — Gas Optimization:
+    // TODO(V4.5): Optimize gas costs (~850K per TX).
+    // Consider: batch proof verification, storage 
+    // packing, assembly optimizations for Merkle insert.
+
+24. Architecture M5 — Proof Generation Time:
+    // TODO(V5): Explore PLONK/Halo2 for faster 
+    // proving, or WASM optimization for browser proofs.
+
+25. Architecture M6 — Server Knows Amount:
+    Location: zkExactSchemeV2.ts near payment flow
+    // NOTE: Server decrypts payment note to verify 
+    // amount >= price. This is inherent to server-as-
+    // relayer model. Privacy is against third-party 
+    // observers, not the payment recipient. By design.
+
+26. Architecture M7 — Already fixed above (#10)
+
+27. Architecture M8 — FileNoteStore Encryption:
+    Location: noteStore.ts near FileNoteStore class
+    // TODO(V4.5): Encrypt note store at rest using 
+    // AES-256-GCM with key derived from wallet privkey.
+    // Current plaintext JSON is a data breach risk.
+
+28. Architecture H1 — Trusted Setup:
+    Location: circuits/CEREMONY.md (top of file)
+    // TODO(MAINNET): Multi-party trusted setup ceremony
+    // with 3+ independent contributors required before 
+    // mainnet. Current single-contributor Phase 2 is 
+    // NOT production-safe. Already in ROADMAP.md.
+
+29. SDK H3 — Change UTXO Privacy Leak:
+    Location: zkExactSchemeV2.ts ~line 157
+    Comment:
+    // TODO(V4.5): PRIVACY LEAK — Change UTXO is 
+    // encrypted to server's ECDH pubkey. Server can 
+    // decrypt and learn buyer's change amount (remaining
+    // balance). Fix: encrypt change note to buyer's own 
+    // ECDH pubkey. Requires payment flow refactor in 
+    // both zkExactSchemeV2 and middlewareV2.
+
+TODO.MD UPDATE:
+Add all the above under a new section in docs/TODO.md:
+
+## V4.5 — Pre-Mainnet Priorities
+
+### Critical
+- [ ] Multi-party trusted setup ceremony (3+ contributors)
+- [ ] Fix change UTXO privacy leak (encrypt to buyer)
+- [ ] Remove ShieldedWallet privateKey public getter
+- [ ] Add TimelockController + multisig for admin functions
+
+### High  
+- [ ] Fix pool insolvency from private transfer fees
+- [ ] Make off-chain proof verification mandatory ✅ (done)
+- [ ] Encrypt FileNoteStore at rest (AES-256-GCM)
+- [ ] Zero ECDH key material after use
+- [ ] Add protocolFee circuit test coverage
+
+### Medium
+- [ ] Gas optimization pass (~850K → target 600K)
+- [ ] Multi-token support (beyond USDC)
+- [ ] Faster proving (PLONK/Halo2 evaluation)
+
+═══════════════════════════════════════
+AFTER ALL CHANGES:
+═══════════════════════════════════════
+
+1. grep -rn "0x17B6" (0 in code files)
+2. grep -rn -i "ghostpay" LICENSE (0 results)
+3. cd sdk && npx vitest run (all pass)
+4. cd contracts && forge build (compiles)
+5. cd contracts && forge test (if time allows)
+6. TypeScript: cd sdk && npx tsc --noEmit
+
+Commit: "Final audit: 15 fixes + V4.5 TODOs for 
+pre-mainnet priorities"

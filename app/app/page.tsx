@@ -9,7 +9,7 @@ const CONTRACTS = {
   PoseidonHasher: "0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd",
   Verifier_1x2: "0xe473aF953d269601402DEBcB2cc899aB594Ad31e",
   Verifier_2x2: "0x10D5BB24327d40c4717676E3B7351D76deb33848",
-  ShieldedPoolV4: "0x17B6209385c2e36E6095b89572273175902547f9",
+  ShieldedPoolV4: "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
 };
 
 const BLOCKSCOUT = "https://base-sepolia.blockscout.com/address/";

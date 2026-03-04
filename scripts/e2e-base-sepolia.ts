@@ -26,10 +26,10 @@ import {
 
 const CONFIG = {
   rpcUrl: process.env.RPC_URL || "https://sepolia.base.org",
-  poolAddress: "0x17B6209385c2e36E6095b89572273175902547f9",
+  poolAddress: "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
   usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
   blockscoutBase: "https://base-sepolia.blockscout.com/tx/",
-  deployBlock: 38256581,
+  deployBlock: 38347380,
   circuitDir: "../circuits/build",
 };
 

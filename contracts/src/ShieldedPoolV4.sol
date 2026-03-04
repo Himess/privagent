@@ -138,6 +138,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     event ProtocolFeeCollected(uint256 indexed amount);
     event TreasuryUpdated(address indexed newTreasury);
     event ProtocolFeeUpdated(uint256 newFeeBps, uint256 newMinFee);
+    event VerifierUpdated(uint256 indexed configKey, address indexed verifier);
 
     // ============ Constructor ============
     constructor(
@@ -179,8 +180,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         // 1. Validate extDataHash
         if (args.extDataHash != _hashExtData(extData)) revert InvalidExtDataHash();
 
-        // 2. Validate nullifiers (intra-tx uniqueness + storage check)
+        // 2. Validate nullifiers (field range + intra-tx uniqueness + storage check)
         for (uint256 i = 0; i < args.inputNullifiers.length; i++) {
+            require(uint256(args.inputNullifiers[i]) < FIELD_SIZE, "nullifier out of range");
             if (nullifiers[args.inputNullifiers[i]]) revert NullifierAlreadyUsed();
             for (uint256 j = i + 1; j < args.inputNullifiers.length; j++) {
                 if (args.inputNullifiers[i] == args.inputNullifiers[j]) revert DuplicateNullifierInBatch();
@@ -227,6 +229,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
 
         // 9. Insert output commitments into Merkle tree (with view tags)
         for (uint256 i = 0; i < args.outputCommitments.length; i++) {
+            require(uint256(args.outputCommitments[i]) < FIELD_SIZE, "commitment out of range");
             bytes memory encOutput = i == 0 ? extData.encryptedOutput1 : extData.encryptedOutput2;
             uint256 leafIndex = _insertLeaf(args.outputCommitments[i]);
             emit NewCommitment(args.outputCommitments[i], leafIndex, encOutput, args.viewTags[i]);
@@ -274,6 +277,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             // Private transfer (publicAmount == 0):
             // Circuit enforces: sum(inputs) = sum(outputs) + protocolFee
             // Surplus stays in pool → transfer to treasury
+            // TODO(V4.5): Private transfer fees drain pool balance without new token inflow.
+            // Redesign fee accounting: keep fees in pool, add separate treasury claim mechanism,
+            // or deduct fees within UTXO model to maintain solvency invariant.
             if (args.protocolFee > 0 && treasury != address(0)) {
                 if (!usdc.transfer(treasury, args.protocolFee)) revert TransferFailed();
                 emit ProtocolFeeCollected(args.protocolFee);
@@ -419,6 +425,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     }
 
     // ============ Admin ============
+    // TODO(V4.5): Add TimelockController for admin functions (setVerifier, setTreasury,
+    // setFeeParams, pause). Add 2-of-3 multisig requirement. Current owner can
+    // pause + emergencyWithdraw = rug risk.
     /// @notice Update verifier for a circuit config. Pass address(0) to remove. [SC-M3]
     function setVerifier(uint256 nIns, uint256 nOuts, address verifierAddr) external onlyOwner {
         if (verifierAddr != address(0)) {
@@ -426,7 +435,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             assembly { size := extcodesize(verifierAddr) }
             require(size > 0, "Not a contract");
         }
-        verifiers[nIns * 10 + nOuts] = verifierAddr;
+        uint256 configKey = nIns * 10 + nOuts;
+        verifiers[configKey] = verifierAddr;
+        emit VerifierUpdated(configKey, verifierAddr);
     }
 
     function pause() external onlyOwner { _pause(); }

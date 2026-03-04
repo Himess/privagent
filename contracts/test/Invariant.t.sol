@@ -42,6 +42,11 @@ contract PoolHandler is Test {
         return bytes32(uint256(hash) % FIELD_SIZE);
     }
 
+    /// @dev Wrap keccak256 output to BN254 field range for nullifiers/commitments
+    function _toField(bytes memory data) internal pure returns (bytes32) {
+        return bytes32(uint256(keccak256(data)) % FIELD_SIZE);
+    }
+
     function deposit(uint256 amount) external {
         amount = bound(amount, 1, 100_000_000); // 0-100 USDC
 
@@ -54,10 +59,10 @@ contract PoolHandler is Test {
         });
 
         bytes32[] memory nullifiers = new bytes32[](1);
-        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("inv_d", txCount))));
+        nullifiers[0] = _toField(abi.encode("inv_d", txCount));
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("inv_dc0", txCount))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("inv_dc1", txCount))));
+        commitments[0] = _toField(abi.encode("inv_dc0", txCount));
+        commitments[1] = _toField(abi.encode("inv_dc1", txCount));
 
         ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
@@ -98,10 +103,10 @@ contract PoolHandler is Test {
         });
 
         bytes32[] memory nullifiers = new bytes32[](1);
-        nullifiers[0] = bytes32(uint256(keccak256(abi.encode("inv_w", txCount))));
+        nullifiers[0] = _toField(abi.encode("inv_w", txCount));
         bytes32[] memory commitments = new bytes32[](2);
-        commitments[0] = bytes32(uint256(keccak256(abi.encode("inv_wc0", txCount))));
-        commitments[1] = bytes32(uint256(keccak256(abi.encode("inv_wc1", txCount))));
+        commitments[0] = _toField(abi.encode("inv_wc0", txCount));
+        commitments[1] = _toField(abi.encode("inv_wc1", txCount));
 
         ShieldedPoolV4.TransactArgs memory args = ShieldedPoolV4.TransactArgs({
             pA: [uint256(0), uint256(0)],
