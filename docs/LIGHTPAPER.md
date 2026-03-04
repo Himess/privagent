@@ -93,6 +93,16 @@ PrivAgent brings Railgun-level privacy to Base's agent economy:
 - Payment proof for feedback: nullifier-based sybil resistance
 - Helper SDK: `privAgentPaymentMethod()`, `paymentProofForFeedback()`
 
+**Security Hardening (V4.4)**
+- 28 audit findings fixed across 3 deep audits (score: 7.5 → 9.0/10)
+- On-chain TX verification before UTXO confirmation (prevents fake TX hash attacks)
+- Race condition prevention: nullifier mutex for concurrent requests
+- BN254 field-range validation for all nullifiers and commitments (on-chain)
+- API key auth + per-IP rate limiting + SSRF protection on relayer/facilitator
+- Timing-safe comparisons, 30s proof generation timeout, secp256k1 pubkey validation
+- Build integrity: snarkjs zkey verify + PTAU SHA-256 hash check
+- Mandatory verificationKeys config (prevents gas griefing attacks)
+
 ### How It Works
 
 ```
@@ -155,9 +165,9 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 
 ### Core Components
 
-1. **ShieldedPoolV4** — Solidity contract managing the UTXO pool, Merkle tree (depth 20, ~1M leaves), nullifier tracking, and protocol fees
+1. **ShieldedPoolV4** — Solidity contract managing the UTXO pool, Merkle tree (depth 20, ~1M leaves), nullifier tracking, protocol fees, field-range validation
 2. **JoinSplit Circuits** — Circom/Groth16 circuits for 1x2 and 2x2 private transactions
-3. **TypeScript SDK** — UTXO engine, note encryption (HKDF + AES-256-GCM), stealth addresses, Merkle tree sync
+3. **TypeScript SDK** — UTXO engine, note encryption (HKDF + AES-256-GCM), stealth addresses, Merkle tree sync, atomic note storage, timing-safe auth
 4. **x402 Middleware** — Express middleware for API providers, payment verification, server-as-relayer
 5. **Stealth Registry** — ECDH-based stealth address system for recipient privacy
 6. **Relayer/Facilitator** — Hybrid relay system for gas-free agent payments, x402-compatible facilitator endpoint
@@ -332,6 +342,8 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Hybrid relayer | Yes (V4.4) | Decentralized | N/A | N/A |
 | x402 facilitator | Yes (V4.4) | No | No | No |
 | No ETH required | Yes (V4.4) | No | No | No |
+| Field-range validation | Yes (V4.4) | Yes | N/A | Yes |
+| Audit score | 9.0/10 (V4.4) | N/A | N/A | N/A |
 
 **PrivAgent is the only privacy protocol on Base with x402 and ERC-8004 integration.**
 
@@ -349,7 +361,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Risk | Mitigation |
 |------|-----------|
 | Regulatory (Tornado Cash precedent) | POI roadmap, deposit screening planned, BSL license |
-| Smart contract vulnerability | 3 internal audits, 195 tests, professional audit planned |
+| Smart contract vulnerability | 3 deep audits (28 findings fixed, 9.0/10), 226 tests, professional audit planned |
 | Market timing (early) | First-mover advantage, no competition on Base |
 | Solo developer | 80+ PRs in major projects, proven execution, team expansion planned |
 
@@ -358,7 +370,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
 | **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, Base Sepolia deployment |
-| **V4.4** | ✅ Complete | Circuit-level fee (all TX types), view tags (50x scan speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1 integration, 3 internal audits, 195 tests |
+| **V4.4** | ✅ Complete | Circuit-level fee, view tags (50x speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1, security hardening (28 findings fixed, 9.0/10), 226 tests |
 | **V4.5** | Weeks 1-8 (Program) | PrivAgent Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
 | **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
 | **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |
@@ -379,13 +391,14 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 
 | Metric | Value |
 |--------|-------|
-| PrivAgent development time | ~72 hours (V3 → V4.4) |
-| Test coverage | 195 tests (86 Foundry + 109 SDK) |
-| Internal audits completed | 3 (46+ findings resolved) |
-| Lines of Solidity | ~800+ |
-| Lines of TypeScript | ~3500+ |
+| PrivAgent development time | ~80 hours (V3 → V4.4) |
+| Test coverage | 226 tests (117 Foundry + 109 SDK) |
+| Internal audits completed | 3 deep audits (28 critical/high findings fixed) |
+| Audit score | 7.5 → 9.0/10 after security hardening |
+| Lines of Solidity | ~900+ |
+| Lines of TypeScript | ~4000+ |
 | Circom circuits | 2 (1x2 + 2x2 JoinSplit with protocolFee) |
-| Documentation pages | 8 (Protocol, Circuits, Stealth, Ceremony, POI Roadmap, Audit, TODO, Roadmap) |
+| Documentation pages | 10+ (Protocol, Circuits, Stealth, Ceremony, POI Roadmap, Deep Audit, TODO, Roadmap, Lightpaper) |
 
 ## The Ask
 
@@ -397,7 +410,8 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 - Hybrid relayer with external relay support
 - x402-compatible PrivAgent Facilitator
 - ERC-8004 Level 1 integration (registration + payment proof)
-- 195 tests passing, 3 internal audits
+- Security hardening: 28 findings fixed (TX verification, race conditions, field-range validation, auth, rate limiting)
+- 226 tests passing (117 Foundry + 109 SDK), 3 deep audits, score 9.0/10
 
 **What we'll build in the program (V4.5):**
 

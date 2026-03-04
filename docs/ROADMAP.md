@@ -29,14 +29,15 @@ V4.4 Done
 Core protocol: ZK-UTXO JoinSplit, x402 middleware, stealth addresses,
 protocol fees, BSL-1.1 license. Tree depth 20 (1M capacity).
 
-### V4.4 — Advanced Features - Done
-**Status: Complete (Base Sepolia, 195 tests)**
+### V4.4 — Advanced Features + Security Hardening - Done
+**Status: Complete (Base Sepolia, 226 tests, audit score 9.0/10)**
 
 - **Circuit-Level Fee**: Protocol fee on ALL transactions including private transfers
 - **View Tags**: ~50x note scanning speedup (1-byte tag pre-filtering)
 - **Hybrid Relayer**: Self-relay + external relay modes
 - **PrivAgent Facilitator**: x402-standard compatible privacy facilitator
 - **ERC-8004 Level 1**: Agent registration spec + payment proof helpers
+- **Security Hardening**: 28 findings fixed — TX verification, race conditions, field-range validation, auth, rate limiting, SSRF protection, timing-safe comparisons, build integrity checks
 
 ### V4.5 — Production Ready - Planned
 **Status: Planned (Base Batch Program, 8 weeks)**

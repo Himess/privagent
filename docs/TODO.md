@@ -17,7 +17,7 @@
 - [x] x402 buyer SDK (PrivAgentClient)
 - [x] Note encryption (HKDF + AES-256-GCM)
 - [x] Base Sepolia deployment + Blockscout verification
-- [x] 195 tests (86 Foundry + 109 SDK)
+- [x] 226 tests (117 Foundry + 109 SDK)
 - [x] 3x internal security audit (46+ findings resolved)
 - [x] Protocol fee mechanism (max 0.1%, min $0.01)
 - [x] BSL-1.1 license + copyright headers
