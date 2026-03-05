@@ -14,12 +14,14 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./x402": {
+      "types": "./dist/x402/index.d.ts",
       "import": "./dist/x402/index.js",
-      "types": "./dist/x402/index.d.ts"
+      "require": "./dist/x402/index.cjs"
     }
   },
   "scripts": {

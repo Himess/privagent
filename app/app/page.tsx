@@ -2,17 +2,27 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useBalance,
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { baseSepolia } from "wagmi/chains";
+import { parseUnits, formatUnits, type Address } from "viem";
+import {
+  POOL_ADDRESS,
+  USDC_ADDRESS,
+  POOL_ABI_VIEM,
+  USDC_ABI_VIEM,
+  BLOCKSCOUT_TX,
+  BLOCKSCOUT_ADDR,
+  CONTRACTS,
+} from "@/lib/contracts";
 
-// ============ Constants ============
-
-const CONTRACTS = {
-  PoseidonHasher: "0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd",
-  Verifier_1x2: "0xe473aF953d269601402DEBcB2cc899aB594Ad31e",
-  Verifier_2x2: "0x10D5BB24327d40c4717676E3B7351D76deb33848",
-  ShieldedPoolV4: "0x8F1ae8209156C22dFD972352A415880040fB0b0c",
-};
-
-const BLOCKSCOUT = "https://base-sepolia.blockscout.com/address/";
 const GITHUB = "https://github.com/Himess/privagent";
 
 // ============ Types ============
@@ -21,6 +31,7 @@ interface LogEntry {
   text: string;
   type: "info" | "success" | "error" | "pending";
   timestamp: number;
+  link?: string;
 }
 
 interface ProofData {
@@ -38,15 +49,8 @@ function truncate(s: string, n = 8): string {
   return s.slice(0, n + 2) + "..." + s.slice(-n);
 }
 
-function randomHex(bytes: number): string {
-  const arr = new Array(bytes * 2);
-  const hex = "0123456789abcdef";
-  for (let i = 0; i < arr.length; i++) arr[i] = hex[Math.floor(Math.random() * 16)];
-  return "0x" + arr.join("");
-}
-
-async function simulateDelay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+function formatUSDC(raw: string | bigint): string {
+  return formatUnits(BigInt(raw), 6);
 }
 
 // ============ Components ============
@@ -80,7 +84,13 @@ function LogPanel({ logs }: { logs: LogEntry[] }) {
           {log.type === "pending" && (
             <span className="inline-block animate-spin mr-1">*</span>
           )}
-          {log.text}
+          {log.link ? (
+            <a href={log.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+              {log.text}
+            </a>
+          ) : (
+            log.text
+          )}
         </motion.div>
       ))}
     </div>
@@ -100,53 +110,116 @@ function StatusBadge({ status }: { status: "idle" | "running" | "done" }) {
   );
 }
 
-// ============ Buyer Panel ============
+// ============ Wallet Connection ============
 
-function BuyerPanel({
-  onDeposit,
-  onBuy,
-  balance,
-  status,
+function WalletButton() {
+  const [mounted, setMounted] = useState(false);
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  const { data: ethBalance } = useBalance({
+    address,
+    chainId: baseSepolia.id,
+  });
+
+  const { data: usdcBalance } = useReadContract({
+    address: USDC_ADDRESS as Address,
+    abi: USDC_ABI_VIEM,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: baseSepolia.id,
+  });
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <div className="py-2 px-4 text-xs text-privagent-muted">...</div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <button
+        onClick={() => connect({ connector: connectors[0] })}
+        className="bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
+                   py-2 px-4 rounded text-xs font-semibold hover:bg-privagent-green/20 transition-colors"
+      >
+        Connect MetaMask
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-right text-xs">
+        <div className="text-white font-mono">{truncate(address!, 6)}</div>
+        <div className="text-privagent-muted">
+          {ethBalance ? `${Number(ethBalance.formatted).toFixed(4)} ETH` : "..."} |{" "}
+          {usdcBalance !== undefined ? `${formatUSDC(usdcBalance as bigint)} USDC` : "..."}
+        </div>
+      </div>
+      <button
+        onClick={() => disconnect()}
+        className="text-privagent-muted hover:text-red-400 text-xs transition-colors"
+      >
+        Disconnect
+      </button>
+    </div>
+  );
+}
+
+// ============ Deposit Panel ============
+
+function DepositPanel({
   logs,
+  status,
+  onDeposit,
+  shieldedBalance,
 }: {
-  onDeposit: () => void;
-  onBuy: () => void;
-  balance: string;
-  status: "idle" | "running" | "done";
   logs: LogEntry[];
+  status: "idle" | "running" | "done";
+  onDeposit: (amount: string) => void;
+  shieldedBalance: string;
 }) {
+  const [amount, setAmount] = useState("2");
+
   return (
     <div className="bg-privagent-card border border-privagent-border rounded-lg p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider">
-          Buyer Agent
+          Deposit
         </h2>
         <StatusBadge status={status} />
       </div>
 
       <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
         <div className="text-[10px] text-privagent-muted uppercase mb-1">Shielded Balance</div>
-        <div className="text-xl font-bold text-privagent-green font-mono">{balance}</div>
+        <div className="text-xl font-bold text-privagent-green font-mono">
+          {shieldedBalance} USDC
+        </div>
       </div>
 
       <div className="flex gap-2 mb-3">
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="flex-1 bg-privagent-dark border border-privagent-border rounded px-3 py-2
+                     text-xs text-white font-mono focus:border-privagent-green/50 focus:outline-none"
+          placeholder="USDC amount"
+          min="0.01"
+          step="0.01"
+        />
         <button
-          onClick={onDeposit}
+          onClick={() => onDeposit(amount)}
           disabled={status === "running"}
-          className="flex-1 bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
-                     py-2 px-3 rounded text-xs font-semibold hover:bg-privagent-green/20
+          className="bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
+                     py-2 px-4 rounded text-xs font-semibold hover:bg-privagent-green/20
                      transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          Deposit USDC
-        </button>
-        <button
-          onClick={onBuy}
-          disabled={status === "running"}
-          className="flex-1 bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
-                     py-2 px-3 rounded text-xs font-semibold hover:bg-privagent-green/20
-                     transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Buy Data
+          Deposit
         </button>
       </div>
 
@@ -172,13 +245,9 @@ function PrivacyPanel({
       </h2>
 
       <div className="space-y-2 mb-4">
-        {[
-          { label: "Amount", hidden: true },
-          { label: "Sender", hidden: true },
-          { label: "Receiver", hidden: true },
-        ].map((item) => (
-          <div key={item.label} className="flex justify-between items-center p-2 bg-privagent-dark rounded border border-privagent-border">
-            <span className="text-xs text-privagent-muted">{item.label}</span>
+        {["Amount", "Sender", "Receiver"].map((label) => (
+          <div key={label} className="flex justify-between items-center p-2 bg-privagent-dark rounded border border-privagent-border">
+            <span className="text-xs text-privagent-muted">{label}</span>
             <span className="pulse-hidden text-xs font-bold">HIDDEN</span>
           </div>
         ))}
@@ -192,14 +261,14 @@ function PrivacyPanel({
         >
           <div className="flex items-center gap-2 text-yellow-400 text-xs">
             <span className="animate-spin">*</span>
-            Generating JoinSplit ZK Proof...
+            Generating JoinSplit ZK Proof (server-side)...
           </div>
           <div className="mt-1 h-1 bg-privagent-dark rounded overflow-hidden">
             <motion.div
               className="h-full bg-yellow-400"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ duration: 1.5 }}
+              transition={{ duration: 3 }}
             />
           </div>
         </motion.div>
@@ -211,17 +280,32 @@ function PrivacyPanel({
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
         >
-          <div className="text-[10px] text-privagent-muted uppercase mb-1">On-Chain Data</div>
+          <div className="text-[10px] text-privagent-muted uppercase mb-1">On-Chain Data (Real)</div>
           {[
             { label: "Nullifier", value: proofData.nullifier },
             { label: "Commitment", value: proofData.commitment },
             { label: "Root", value: proofData.root },
             { label: "Gas Used", value: proofData.gas },
-            { label: "TX Hash", value: proofData.txHash },
+            {
+              label: "TX Hash",
+              value: proofData.txHash,
+              link: `${BLOCKSCOUT_TX}${proofData.txHash}`,
+            },
           ].map((item) => (
             <div key={item.label} className="flex justify-between text-[11px] p-1.5 bg-privagent-dark rounded">
               <span className="text-privagent-muted">{item.label}</span>
-              <span className="text-privagent-green font-mono">{truncate(item.value, 6)}</span>
+              {"link" in item && item.link ? (
+                <a
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-privagent-green hover:underline font-mono"
+                >
+                  {truncate(item.value, 6)}
+                </a>
+              ) : (
+                <span className="text-privagent-green font-mono">{truncate(item.value, 6)}</span>
+              )}
             </div>
           ))}
         </motion.div>
@@ -230,22 +314,24 @@ function PrivacyPanel({
   );
 }
 
-// ============ Seller Panel ============
+// ============ Buy Panel ============
 
-function SellerPanel({
-  earnings,
-  status,
+function BuyPanel({
   logs,
+  status,
+  onBuy,
+  earnings,
 }: {
-  earnings: string;
-  status: "idle" | "running" | "done";
   logs: LogEntry[];
+  status: "idle" | "running" | "done";
+  onBuy: () => void;
+  earnings: string;
 }) {
   return (
     <div className="bg-privagent-card border border-privagent-border rounded-lg p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-privagent-green font-bold text-sm uppercase tracking-wider">
-          Seller Agent
+          Buy Data
         </h2>
         <StatusBadge status={status} />
       </div>
@@ -253,12 +339,22 @@ function SellerPanel({
       <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
         <div className="text-[10px] text-privagent-muted uppercase mb-1">API Endpoint</div>
         <div className="text-xs font-mono text-white">/api/weather</div>
-        <div className="text-[10px] text-privagent-muted mt-1">Price: 1 USDC</div>
+        <div className="text-[10px] text-privagent-muted mt-1">Price: 1 USDC (private)</div>
       </div>
 
+      <button
+        onClick={onBuy}
+        disabled={status === "running"}
+        className="mb-3 bg-privagent-green/10 border border-privagent-green/30 text-privagent-green
+                   py-2 px-4 rounded text-xs font-semibold hover:bg-privagent-green/20
+                   transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        Buy Weather Data (1 USDC)
+      </button>
+
       <div className="mb-3 p-3 bg-privagent-dark rounded border border-privagent-border">
-        <div className="text-[10px] text-privagent-muted uppercase mb-1">Total Earned</div>
-        <div className="text-xl font-bold text-privagent-green font-mono">{earnings}</div>
+        <div className="text-[10px] text-privagent-muted uppercase mb-1">Total Earned (Seller)</div>
+        <div className="text-xl font-bold text-privagent-green font-mono">{earnings} USDC</div>
       </div>
 
       <div className="text-[10px] text-privagent-muted uppercase mb-1">Request Log</div>
@@ -354,10 +450,10 @@ function TechStack() {
           { label: "Contract", value: "ShieldedPoolV4 (Foundry)" },
           { label: "SDK", value: "TypeScript ESM" },
           { label: "Network", value: "Base Sepolia" },
-          { label: "Tree", value: "Poseidon Merkle (depth 16)" },
+          { label: "Tree", value: "Poseidon Merkle (depth 20)" },
           { label: "Encryption", value: "ECDH + AES-256-GCM" },
-          { label: "Tests", value: "237+ passing" },
-          { label: "Audits", value: "2 complete" },
+          { label: "Tests", value: "226 passing" },
+          { label: "Audits", value: "3 deep (9.0/10)" },
         ].map((item) => (
           <div key={item.label} className="p-2 bg-privagent-dark rounded border border-privagent-border">
             <div className="text-[10px] text-privagent-muted uppercase">{item.label}</div>
@@ -382,7 +478,7 @@ function ContractLinks() {
           <div key={name} className="flex justify-between items-center text-xs p-1.5 bg-privagent-dark rounded">
             <span className="text-privagent-muted">{name}</span>
             <a
-              href={`${BLOCKSCOUT}${addr}`}
+              href={`${BLOCKSCOUT_ADDR}${addr}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-privagent-green hover:underline font-mono"
@@ -406,118 +502,254 @@ function ContractLinks() {
   );
 }
 
+// ============ Weather Data Card ============
+
+function WeatherCard({ data }: { data: Record<string, unknown> }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="p-3 bg-privagent-dark rounded border border-privagent-green/30"
+    >
+      <div className="text-[10px] text-privagent-green uppercase mb-2">Purchased Data</div>
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        {Object.entries(data).map(([key, val]) => (
+          <div key={key}>
+            <span className="text-privagent-muted">{key}: </span>
+            <span className="text-white">{String(val)}</span>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 // ============ Main Page ============
 
 export default function Home() {
-  const [buyerLogs, setBuyerLogs] = useState<LogEntry[]>([]);
-  const [sellerLogs, setSellerLogs] = useState<LogEntry[]>([]);
-  const [buyerStatus, setBuyerStatus] = useState<"idle" | "running" | "done">("idle");
-  const [sellerStatus, setSellerStatus] = useState<"idle" | "running" | "done">("idle");
-  const [balance, setBalance] = useState("0.00 USDC");
-  const [earnings, setEarnings] = useState("0.00 USDC");
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  // State
+  const [depositLogs, setDepositLogs] = useState<LogEntry[]>([]);
+  const [buyLogs, setBuyLogs] = useState<LogEntry[]>([]);
+  const [depositStatus, setDepositStatus] = useState<"idle" | "running" | "done">("idle");
+  const [buyStatus, setBuyStatus] = useState<"idle" | "running" | "done">("idle");
+  const [shieldedBalance, setShieldedBalance] = useState("0.00");
+  const [earnings, setEarnings] = useState("0.00");
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [isProving, setIsProving] = useState(false);
-  const [depositCount, setDepositCount] = useState(0);
-  const [earnedAmount, setEarnedAmount] = useState(0);
+  const [weatherData, setWeatherData] = useState<Record<string, unknown> | null>(null);
+  const [earnedRaw, setEarnedRaw] = useState(0n);
 
-  const addBuyerLog = useCallback((text: string, type: LogEntry["type"] = "info") => {
-    setBuyerLogs((prev) => [...prev, { text, type, timestamp: Date.now() }]);
+  const addDepositLog = useCallback(
+    (text: string, type: LogEntry["type"] = "info", link?: string) => {
+      setDepositLogs((prev) => [...prev, { text, type, timestamp: Date.now(), link }]);
+    },
+    []
+  );
+
+  const addBuyLog = useCallback(
+    (text: string, type: LogEntry["type"] = "info", link?: string) => {
+      setBuyLogs((prev) => [...prev, { text, type, timestamp: Date.now(), link }]);
+    },
+    []
+  );
+
+  // Fetch shielded balance
+  const refreshBalance = useCallback(async () => {
+    try {
+      const res = await fetch("/api/balance");
+      if (res.ok) {
+        const data = await res.json();
+        setShieldedBalance(formatUSDC(data.shieldedBalance));
+      }
+    } catch {
+      // Silently fail — balance will show stale
+    }
   }, []);
 
-  const addSellerLog = useCallback((text: string, type: LogEntry["type"] = "info") => {
-    setSellerLogs((prev) => [...prev, { text, type, timestamp: Date.now() }]);
-  }, []);
+  // ============ Deposit Flow ============
 
-  const handleDeposit = useCallback(async () => {
-    setBuyerStatus("running");
-    addBuyerLog("Initiating USDC deposit...", "pending");
-    await simulateDelay(800);
+  const handleDeposit = useCallback(
+    async (amountStr: string) => {
+      if (!isConnected || !address) {
+        addDepositLog("Connect wallet first", "error");
+        return;
+      }
 
-    const txHash = randomHex(32);
-    addBuyerLog(`Approving USDC spend...`, "pending");
-    await simulateDelay(600);
+      const usdcAmount = parseUnits(amountStr, 6);
+      if (usdcAmount <= 0n) {
+        addDepositLog("Invalid amount", "error");
+        return;
+      }
 
-    addBuyerLog(`Calling transact() with publicAmount=2000000`, "pending");
-    await simulateDelay(1200);
+      setDepositStatus("running");
+      setIsProving(true);
+      addDepositLog(`Generating ZK proof for ${amountStr} USDC deposit...`, "pending");
 
-    const newCount = depositCount + 2;
-    setDepositCount(newCount);
-    setBalance(`${newCount.toFixed(2)} USDC`);
+      try {
+        // Step 1: Generate proof via API
+        const proofRes = await fetch("/api/deposit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: usdcAmount.toString() }),
+        });
 
-    addBuyerLog(`Deposited 2.00 USDC | TX: ${truncate(txHash)}`, "success");
-    addBuyerLog(`2 output commitments inserted into Merkle tree`, "success");
-    addBuyerLog(`New shielded balance: ${newCount.toFixed(2)} USDC`, "info");
-    setBuyerStatus("done");
-  }, [addBuyerLog, depositCount]);
+        if (!proofRes.ok) {
+          const err = await proofRes.json();
+          throw new Error(err.error || "Proof generation failed");
+        }
+
+        const proofPayload = await proofRes.json();
+        setIsProving(false);
+        addDepositLog("ZK proof generated (server-side)", "success");
+
+        // Step 2: Approve USDC
+        addDepositLog("Approving USDC spend (MetaMask)...", "pending");
+        const approveTxHash = await writeContractAsync({
+          address: USDC_ADDRESS as Address,
+          abi: USDC_ABI_VIEM,
+          functionName: "approve",
+          args: [POOL_ADDRESS as Address, BigInt(proofPayload.approvalAmount)],
+          chainId: baseSepolia.id,
+        });
+        addDepositLog(
+          `USDC approved | TX: ${truncate(approveTxHash)}`,
+          "success",
+          `${BLOCKSCOUT_TX}${approveTxHash}`
+        );
+
+        // Step 3: Call transact via MetaMask
+        addDepositLog("Submitting deposit to pool (MetaMask)...", "pending");
+
+        const args = proofPayload.args;
+        const ext = proofPayload.extData;
+
+        const depositTxHash = await writeContractAsync({
+          address: POOL_ADDRESS as Address,
+          abi: POOL_ABI_VIEM,
+          functionName: "transact",
+          args: [
+            {
+              pA: [BigInt(args.pA[0]), BigInt(args.pA[1])] as [bigint, bigint],
+              pB: [
+                [BigInt(args.pB[0][0]), BigInt(args.pB[0][1])],
+                [BigInt(args.pB[1][0]), BigInt(args.pB[1][1])],
+              ] as [[bigint, bigint], [bigint, bigint]],
+              pC: [BigInt(args.pC[0]), BigInt(args.pC[1])] as [bigint, bigint],
+              root: args.root as `0x${string}`,
+              publicAmount: BigInt(args.publicAmount),
+              extDataHash: args.extDataHash as `0x${string}`,
+              protocolFee: BigInt(args.protocolFee),
+              inputNullifiers: args.inputNullifiers as `0x${string}`[],
+              outputCommitments: args.outputCommitments as `0x${string}`[],
+              viewTags: args.viewTags,
+            },
+            {
+              recipient: ext.recipient as Address,
+              relayer: ext.relayer as Address,
+              fee: BigInt(ext.fee),
+              encryptedOutput1: ext.encryptedOutput1 as `0x${string}`,
+              encryptedOutput2: ext.encryptedOutput2 as `0x${string}`,
+            },
+          ],
+          chainId: baseSepolia.id,
+        });
+
+        addDepositLog(
+          `Deposited ${amountStr} USDC | TX: ${truncate(depositTxHash)}`,
+          "success",
+          `${BLOCKSCOUT_TX}${depositTxHash}`
+        );
+
+        // Set proof data for center panel
+        setProofData({
+          nullifier: args.inputNullifiers[0],
+          commitment: args.outputCommitments[0],
+          root: args.root,
+          gas: "~900,000",
+          txHash: depositTxHash,
+        });
+
+        // Refresh balance
+        await refreshBalance();
+        setDepositStatus("done");
+      } catch (err: unknown) {
+        setIsProving(false);
+        const message = err instanceof Error ? err.message : "Unknown error";
+        addDepositLog(`Error: ${message}`, "error");
+        setDepositStatus("idle");
+      }
+    },
+    [isConnected, address, addDepositLog, writeContractAsync, refreshBalance]
+  );
+
+  // ============ Buy Flow ============
 
   const handleBuy = useCallback(async () => {
-    if (depositCount < 1) {
-      addBuyerLog("Insufficient balance. Deposit first.", "error");
-      return;
-    }
-
-    setBuyerStatus("running");
-    setSellerStatus("running");
-
-    // Step 1: Request
-    addBuyerLog("GET /api/weather", "info");
-    await simulateDelay(400);
-
-    // Step 2: 402
-    addSellerLog("Incoming request from agent", "info");
-    addSellerLog("No Payment header -> 402 Payment Required", "info");
-    addBuyerLog("Received 402 Payment Required", "pending");
-    addBuyerLog('Scheme: "zk-exact-v2" | Amount: 1.00 USDC', "info");
-    await simulateDelay(300);
-
-    // Step 3: Proof generation
-    addBuyerLog("Selecting UTXO (coin selection: exact match)...", "pending");
-    await simulateDelay(200);
+    setBuyStatus("running");
     setIsProving(true);
-    addBuyerLog("Generating JoinSplit ZK proof (1x2)...", "pending");
-    await simulateDelay(1500);
-    setIsProving(false);
+    addBuyLog("Requesting weather data (1 USDC)...", "pending");
+    addBuyLog("Generating JoinSplit ZK proof (server-side)...", "pending");
 
-    const nullifier = randomHex(32);
-    const commitment = randomHex(32);
-    const root = randomHex(32);
-    const txHash = randomHex(32);
+    try {
+      const res = await fetch("/api/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: "1000000" }),
+      });
 
-    addBuyerLog("Proof generated (1.4s) | Encrypting output notes (ECDH)", "success");
-    await simulateDelay(200);
+      setIsProving(false);
 
-    // Step 4: Payment header
-    addBuyerLog("Retrying with Payment header (base64)", "pending");
-    await simulateDelay(300);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Buy failed");
+      }
 
-    // Step 5: Server side
-    addSellerLog("Payment header received (V4 payload)", "info");
-    addSellerLog("Decrypting note with ECDH shared secret...", "pending");
-    await simulateDelay(400);
-    addSellerLog("Amount verified: 1.00 USDC (off-chain)", "success");
-    addSellerLog("Submitting transact() on-chain...", "pending");
-    await simulateDelay(1000);
-    addSellerLog(`TX confirmed | Gas: 892,431 | ${truncate(txHash)}`, "success");
+      const data = await res.json();
 
-    // Step 6: Set proof data
-    setProofData({ nullifier, commitment, root, gas: "892,431", txHash });
+      addBuyLog("ZK proof generated + submitted on-chain (relayer)", "success");
+      addBuyLog(
+        `TX confirmed | TX: ${truncate(data.txHash)}`,
+        "success",
+        `${BLOCKSCOUT_TX}${data.txHash}`
+      );
 
-    // Step 7: Response
-    const newCount = depositCount - 1;
-    const newEarned = earnedAmount + 1;
-    setDepositCount(newCount);
-    setEarnedAmount(newEarned);
-    setBalance(`${newCount.toFixed(2)} USDC`);
-    setEarnings(`${newEarned.toFixed(2)} USDC`);
+      // Set proof data
+      setProofData({
+        nullifier: data.nullifiers[0],
+        commitment: data.commitments[0],
+        root: data.root,
+        gas: "~900,000",
+        txHash: data.txHash,
+      });
 
-    addSellerLog("Serving weather data to agent", "success");
-    addBuyerLog("200 OK | Weather data received", "success");
-    addBuyerLog(`Remaining shielded balance: ${newCount.toFixed(2)} USDC`, "info");
-    addSellerLog(`Total earned: ${newEarned.toFixed(2)} USDC`, "info");
+      // Update earnings
+      const newEarned = earnedRaw + 1000000n;
+      setEarnedRaw(newEarned);
+      setEarnings(formatUSDC(newEarned));
 
-    setBuyerStatus("done");
-    setSellerStatus("done");
-  }, [addBuyerLog, addSellerLog, depositCount, earnedAmount]);
+      // Set weather data
+      setWeatherData(data.weatherData);
+
+      // Show balance
+      setShieldedBalance(formatUSDC(data.shieldedBalance));
+      addBuyLog(`Shielded balance: ${formatUSDC(data.shieldedBalance)} USDC`, "info");
+
+      setBuyStatus("done");
+    } catch (err: unknown) {
+      setIsProving(false);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      addBuyLog(`Error: ${message}`, "error");
+      setBuyStatus("idle");
+    }
+  }, [addBuyLog, earnedRaw]);
+
+  // Load balance on mount
+  useEffect(() => {
+    refreshBalance();
+  }, [refreshBalance]);
 
   return (
     <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
@@ -525,30 +757,35 @@ export default function Home() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="text-center mb-6"
       >
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          <span className="text-privagent-green">PrivAgent</span>
-          <span className="text-white">Pay</span>
-          <span className="text-privagent-muted text-lg ml-2">V4</span>
-        </h1>
-        <p className="text-privagent-muted text-sm">
-          Private AI Agent Payments on Base
-        </p>
-        <p className="text-privagent-muted/50 text-xs mt-1">
-          UTXO JoinSplit | Groth16 ZK Proofs | x402 HTTP Protocol
-        </p>
+        <div className="flex justify-between items-start mb-4">
+          <div />
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">
+              <span className="text-privagent-green">PrivAgent</span>
+              <span className="text-white">Pay</span>
+              <span className="text-privagent-muted text-lg ml-2">V4</span>
+            </h1>
+            <p className="text-privagent-muted text-sm">
+              Private AI Agent Payments on Base
+            </p>
+            <p className="text-privagent-muted/50 text-xs mt-1">
+              UTXO JoinSplit | Groth16 ZK Proofs | x402 HTTP Protocol
+            </p>
+          </div>
+          <WalletButton />
+        </div>
       </motion.div>
 
       {/* 3-Panel Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-          <BuyerPanel
+          <DepositPanel
+            logs={depositLogs}
+            status={depositStatus}
             onDeposit={handleDeposit}
-            onBuy={handleBuy}
-            balance={balance}
-            status={buyerStatus}
-            logs={buyerLogs}
+            shieldedBalance={shieldedBalance}
           />
         </motion.div>
 
@@ -557,9 +794,23 @@ export default function Home() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <SellerPanel earnings={earnings} status={sellerStatus} logs={sellerLogs} />
+          <BuyPanel
+            logs={buyLogs}
+            status={buyStatus}
+            onBuy={handleBuy}
+            earnings={earnings}
+          />
         </motion.div>
       </div>
+
+      {/* Weather Data (if purchased) */}
+      <AnimatePresence>
+        {weatherData && (
+          <div className="mb-6">
+            <WeatherCard data={weatherData} />
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -578,7 +829,7 @@ export default function Home() {
 
       {/* Footer */}
       <div className="text-center mt-8 text-privagent-muted/40 text-xs space-y-1">
-        <p>Built for Base Batch | Simulation mode (no real transactions)</p>
+        <p>Live on Base Sepolia | Real ZK proofs + on-chain transactions</p>
         <p>
           <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="hover:text-privagent-green transition-colors">
             github.com/Himess/privagent

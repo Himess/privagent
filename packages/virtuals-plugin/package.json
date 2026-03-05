@@ -1,0 +1,26 @@
+{
+  "name": "@privagent/virtuals-plugin",
+  "version": "0.1.0",
+  "description": "Virtuals Protocol (GAME) plugin for PrivAgent — private USDC payments with ZK proofs on Base",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format cjs,esm --out-dir dist",
+    "test": "vitest run tests/plugin.test.ts",
+    "test:integration": "vitest run tests/integration.test.ts"
+  },
+  "dependencies": {
+    "@virtuals-protocol/game": "^0.1.7",
+    "privagent-sdk": "file:../../sdk",
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.3",
+    "typescript": "^5.7.3",
+    "tsup": "^8.3.5",
+    "vitest": "^3.0.0"
+  },
+  "files": ["dist"],
+  "license": "BUSL-1.1"
+}
