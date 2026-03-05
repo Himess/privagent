@@ -1,0 +1,20 @@
+{
+  "name": "@privagent/openclaw-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "privagent-sdk": "file:../../sdk",
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.3",
+    "typescript": "^5.7.3",
+    "tsx": "^4.0.0",
+    "vitest": "^3.0.0"
+  },
+  "license": "BUSL-1.1"
+}

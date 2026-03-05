@@ -2,3 +2,4 @@ packages:
   - "sdk"
   - "relayer"
   - "demo"
+  - "packages/*"
