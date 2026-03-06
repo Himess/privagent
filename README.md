@@ -7,7 +7,8 @@
 *The missing privacy layer for x402 payments and ERC-8004 agents on Base*
 
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen)](https://github.com/Himess/privagent/actions)
+[![Tests](https://img.shields.io/badge/tests-282%20passing-brightgreen)](https://github.com/Himess/privagent/actions)
+[![npm](https://img.shields.io/npm/v/privagent-sdk)](https://www.npmjs.com/package/privagent-sdk)
 [![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)]()
@@ -20,7 +21,7 @@
 
 ## The Problem
 
-AI agents transact $50M+ through x402 payments on Base — all publicly visible. Every agent's strategy, spending pattern, and business relationships are exposed on-chain. PrivAgent fixes this.
+AI agents transact $600M+ through 122M+ x402 payments — all publicly visible. Every agent's strategy, spending pattern, and business relationships are exposed on-chain. PrivAgent fixes this.
 
 ## The Solution
 
@@ -55,19 +56,38 @@ await wallet.deposit(10_000_000n);  // 10 USDC -> shielded
 ## Architecture
 
 ```
-+-----------------------------------+
-|  Agent Frameworks                 |
-|  (Virtuals, ElizaOS, GAME)       |
-+-----------------------------------+
-|  ERC-8004: Identity + Trust       |
-+-----------------------------------+
-|  PrivAgent: Privacy Layer          |
-|  (ZK-UTXO + Facilitator)         |
-+-----------------------------------+
-|  x402: Payment Protocol           |
-+-----------------------------------+
-|  Base L2                          |
-+-----------------------------------+
++-------------------------------------------+
+|  Agent Frameworks                         |
+|  Virtuals GAME ✅ · OpenClaw ✅ · ElizaOS  |
++-------------------------------------------+
+|  ERC-8004: Identity + Trust               |
++-------------------------------------------+
+|  PrivAgent: Privacy Layer                  |
+|  (ZK-UTXO + Facilitator)                 |
++-------------------------------------------+
+|  x402: Payment Protocol                   |
++-------------------------------------------+
+|  Base L2                                  |
++-------------------------------------------+
+```
+
+## Agent Framework Integrations
+
+| Framework | Status | Description |
+|-----------|--------|-------------|
+| **Virtuals GAME** | ✅ Shipped | Plugin with 5 GameFunctions — autonomous agent tested on Base Sepolia |
+| **OpenClaw** | ✅ Shipped | Skill with 5 scripts (balance, deposit, withdraw, transfer, info) |
+| **ElizaOS** | Planned | Action plugin for ElizaOS agents |
+
+```bash
+# Install SDK
+npm install privagent-sdk
+
+# Buyer (agent) side
+import { ShieldedWallet, initPoseidon } from "privagent-sdk";
+
+# Seller (server) side
+import { privAgentPaywallV4 } from "privagent-sdk/x402";
 ```
 
 ## Privacy Model
@@ -140,23 +160,20 @@ const response = await fetch('https://api.example.com/weather');
 privagent/
 ├── contracts/          # Solidity — ShieldedPoolV4, Verifiers, PoseidonHasher, StealthRegistry
 │   ├── src/            # Contract source files
-│   └── test/           # Foundry tests (117 tests)
+│   └── test/           # Foundry tests (106 tests)
 ├── circuits/           # Circom — JoinSplit (1x2, 2x2) with protocolFee
 │   ├── src/            # Circuit source
 │   └── build/          # Compiled circuits + verification keys
-├── sdk/                # TypeScript SDK
+├── sdk/                # TypeScript SDK (109 tests)
 │   ├── src/v4/         # UTXO engine, encryption, note store, view tags
 │   ├── src/x402/       # x402 middleware + client + relayer + facilitator
 │   ├── src/erc8004/    # ERC-8004 integration helpers
 │   └── src/utils/      # Logger, crypto utilities
-├── app/                # Demo web app (Next.js 14)
-├── examples/           # Integration examples
-│   ├── virtuals-integration/
-│   ├── eliza-plugin/
-│   ├── express-server/
-│   ├── basic-transfer/
-│   └── erc8004-integration/
-├── scripts/            # Deploy, test fixtures, E2E scripts
+├── packages/
+│   ├── virtuals-plugin/ # Virtuals GAME framework integration (29 tests)
+│   └── openclaw-skill/  # OpenClaw agent skill — 5 scripts (38 tests)
+├── demo/               # On-chain demo scripts (Base Sepolia)
+├── scripts/            # Deploy, test fixtures, utility scripts
 └── docs/               # Protocol documentation
     ├── LIGHTPAPER.md
     ├── PROTOCOL.md
@@ -181,17 +198,23 @@ Deploy block: `38347380`
 ## Testing
 
 ```bash
-# Foundry tests (contracts — 117 tests)
+# Foundry tests (contracts — 106 tests)
 cd contracts && forge test -vvv
 
 # SDK tests (TypeScript — 109 tests)
 cd sdk && pnpm test
 
+# Virtuals Plugin tests (29 tests)
+cd packages/virtuals-plugin && pnpm test
+
+# OpenClaw Skill tests (38 tests)
+cd packages/openclaw-skill && pnpm test
+
 # Run E2E on Base Sepolia
-PRIVATE_KEY=0x... npx ts-node scripts/e2e-base-sepolia.ts
+PRIVATE_KEY=0x... npx tsx demo/agent-privacy-demo.ts
 ```
 
-**Total: 226 tests** (117 Foundry + 109 SDK)
+**Total: 282 tests** (106 Foundry + 109 SDK + 29 Virtuals + 38 OpenClaw)
 
 ## Fee Structure
 
@@ -241,9 +264,9 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 ## Security
 
 - 3 internal security audits completed (46+ findings resolved, score 7.6/10)
-- 226 tests passing (117 Foundry + 109 SDK)
+- 282 tests passing (106 Foundry + 109 SDK + 29 Virtuals + 38 OpenClaw)
 - Professional audit planned pre-mainnet
-- Bug reports: security@privagent.xyz
+- Bug reports: https://github.com/Himess/privagent/issues
 
 ## License
 
@@ -262,7 +285,7 @@ Licensed under [Business Source License 1.1](LICENSE).
 
 Converts to GPL-2.0 on **March 1, 2028**.
 
-For commercial licensing: license@privagent.xyz
+For commercial licensing: https://github.com/Himess/privagent/issues
 
 ---
 

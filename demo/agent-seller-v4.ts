@@ -9,11 +9,17 @@
  */
 import express from "express";
 import { ethers } from "ethers";
+import * as path from "path";
+import * as fs from "fs";
 import { randomBytes } from "crypto";
+import { fileURLToPath } from "url";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { initPoseidon, derivePublicKey } from "privagent-sdk";
 import { privAgentPaywallV4 } from "privagent-sdk/x402";
 import type { PrivAgentwallConfigV4 } from "privagent-sdk";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CIRCUIT_DIR = path.resolve(__dirname, "../circuits/build");
 
 async function main() {
   const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -50,6 +56,10 @@ async function main() {
 
   const app = express();
 
+  // Load verification keys for off-chain proof verification (prevents gas griefing)
+  const vkey1x2 = JSON.parse(fs.readFileSync(path.resolve(CIRCUIT_DIR, "v4/1x2/verification_key.json"), "utf-8"));
+  const vkey2x2 = JSON.parse(fs.readFileSync(path.resolve(CIRCUIT_DIR, "v4/2x2/verification_key.json"), "utf-8"));
+
   // V4 Paywall: 1 USDC for weather data — amounts HIDDEN
   const config: PrivAgentwallConfigV4 = {
     price: "1000000", // 1 USDC (6 decimals)
@@ -62,6 +72,7 @@ async function main() {
     ecdhPublicKey,
     relayer: signer.address,
     relayerFee: "0",
+    verificationKeys: { "1x2": vkey1x2, "2x2": vkey2x2 },
   };
 
   app.use("/api/weather", privAgentPaywallV4(config));

@@ -31,10 +31,10 @@ and x402 payment infrastructure.
 
 The agent economy is growing rapidly on Base:
 
-- **$43M+** cumulative x402 payment volume across all chains (Q1 2026)
-- **140M+** x402 transactions processed
+- **$600M+** cumulative x402 payment volume across all chains (Q1 2026)
+- **122M+** x402 transactions processed
 - **24,000+** agents registered on ERC-8004 (Ethereum mainnet, Jan 2026)
-- **Base leads** with $21.5M in x402 volume and 70M+ transactions
+- **Base leads** with 70M+ x402 transactions
 - **ZERO privacy**: every agent payment is publicly visible on-chain
 
 ### Why This Matters
@@ -105,6 +105,11 @@ PrivAgent brings Railgun-level privacy to Base's agent economy:
 - Endpoints: /verify (settle), /info (discovery), /health
 - Scheme: `zk-exact-v2`
 
+**Agent Framework Integrations (Shipped)**
+- **Virtuals GAME Plugin**: 5 GameFunctions (deposit, withdraw, transfer, balance, info) — autonomous agent tested on Base Sepolia, 29 tests
+- **OpenClaw Skill**: Declarative skill with 5 scripts — any OpenClaw-compatible agent discovers and uses PrivAgent automatically, 38 tests
+- **npm SDK**: `npm install privagent-sdk` — published and ready for any agent framework
+
 **ERC-8004 Level 1 Integration (V4.4)**
 - Agent registration file spec with PrivAgent payment method
 - Payment proof for feedback: nullifier-based sybil resistance
@@ -165,7 +170,7 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 ```
 +------------------------------------------+
 |  Agent Frameworks                        |
-|  (Virtuals, ElizaOS, GAME, ai16z)       |
+|  Virtuals GAME ✅ · OpenClaw ✅ · ElizaOS |
 +------------------------------------------+
 |  ERC-8004: Identity + Reputation         |
 |  (Agent discovery & trust)               |
@@ -226,14 +231,14 @@ All contracts verified on Blockscout. Deploy block: `38347380`.
 The agent economy is experiencing exponential growth, validated by third-party data:
 
 **x402 Protocol (Current State — Q1 2026):**
-- $43M+ cumulative payment volume across all chains
-- 140M+ transactions processed
+- $600M+ cumulative payment volume across all chains
+- 122M+ transactions processed
 - 406,700+ unique buyers, 81,000+ unique sellers
 - ~500% year-over-year growth rate
 - x402 Foundation members: Coinbase, Cloudflare, Google Cloud, Visa
 - Stripe added x402 support in February 2026
 
-*Sources: joinedcrypto.com (Jan 2026), FourWeekMBA (Mar 2026), Gate News (Dec 2025)*
+*Sources: Dune Analytics, FourWeekMBA (Mar 2026), Gate News (Dec 2025)*
 
 **AI Agent Market:**
 - $7.6B (2025) → projected $52-182B by 2030-2033 (45-50% CAGR)
@@ -261,7 +266,7 @@ The agent economy is experiencing exponential growth, validated by third-party d
 ### Growth Scenarios
 
 **Assumptions:**
-- Average x402 TX value: ~$0.30 (derived: $43M ÷ 140M TX = ~$0.31)
+- Average x402 TX value: ~$5 (derived: $600M ÷ 122M TX ≈ $4.90)
 - x402 annual growth: 300-500% (based on observed 500% rate, discounted for maturation)
 - PrivAgent privacy adoption: 3-10% of Base x402 volume (conservative — privacy is opt-in)
 - Min fee ($0.01) applies to ~90% of transactions (micropayments dominant)
@@ -270,39 +275,39 @@ The agent economy is experiencing exponential growth, validated by third-party d
 
 | Metric | Value | Basis |
 |--------|-------|-------|
-| Total x402 volume (all chains) | ~$200M | $43M × 4-5x growth |
-| Base share (~50%) | ~$100M | Base leads in x402 adoption |
-| PrivAgent privacy share (3%) | ~$3M | Early adoption, few integrations |
-| Transaction count | ~10M | $3M ÷ $0.30 avg |
-| Protocol fee revenue | ~$100K | 10M TX × $0.01 min fee |
-| Facilitator fee | ~$50K | Subset of TX through facilitator |
+| Total x402 volume (all chains) | ~$2B | $600M × 3-4x growth |
+| Base share (~50%) | ~$1B | Base leads in x402 adoption |
+| PrivAgent privacy share (3%) | ~$30M | Early adoption, few integrations |
+| Transaction count | ~6M | $30M ÷ $5 avg |
+| Protocol fee revenue | ~$60K | 6M TX × $0.01 min fee |
+| Facilitator fee | ~$30K | Subset of TX through facilitator |
 | Enterprise licenses | $50K | 1 integration |
-| **Total revenue** | **~$200K** | |
+| **Total revenue** | **~$140K** | |
 
 **2026 Optimistic:**
 
 | Metric | Value | Basis |
 |--------|-------|-------|
-| Total x402 volume (all chains) | ~$500M | Stripe + Google Cloud catalyst |
-| Base share (~50%) | ~$250M | |
-| PrivAgent privacy share (5%) | ~$12.5M | Agent frameworks integrated |
-| Transaction count | ~40M | $12.5M ÷ $0.30 avg |
-| Protocol fee revenue | ~$400K | 40M TX × $0.01 |
-| Facilitator fee | ~$200K | |
+| Total x402 volume (all chains) | ~$5B | Stripe + Google Cloud catalyst |
+| Base share (~50%) | ~$2.5B | |
+| PrivAgent privacy share (5%) | ~$125M | Agent frameworks integrated |
+| Transaction count | ~25M | $125M ÷ $5 avg |
+| Protocol fee revenue | ~$250K | 25M TX × $0.01 |
+| Facilitator fee | ~$125K | |
 | Enterprise licenses | $150K | 2-3 integrations |
-| **Total revenue** | **~$750K** | |
+| **Total revenue** | **~$525K** | |
 
 **2027 Growth (if x402 reaches mainstream):**
 
 | Metric | Value | Basis |
 |--------|-------|-------|
-| Total x402 volume (all chains) | ~$2-5B | Stripe + enterprise adoption at scale |
-| Base share (~45%) | ~$1-2.25B | |
-| PrivAgent privacy share (7%) | ~$70-160M | Privacy as default for agent fleets |
-| Transaction count | ~230-530M | |
-| Protocol fee revenue | ~$2.3-5.3M | |
-| Facilitator + enterprise | ~$700K-1.5M | |
-| **Total revenue** | **~$3-7M** | |
+| Total x402 volume (all chains) | ~$15-30B | Stripe + enterprise adoption at scale |
+| Base share (~45%) | ~$7-14B | |
+| PrivAgent privacy share (7%) | ~$500M-1B | Privacy as default for agent fleets |
+| Transaction count | ~100-200M | |
+| Protocol fee revenue | ~$1-2M | |
+| Facilitator + enterprise | ~$500K-1M | |
+| **Total revenue** | **~$1.5-3M** | |
 
 **2028+ Upside Scenario:**
 - a16z projects $30T in autonomous transactions by 2030
@@ -322,7 +327,7 @@ The dominant revenue driver is **transaction count**, not volume (because min fe
 | 500M TX/year | ~$5M protocol fee |
 | 1B TX/year | ~$10M protocol fee |
 
-For context: x402 already processes 140M+ cumulative transactions in its first 8 months. If PrivAgent captures even 1% of x402 transaction count, that's millions of transactions per year.
+For context: x402 already processes 122M+ cumulative transactions. If PrivAgent captures even 1% of x402 transaction count, that's millions of transactions per year.
 
 ### Path to Profitability
 
@@ -378,7 +383,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Risk | Mitigation |
 |------|-----------|
 | Regulatory (Tornado Cash precedent) | POI roadmap, deposit screening planned, BSL license |
-| Smart contract vulnerability | 3 deep audits (28 findings fixed, 7.6/10), 226 tests, professional audit planned |
+| Smart contract vulnerability | 3 deep audits (28 findings fixed, 7.6/10), 282 tests, professional audit planned |
 | Market timing (early) | First-mover advantage, no competition on Base |
 | Solo developer | 80+ PRs in major projects, proven execution, team expansion planned |
 
@@ -387,7 +392,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
 | **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, ECDH note encryption, protocol fees, Base Sepolia deployment |
-| **V4.4** | ✅ Complete | Circuit-level fee, view tags (50x speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1, security hardening (28 findings fixed, 7.6/10), 226 tests |
+| **V4.4** | ✅ Complete | Circuit-level fee, view tags (50x speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1, Virtuals GAME plugin, OpenClaw skill, npm SDK published, security hardening (28 findings fixed, 7.6/10), 282 tests |
 | **V4.5** | Weeks 1-8 (Program) | PrivAgent Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
 | **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
 | **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |
@@ -409,7 +414,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Metric | Value |
 |--------|-------|
 | PrivAgent development time | ~80 hours (V3 → V4.4) |
-| Test coverage | 226 tests (117 Foundry + 109 SDK) |
+| Test coverage | 282 tests (106 Foundry + 109 SDK + 29 Virtuals + 38 OpenClaw) |
 | Internal audits completed | 3 deep audits (28 critical/high findings fixed) |
 | Audit score | 7.5 → 7.6/10 after security hardening |
 | Lines of Solidity | ~900+ |
@@ -427,15 +432,18 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 - Hybrid relayer with external relay support
 - x402-compatible PrivAgent Facilitator
 - ERC-8004 Level 1 integration (registration + payment proof)
+- **Virtuals GAME Plugin** — shipped, autonomous agent tested on Base Sepolia (29 tests)
+- **OpenClaw Skill** — shipped, 5 scripts for any OpenClaw-compatible agent (38 tests)
+- **npm SDK published** — `npm install privagent-sdk`, ready for any framework
 - Security hardening: 28 findings fixed (TX verification, race conditions, field-range validation, auth, rate limiting)
-- 226 tests passing (117 Foundry + 109 SDK), 3 deep audits, score 7.6/10
+- 282 tests passing (106 Foundry + 109 SDK + 29 Virtuals + 38 OpenClaw), 3 deep audits, score 7.6/10
 
 **What we'll build in the program (V4.5):**
 
 1. **PrivAgent Facilitator Deploy** — Any x402 server adds privacy by changing one URL. No code changes. Drop-in privacy-as-a-service.
-2. **ERC-8004 Integration** — PrivAgent as the payment privacy layer for the 24,000+ registered agents. Verifiable agents, private payments.
+2. **ERC-8004 Level 2** — Reputation + sybil resistance for the 24,000+ registered agents.
 3. **Mainnet Launch** — Multi-party ceremony, professional audit, Base mainnet deployment.
-4. **First Enterprise Integration** — Partner with 1-2 agent frameworks (Virtuals, ElizaOS) for SDK integration.
+4. **ElizaOS Plugin** — Complete the agent framework trifecta (Virtuals ✅, OpenClaw ✅, ElizaOS).
 
 **Grant usage:**
 

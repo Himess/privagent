@@ -16,6 +16,7 @@
 import express from "express";
 import { ethers } from "ethers";
 import * as path from "path";
+import * as fs from "fs";
 import * as http from "http";
 import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
@@ -86,6 +87,10 @@ async function main() {
 
   const app = express();
 
+  // Load verification keys for off-chain proof verification (prevents gas griefing)
+  const vkey1x2 = JSON.parse(fs.readFileSync(path.resolve(CIRCUIT_DIR, "v4/1x2/verification_key.json"), "utf-8"));
+  const vkey2x2 = JSON.parse(fs.readFileSync(path.resolve(CIRCUIT_DIR, "v4/2x2/verification_key.json"), "utf-8"));
+
   const paywallConfig: PrivAgentwallConfigV4 = {
     price: "1000000", // 1 USDC
     asset: USDC_ADDRESS,
@@ -97,6 +102,7 @@ async function main() {
     ecdhPublicKey: serverEcdhPub,
     relayer: signer.address,
     relayerFee: "0",
+    verificationKeys: { "1x2": vkey1x2, "2x2": vkey2x2 },
   };
 
   app.use("/api/weather", privAgentPaywallV4(paywallConfig));
