@@ -397,4 +397,285 @@ privagent/
 
 ---
 
+## 11. Gerçek Zincir Üstü İşlem Analizi (Base Sepolia)
+
+Aşağıda 2 Mart 2026'da Base Sepolia'da gerçekleştirilen 3 gerçek işlemin zincir üstü verileri incelenmektedir. Bu veriler `cast receipt` komutu ile doğrudan blockchain'den çekilmiştir.
+
+### 11.1. DEPOSIT — 2 USDC Yatırma
+
+**TX:** `0x12526471c879d2f75d89c90ed8bf1e94a5b29ef83d6a5e3f6a37f0cc41cb80dc`
+**Blockscout:** [Görüntüle](https://base-sepolia.blockscout.com/tx/0x12526471c879d2f75d89c90ed8bf1e94a5b29ef83d6a5e3f6a37f0cc41cb80dc)
+
+```
+Zincirde Görünen Event'ler:
+──────────────────────────
+NewNullifier:    0x1b1d4d57f53afa14c7c7b1f73c2cdde5118bc85647d96edeba4cc2ecfea1b579
+                 → Dummy input (deposit'te gerçek bir UTXO harcanmıyor, sahte nullifier)
+
+NewCommitment #1: 0x2b7002c86ef290b15b21128c5487653c39249b4a562ba0234afbeb2ed8a4bf86
+                  leafIndex: 4, viewTag: 0xb6
+                  → Yatırılan USDC'nin UTXO commitment'ı (miktar GİZLİ)
+
+NewCommitment #2: 0x0da2db62bbc70712778621e5247f519eae23a6f0878f152dd0947afaff1e7682
+                  leafIndex: 5, viewTag: 0xb6
+                  → Para üstü UTXO'su (bu durumda 0 olabilir)
+
+USDC Transfer:   1,990,000 (1.99 USDC) → Havuz kontratına
+                 10,000 (0.01 USDC) → Treasury'ye (protokol ücreti)
+
+PublicDeposit:   depositor = 0xF505e...aaE5ae
+                 amount = 2,000,000 (2 USDC)
+```
+
+**Gözlemci ne çıkarabilir?**
+- "0xF505e... adresi 2 USDC yatırdı" → **EVET, görünür** (deposit doğası gereği açık)
+- "Para ShieldedPoolV4 kontratına gitti" → **EVET** (havuz adresi açık)
+- "2 commitment oluşturuldu ama ne kadar USDC içerdikleri" → **BİLİNMEZ**
+
+---
+
+### 11.2. PRIVATE TRANSFER — Havuz İçi Gizli Transfer
+
+**TX:** `0xd5924f3b9366f0162bc97744bed71756bc1ae4d470e8f2bef9380e7d527bf500`
+**Blockscout:** [Görüntüle](https://base-sepolia.blockscout.com/tx/0xd5924f3b9366f0162bc97744bed71756bc1ae4d470e8f2bef9380e7d527bf500)
+
+```
+Zincirde Görünen Event'ler:
+──────────────────────────
+NewNullifier:    0x035bf763ee74f406b2542d341fab52d2bf2edc05f41658c9e05b434bd3ce44cb
+                 → Harcanan UTXO'nun nullifier'ı
+                 → Bu nullifier'dan hangi UTXO'nun harcandığı ÇIKARILAMAz
+
+NewCommitment #1: 0x11875bf8fd354193c8ecca55c64b31133f09665e57c27467c2cf0ffe07daf72a
+                  leafIndex: 6, viewTag: 0xe7
+                  → Alıcının UTXO'su (miktar + alıcı GİZLİ)
+
+NewCommitment #2: 0x0711ed215cc0b4b7593a09c5ad45876b9491c09f26ad9702baf04cb04e022df3
+                  leafIndex: 7, viewTag: 0xb6
+                  → Göndericinin para üstü UTXO'su (miktar GİZLİ)
+
+USDC Transfer:   SADECE 10,000 (0.01 USDC) → Treasury'ye (protokol ücreti)
+                 → Başka hiçbir USDC hareketi YOK
+
+publicAmount:    0 → "Havuzdan para giriş/çıkış yok" (tam gizli transfer)
+
+ProtocolFeeCollected: 10,000 (0.01 USDC)
+```
+
+**Gözlemci ne çıkarabilir?**
+- "Bir JoinSplit işlemi yapıldı" → **EVET**
+- "publicAmount=0 → bu gizli bir transfer" → **EVET** (deposit/withdraw değil)
+- "0.01 USDC protokol ücreti ödendi" → **EVET**
+- "Ne kadar transfer edildi?" → **BİLİNMEZ** (sadece 0.01 ücret görünür)
+- "Kim gönderdi?" → **BİLİNMEZ** (nullifier → gönderici bağlantısı yok)
+- "Kime gönderildi?" → **BİLİNMEZ** (commitment = hash, içi çözülemez)
+- "Bu nullifier hangi deposit'e ait?" → **BİLİNMEZ** (nullifier bağlantısız)
+
+**Dikkat:** TX'i gönderen adres (msg.sender) `0xF505e...aaE5ae` görünür — ama bu **relayer** adresi, gerçek gönderici veya alıcı DEĞİL. Production'da sunucu TX'i gönderir, agent'ın Ethereum adresi hiç görünmez.
+
+---
+
+### 11.3. WITHDRAW — 0.97 USDC Çekme
+
+**TX:** `0x89092edcb906e3b3e87354b25e5e04f88b56b5dfca8ca21e5e62e1d4e8bf8e1d`
+**Blockscout:** [Görüntüle](https://base-sepolia.blockscout.com/tx/0x89092edcb906e3b3e87354b25e5e04f88b56b5dfca8ca21e5e62e1d4e8bf8e1d)
+
+```
+Zincirde Görünen Event'ler:
+──────────────────────────
+NewNullifier:    0x0393854722ae903e87521cc18b04627998b8488af510725dbece2f06eee30930
+                 → Harcanan UTXO'nun nullifier'ı
+
+NewCommitment #1: 0x134ba048ebd0ccda111aa086de106aef58fb23a0ff02f6314647b17b09a038d4
+                  leafIndex: 8
+                  → Para üstü (kalan bakiye) UTXO'su
+
+NewCommitment #2: 0x142ddbc23e9345e637474af59b8e60f1cfc6b0ab8337d2502f97b203bad646dd
+                  leafIndex: 9
+                  → Boş/sıfır UTXO (tüm bakiye çekiliyorsa)
+
+USDC Transfer:   970,000 (0.97 USDC) → 0xF505e... adresine (alıcı)
+                 10,000 (0.01 USDC) → Treasury'ye (protokol ücreti)
+
+PublicWithdraw:  recipient = 0xF505e...aaE5ae
+                 amount = 970,000 (0.97 USDC)
+```
+
+**Gözlemci ne çıkarabilir?**
+- "0xF505e... adresine 0.97 USDC çekildi" → **EVET, görünür** (withdraw doğası gereği açık)
+- "Bu çekimin önceki hangi deposit ile ilişkili olduğu" → **BİLİNMEZ** (nullifier bağlantısız)
+- "Çekilen kişinin havuzdaki toplam bakiyesi" → **BİLİNMEZ**
+
+---
+
+### 11.4. Özet: 3 İşlem Karşılaştırması
+
+| Veri | Deposit | Private Transfer | Withdraw |
+|------|---------|-----------------|----------|
+| **Miktar** | AÇIK (2 USDC) | **GİZLİ** | AÇIK (0.97 USDC) |
+| **Gönderici** | AÇIK (depositor) | **GİZLİ** | Nullifier (bağlantısız) |
+| **Alıcı** | Commitment (gizli) | **GİZLİ** | AÇIK (recipient addr) |
+| **Bağlantı** | Deposit → UTXO: YOK | Input → Output: YOK | UTXO → Withdraw: YOK |
+| **USDC hareketi** | 2 USDC → Pool | Sadece 0.01 fee | 0.97 USDC + 0.01 fee |
+| **publicAmount** | 2,000,000 (pozitif) | **0** | -970,000 (negatif) |
+
+**Kritik nokta:** Deposit ve Withdraw doğaları gereği kısmen açıktır (para zincire girer/çıkar). Ama **private transfer tamamen gizlidir** — sadece 0.01 USDC protokol ücreti görünür, başka hiçbir bilgi sızmaz.
+
+---
+
+## 12. Commitment ve Nullifier'lar Neye Benzer?
+
+### 12.1. Poseidon Public Key
+
+Poseidon public key, private key'in Poseidon hash'idir. Zincir üzerinde GÖRÜNMEZ — sadece commitment hash'inin içinde gömülüdür.
+
+```
+privateKey = 777  (gizli, sadece sahibi bilir)
+publicKey  = Poseidon(777)
+           = 8314022328977600502360236309892451910870238061452047842843754277126098679161
+           = 0x126191e3989103e8ec96310a454135e2fd7cefd642eac92aef8f801aa2dc7579
+```
+
+Bu public key **doğrudan zincirde hiçbir yerde görünmez.** Sadece commitment'ın bir bileşeni olarak hash'in içine girer.
+
+### 12.2. Commitment
+
+Commitment = `Poseidon(amount, pubkey, blinding)`
+
+```
+amount   = 1,000,000  (1 USDC)
+pubkey   = Poseidon(777)
+blinding = rastgele 31-byte alan elemanı
+
+commitment = Poseidon(1000000, pubkey, blinding)
+           = 0x2b7002c86ef290b15b21128c5487653c39249b4a562ba0234afbeb2ed8a4bf86
+```
+
+**Zincirde bu hash görünür** ama içinden amount, pubkey veya blinding çıkarılamaz. Poseidon hash tek yönlüdür.
+
+### 12.3. Blinding Factor'ün Önemi
+
+Aynı miktar + aynı alıcı = **her seferinde FARKLI commitment:**
+
+```
+UTXO 1: Poseidon(1000000, pubkey_Bob, blinding_A) = 0x2c4d2ff03d5d194a58a0bdee6bda7780ed3482a6493ef6892874340712ea1306
+UTXO 2: Poseidon(1000000, pubkey_Bob, blinding_B) = 0x23e59c1cae6e65b8669e6347dcde7452d0dbd80f3eb7cb66bfb5c3719183dd1c
+UTXO 3: Poseidon(1000000, pubkey_Bob, blinding_C) = 0x1c9f7de04d48eda48ce994d2390cd90c923e5f3d61dce284e56e0d0ed9a65179
+```
+
+Bir gözlemci bu 3 commitment'ı görse bile:
+- Aynı miktarda olduklarını **bilemez**
+- Aynı kişiye ait olduklarını **bilemez**
+- Birbirleriyle ilişkili olduklarını **bilemez**
+
+### 12.4. Nullifier ve Bağlantısızlık
+
+Nullifier = `Poseidon(commitment, leafIndex, privateKey)`
+
+```
+commitment = 0x2b7002c8...  (zincirde görünen)
+leafIndex  = 4               (zincirde görünen)
+privateKey = 777              (GİZLİ)
+
+nullifier  = Poseidon(commitment, 4, 777)
+           = 0x035bf763...   (zincirde görünen)
+```
+
+Nullifier zincirde açıkça görünür ama:
+- Nullifier → commitment bağlantısı **kurulamaz** (hash tek yönlü)
+- Nullifier → privateKey bağlantısı **kurulamaz** (3 bilinmeyenli hash)
+- İki farklı nullifier'ın aynı kişiye ait olup olmadığı **bilinemez**
+
+---
+
+## 13. 4-Hesap Demo: Gizlilik Pratikte Nasıl Çalışır?
+
+4 farklı hesap oluşturup aralarında işlem yapalım. Her hesabın Poseidon keypair'i farklıdır:
+
+```
+Alice   (Agent A):   privateKey = 777
+                     publicKey  = Poseidon(777)
+                     = 8314022328977600502360236309892451910870238061452047842843754277126098679161
+                     = 0x126191e3989103e8ec96310a454135e2fd7cefd642eac92aef8f801aa2dc7579
+
+Bob     (Agent B):   privateKey = 888
+                     publicKey  = Poseidon(888)
+                     = 2747003115050001518199352967201636680005942106665862265253267848427325603405
+                     = 0x0612bfa880c53eb3ad700aae4e79a035ee642f8736a83fec31dc9f8ee3d7be4d
+
+Charlie (Server):    privateKey = 999
+                     publicKey  = Poseidon(999)
+                     = 12882099815397628243637726739664661604745181632246514661429068184196680242850
+                     = 0x1c7b0296b0bf7b61b2dee3ef4afa79e7411d8b32bd3a5c06ca9b2fb5ee1fd6a2
+
+Dave    (Relayer):   privateKey = 1111
+                     publicKey  = Poseidon(1111)
+                     = 936107041880948892627387585343503772163411492212883657371352110448043907916
+                     = 0x0211d15bf9769e75824745084a9e07288534c8263cd0965fdd83a045a2e85b4c
+```
+
+### Senaryo: Alice → Bob'a 1 USDC Gizli Transfer
+
+```
+1. Alice'in UTXO'su:
+   commitment_in = Poseidon(2000000, pubkey_Alice, blinding_x)
+   → Merkle ağacında leafIndex 4'te
+
+2. Alice JoinSplit kanıtı üretir:
+   input:  [Alice'in 2 USDC UTXO'su]
+   output: [Bob'a 1 USDC, Alice'e 1 USDC para üstü]
+
+3. Zincirde görünen:
+   nullifier     = Poseidon(commitment_in, 4, 777)    → Alice'in anahtarı GİZLİ
+   commitment_1  = Poseidon(1000000, pubkey_Bob, r1)   → Bob'un UTXO'su, 1 USDC
+   commitment_2  = Poseidon(1000000, pubkey_Alice, r2) → Alice'in para üstü
+   publicAmount  = 0
+   protocolFee   = 10000 (0.01 USDC)
+
+4. Gözlemci (Dave dahil) şunları GÖREMEZ:
+   ✗ commitment_1 = 1 USDC (miktar gizli)
+   ✗ commitment_1 Bob'a ait (pubkey gizli)
+   ✗ commitment_2 Alice'e ait (pubkey gizli)
+   ✗ nullifier Alice'in UTXO'sundan geldi (bağlantısız)
+   ✗ Alice ve Bob dahil oldu (hiçbir Ethereum adresi görünmüyor)
+
+5. Bob commitment_1'i nasıl bulur?
+   a) Tüm yeni commitment'ları tarar
+   b) Her birinin viewTag'ını kontrol eder (1-byte hızlı filtre)
+   c) Eşleşenleri ECDH + AES ile decrypt etmeye çalışır
+   d) Decrypt başarılı → "Bu UTXO benim!" (amount=1000000, blinding=r1)
+```
+
+### 4-Hesap Demo Scripti
+
+Bu senaryoyu gerçek Poseidon değerleriyle görmek için:
+
+```bash
+npx tsx scripts/demo-4accounts.ts
+```
+
+Bu script 4 hesap oluşturur, her biri için commitment ve nullifier hesaplar, ve on-chain'de neyin görünür neyin gizli olduğunu gösterir.
+
+---
+
+## 14. Sık Sorulan Sorular
+
+### "Pool adresi ve relayer adresi görünüyor — bu gizlilik ihlali değil mi?"
+
+**Hayır.** Pool adresi (`0x8F1ae...`) herkesin bildiği bir kontrat adresidir — Tornado Cash'in kontrat adresi de herkes tarafından bilinir. Relayer adresi (`0xF505e...`) TX'i gönderen sunucunun adresidir, gerçek gönderici veya alıcı değildir. Production'da sunucu TX'i gönderir, agent'ın Ethereum adresi hiç zincirde görünmez.
+
+### "0.01 USDC ücret → transfer tutarı çıkarılabilir mi?"
+
+**Hayır.** Ücret `max(%0.1, $0.01)` formülüyle hesaplanır. 0.01 USDC minimum ücret olduğu için, transfer tutarının 0.01 ile 10 USDC arasında olduğunu gösterir ama kesin tutarı ortaya çıkarmaz. 10 USDC üzerindeki transferlerde ücret %0.1 olur — bu durumda `fee / 0.001` ile tutarı hesaplamak mümkündür. Bu bilinen bir trade-off'tur ve V4.5'te sabit ücret seçeneği planlanmaktadır.
+
+### "Deposit ve Withdraw açık — bu kullanışlı mı?"
+
+**Evet.** Deposit ve Withdraw'un açık olması doğaldır — para blockchain'e girer veya çıkar, bu hareket gizlenemez. Ama **aralarındaki bağlantı gizlidir.** Alice 100 USDC yatırıp, Bob 50 USDC çektiğinde, bir gözlemci Alice'in Bob'a gönderip göndermediğini bilemez. Yeterli anonymity set (havuzda başka kullanıcılar) varsa, deposit→withdraw bağlantısı kurulamaz.
+
+### "Poseidon public key zincirde görünüyor mu?"
+
+**Hayır.** Poseidon public key hiçbir zaman doğrudan zincirde görünmez. Sadece commitment hash'inin bir bileşeni olarak hash'in içine girer: `commitment = Poseidon(amount, pubkey, blinding)`. Hash tek yönlü olduğu için, commitment'tan pubkey çıkarmak hesaplama açısından imkansızdır.
+
+---
+
 *Bu doküman PrivAgent V4.4 mimarisini açıklar. Teknik detaylar için bkz: [PROTOCOL.md](PROTOCOL.md), [CIRCUITS.md](CIRCUITS.md)*
