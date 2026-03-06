@@ -107,7 +107,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     IERC20 public immutable usdc;
 
     // ============ State ============
-    // Verifiers per circuit config: key = nIns * 10 + nOuts
+    // Verifiers per circuit config: key = nIns * 256 + nOuts
     mapping(uint256 => address) public verifiers;
 
     // Merkle tree (depth 20)
@@ -139,6 +139,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
     event TreasuryUpdated(address indexed newTreasury);
     event ProtocolFeeUpdated(uint256 newFeeBps, uint256 newMinFee);
     event VerifierUpdated(uint256 indexed configKey, address indexed verifier);
+    event EmergencyWithdraw(address indexed to, uint256 amount);
 
     // ============ Constructor ============
     constructor(
@@ -156,8 +157,8 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
 
         // Register verifiers — both required [SC-H2]
         if (_verifier1x2 == address(0) || _verifier2x2 == address(0)) revert MissingVerifiers();
-        verifiers[12] = _verifier1x2; // 1*10+2
-        verifiers[22] = _verifier2x2; // 2*10+2
+        verifiers[258] = _verifier1x2; // 1*256+2
+        verifiers[514] = _verifier2x2; // 2*256+2
 
         // Initialize Merkle tree zeros
         bytes32 currentZero = bytes32(0);
@@ -211,7 +212,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         }
 
         // 6. Select verifier
-        uint256 configKey = args.inputNullifiers.length * 10 + args.outputCommitments.length;
+        uint256 configKey = args.inputNullifiers.length * 256 + args.outputCommitments.length;
         address verifierAddr = verifiers[configKey];
         if (verifierAddr == address(0)) revert UnsupportedCircuit();
 
@@ -435,7 +436,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
             assembly { size := extcodesize(verifierAddr) }
             require(size > 0, "Not a contract");
         }
-        uint256 configKey = nIns * 10 + nOuts;
+        uint256 configKey = nIns * 256 + nOuts;
         verifiers[configKey] = verifierAddr;
         emit VerifierUpdated(configKey, verifierAddr);
     }
@@ -482,6 +483,7 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         uint256 balance = usdc.balanceOf(address(this));
         if (balance > 0) {
             if (!usdc.transfer(to, balance)) revert TransferFailed();
+            emit EmergencyWithdraw(to, balance);
         }
     }
 }

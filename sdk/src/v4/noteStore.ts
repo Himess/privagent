@@ -1,6 +1,7 @@
 // Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as crypto from "crypto";
 
 /**
  * Decrypted note data structure for persistent storage.
@@ -91,24 +92,63 @@ export class MemoryNoteStore implements NoteStore {
   }
 }
 
-// TODO(V4.5): Encrypt note store at rest using AES-256-GCM with key derived
-// from wallet privkey. Current plaintext JSON is a data breach risk.
-
 /**
- * File-based NoteStore — persistent storage using JSON file.
+ * File-based NoteStore — persistent storage using AES-256-GCM encrypted JSON file.
  * [M2] O(1) nullifier lookup via secondary index (built on load).
+ *
+ * Encryption key is derived from the wallet's Poseidon private key via HKDF.
+ * If no encryption key is provided, falls back to plaintext (legacy compat).
  */
 export class FileNoteStore implements NoteStore {
   private notes: Map<string, StoredNote> = new Map();
   private nullifierIndex: Map<string, string> = new Map(); // [M2]
   private loaded: boolean = false;
+  private encryptionKey: Buffer | null;
 
-  constructor(private filePath: string) {}
+  /**
+   * @param filePath — path to the note store file
+   * @param encryptionSecret — optional secret (e.g. wallet private key as string) for AES-256-GCM at-rest encryption
+   */
+  constructor(private filePath: string, encryptionSecret?: string) {
+    if (encryptionSecret) {
+      // Derive 256-bit key via HKDF from the secret
+      this.encryptionKey = Buffer.from(
+        crypto.hkdfSync("sha256", Buffer.from(encryptionSecret), Buffer.alloc(0), Buffer.from("privagent-notestore"), 32)
+      );
+    } else {
+      this.encryptionKey = null;
+    }
+  }
+
+  private encrypt(plaintext: string): string {
+    if (!this.encryptionKey) return plaintext;
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv("aes-256-gcm", this.encryptionKey, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    // Format: base64(iv + tag + ciphertext) prefixed with "enc:"
+    return "enc:" + Buffer.concat([iv, tag, encrypted]).toString("base64");
+  }
+
+  private decrypt(data: string): string {
+    if (!data.startsWith("enc:")) return data; // plaintext fallback
+    if (!this.encryptionKey) {
+      throw new Error("Note store is encrypted but no encryption key provided");
+    }
+    const raw = Buffer.from(data.slice(4), "base64");
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const ciphertext = raw.subarray(28);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", this.encryptionKey, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(ciphertext) + decipher.final("utf8");
+  }
 
   private async load(): Promise<void> {
     if (this.loaded) return;
     try {
-      const data = await fs.readFile(this.filePath, "utf8");
+      const raw = await fs.readFile(this.filePath, "utf8");
+      const data = this.decrypt(raw);
       const parsed: StoredNote[] = JSON.parse(data);
       for (const note of parsed) {
         this.notes.set(note.commitment, note);
@@ -124,7 +164,8 @@ export class FileNoteStore implements NoteStore {
   private async persist(): Promise<void> {
     const dir = path.dirname(this.filePath);
     await fs.mkdir(dir, { recursive: true });
-    const data = JSON.stringify(Array.from(this.notes.values()), null, 2);
+    const json = JSON.stringify(Array.from(this.notes.values()), null, 2);
+    const data = this.encrypt(json);
     // [AUDIT-FIX] Atomic write: write to temp file then rename to prevent corruption
     const tmpPath = this.filePath + ".tmp";
     await fs.writeFile(tmpPath, data, "utf8");

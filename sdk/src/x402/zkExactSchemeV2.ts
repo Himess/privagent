@@ -18,7 +18,7 @@ import { computeExtDataHash } from "../v4/extData.js";
 import type { ExtData } from "../v4/extData.js";
 import { encryptNote } from "../v4/noteEncryption.js";
 import { generateJoinSplitProof, proofToArray } from "../v4/joinSplitProver.js";
-import { generateViewTag } from "../v4/viewTag.js";
+
 
 // ============================================================================
 // Types
@@ -66,9 +66,15 @@ export class ZkPaymentHandlerV4 {
     this.wallet = wallet;
     this.ecdhPrivateKey = ecdhPrivateKey;
     this.ecdhPublicKey = ecdhPublicKey;
-    // TODO(V4.5): Zero out ECDH private key material after use: key.fill(0).
-    // JS GC is non-deterministic so key persists in heap indefinitely.
     this.options = options;
+  }
+
+  /**
+   * Zero out ECDH private key material.
+   * Call after payment flow is complete to minimize key exposure window.
+   */
+  destroy(): void {
+    this.ecdhPrivateKey.fill(0);
   }
 
   async parsePaymentRequired(
@@ -161,11 +167,9 @@ export class ZkPaymentHandlerV4 {
 
       // Encrypt notes for the server
       const enc1 = encryptNote(paymentUTXO, this.ecdhPrivateKey, serverEcdhPubKey);
-      // TODO(V4.5): PRIVACY LEAK — Change UTXO is encrypted to server's ECDH pubkey.
-      // Server can decrypt and learn buyer's change amount (remaining balance).
-      // Fix: encrypt change note to buyer's own ECDH pubkey.
-      // Requires payment flow refactor in both zkExactSchemeV2 and middlewareV2.
-      const enc2 = encryptNote(changeUTXO, this.ecdhPrivateKey, serverEcdhPubKey);
+      // Encrypt change note to buyer's own ECDH pubkey (not server's)
+      // Server does not need to decrypt the change note — it belongs to the buyer
+      const enc2 = encryptNote(changeUTXO, this.ecdhPrivateKey, this.ecdhPublicKey);
 
       // Build extData with real encrypted outputs
       const extData: ExtData = {
@@ -188,7 +192,7 @@ export class ZkPaymentHandlerV4 {
             protocolFee,
             tree: this.wallet.getTree(),
             extDataHash,
-            privateKey: this.wallet.privateKey,
+            privateKey: this.wallet._privateKey,
           },
           this.wallet.circuitDir
         ),
@@ -214,7 +218,7 @@ export class ZkPaymentHandlerV4 {
       // Compute view tags for each output UTXO (V4.4)
       // [AUDIT-FIX] Use blinding as nonce to prevent deterministic view tag clustering
       const viewTags = [paymentUTXO, changeUTXO].map((u) =>
-        generateViewTag(this.wallet.privateKey, u.pubkey, u.blinding)
+        this.wallet.generateViewTag(u.pubkey, u.blinding)
       );
 
       const zkPayload: ZkExactPayloadV4 = {

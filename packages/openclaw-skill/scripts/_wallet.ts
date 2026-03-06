@@ -77,11 +77,19 @@ export function getSigner(): Wallet {
 // ============================================================================
 
 export function parseAmount(str: string): bigint {
-  const value = parseFloat(str);
-  if (isNaN(value) || value <= 0) {
+  // String-based decimal parsing to avoid floating-point precision issues
+  const trimmed = str.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
     throw new Error("Invalid amount. Must be a positive number.");
   }
-  return BigInt(Math.round(value * 1_000_000));
+  const parts = trimmed.split(".");
+  const intPart = parts[0];
+  const decPart = (parts[1] || "").padEnd(6, "0").slice(0, 6);
+  const raw = BigInt(intPart) * 1_000_000n + BigInt(decPart);
+  if (raw <= 0n) {
+    throw new Error("Invalid amount. Must be a positive number.");
+  }
+  return raw;
 }
 
 export function formatUSDC(raw: bigint): string {

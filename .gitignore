@@ -11,6 +11,7 @@ contracts/broadcast/
 # Circuits
 circuits/build/
 circuits/powersOfTau28_hez_final_15.ptau
+circuits/powersOfTau28_hez_final_17.ptau
 
 # Coverage
 coverage/

@@ -11,7 +11,7 @@ V4.4 Done
 
 ├── ZK-UTXO       ├── Facilitator    ├── Decentralized  ├── ZK reputation
 ├── x402           │   deploy          │   relayers       ├── Multi-token
-├── Stealth        ├── ERC-8004 L2    ├── Scale          └── Governance
+├── ECDH        ├── ERC-8004 L2    ├── Scale          └── Governance
 ├── Fee            ├── POI            └── Partnerships
 ├── BSL            ├── Ceremony
 ├── ViewTags       ├── Audit
@@ -26,11 +26,11 @@ V4.4 Done
 ### V4.3 — Foundation - Done
 **Status: Live on Base Sepolia**
 
-Core protocol: ZK-UTXO JoinSplit, x402 middleware, stealth addresses,
+Core protocol: ZK-UTXO JoinSplit, x402 middleware, ECDH note encryption,
 protocol fees, BSL-1.1 license. Tree depth 20 (1M capacity).
 
 ### V4.4 — Advanced Features + Security Hardening - Done
-**Status: Complete (Base Sepolia, 226 tests, audit score 9.0/10)**
+**Status: Complete (Base Sepolia, 226 tests, audit score 7.6/10)**
 
 - **Circuit-Level Fee**: Protocol fee on ALL transactions including private transfers
 - **View Tags**: ~50x note scanning speedup (1-byte tag pre-filtering)
@@ -88,9 +88,9 @@ Fee: max(0.1%, $0.01) protocol fee on all transactions.
 
 | Year | Est. Volume | Protocol Fee | Enterprise | Total |
 |------|-------------|-------------|------------|-------|
-| 2026 | $50M | ~$1M | $150K | ~$1.15M |
-| 2027 | $300M | ~$6M | $250K | ~$6.25M |
-| 2028 | $1B+ | ~$10-20M | $500K | ~$10-20M |
+| 2026 | $3-12.5M | ~$100-400K | $50-150K | ~$200-750K |
+| 2027 | $70-160M | ~$2.3-5.3M | $700K-1.5M | ~$3-7M |
+| 2028 | $500M+ | ~$5-10M | $500K | ~$5-10M |
 
 ## Milestones
 

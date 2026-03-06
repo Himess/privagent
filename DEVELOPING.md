@@ -46,7 +46,7 @@ cd sdk
 # Build
 pnpm build
 
-# Test (116 tests)
+# Test (109 tests)
 pnpm test
 
 # Type check

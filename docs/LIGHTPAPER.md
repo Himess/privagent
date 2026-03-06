@@ -1,5 +1,22 @@
 # PrivAgent: Privacy Infrastructure for the Agent Economy
 
+*Version 4.4 — March 2026*
+
+## Table of Contents
+
+1. [Abstract](#abstract)
+2. [The Problem](#the-problem)
+3. [The Solution](#the-solution)
+4. [Architecture](#architecture)
+5. [Revenue Model](#revenue-model)
+6. [Competitive Landscape](#competitive-landscape)
+7. [Compliance & Risk Management](#compliance--risk-management)
+8. [Roadmap](#roadmap)
+9. [Team](#team)
+10. [The Ask](#the-ask)
+
+---
+
 ## Abstract
 
 PrivAgent is a privacy-preserving payment protocol for AI agents on Base.
@@ -14,8 +31,8 @@ and x402 payment infrastructure.
 
 The agent economy is growing rapidly on Base:
 
-- **$50M+** cumulative x402 payment volume across all chains (Q1 2026)
-- **120M+** x402 transactions processed
+- **$43M+** cumulative x402 payment volume across all chains (Q1 2026)
+- **140M+** x402 transactions processed
 - **24,000+** agents registered on ERC-8004 (Ethereum mainnet, Jan 2026)
 - **Base leads** with $21.5M in x402 volume and 70M+ transactions
 - **ZERO privacy**: every agent payment is publicly visible on-chain
@@ -51,7 +68,7 @@ PrivAgent brings Railgun-level privacy to Base's agent economy:
 - Groth16 zero-knowledge proofs with Poseidon hashing
 - JoinSplit transactions (1-input-2-output, 2-input-2-output)
 - Encrypted amounts — on-chain observers see nothing
-- Stealth addresses — recipients are unlinkable
+- ECDH encrypted notes — recipients are unlinkable
 - Nullifier-based double-spend prevention
 
 **x402 Native Integration**
@@ -94,7 +111,7 @@ PrivAgent brings Railgun-level privacy to Base's agent economy:
 - Helper SDK: `privAgentPaymentMethod()`, `paymentProofForFeedback()`
 
 **Security Hardening (V4.4)**
-- 28 audit findings fixed across 3 deep audits (score: 7.5 → 9.0/10)
+- 28 audit findings fixed across 3 deep audits (score: 7.5 → 7.6/10)
 - On-chain TX verification before UTXO confirmation (prevents fake TX hash attacks)
 - Race condition prevention: nullifier mutex for concurrent requests
 - BN254 field-range validation for all nullifiers and commitments (on-chain)
@@ -136,7 +153,7 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 |------|----------|
 | Agent uses PrivAgent (deposit) | Yes (acceptable, like using a bank) |
 | Payment amount | No (encrypted + ZK proof) |
-| Payment recipient | No (stealth addresses) |
+| Payment recipient | No (ECDH encrypted notes) |
 | Payment sender (in transfers) | No (nullifier-based) |
 | Transaction linkability | No (UTXO model breaks links) |
 | Agent identity (ERC-8004) | Yes (by design — reputation needs it) |
@@ -154,7 +171,7 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 |  (Agent discovery & trust)               |
 +------------------------------------------+
 |  PrivAgent: Payment Privacy Layer         |
-|  (ZK-UTXO + stealth + encrypted notes)  |
+|  (ZK-UTXO + ECDH + encrypted notes)     |
 +------------------------------------------+
 |  x402: Payment Protocol                  |
 |  (HTTP 402 -> pay -> 200)                |
@@ -167,9 +184,9 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 
 1. **ShieldedPoolV4** — Solidity contract managing the UTXO pool, Merkle tree (depth 20, ~1M leaves), nullifier tracking, protocol fees, field-range validation
 2. **JoinSplit Circuits** — Circom/Groth16 circuits for 1x2 and 2x2 private transactions
-3. **TypeScript SDK** — UTXO engine, note encryption (HKDF + AES-256-GCM), stealth addresses, Merkle tree sync, atomic note storage, timing-safe auth
+3. **TypeScript SDK** — UTXO engine, note encryption (HKDF + AES-256-GCM), ECDH key exchange, Merkle tree sync, atomic note storage, timing-safe auth
 4. **x402 Middleware** — Express middleware for API providers, payment verification, server-as-relayer
-5. **Stealth Registry** — ECDH-based stealth address system for recipient privacy
+5. **Note Encryption** — ECDH-based encrypted note system for recipient privacy
 6. **Relayer/Facilitator** — Hybrid relay system for gas-free agent payments, x402-compatible facilitator endpoint
 7. **ERC-8004 Integration** — Agent registration helpers, payment proof for reputation feedback
 8. **View Tags** — Note scanning optimization with 1-byte pre-filtering
@@ -180,9 +197,9 @@ Agent → x402 Server → PrivAgent Facilitator → pool.transact() → Base
 | Contract | Address |
 |----------|---------|
 | ShieldedPoolV4 | `0x8F1ae8209156C22dFD972352A415880040fB0b0c` |
-| Groth16Verifier_1x2 | `0xe473aF953d269601402DEBcB2cc899aB594Ad31e` |
-| Groth16Verifier_2x2 | `0x10D5BB24327d40c4717676E3B7351D76deb33848` |
-| PoseidonHasher | `0x3ae70C9741a9959fA32bC9BC09959d3d319Ee3Cd` |
+| Groth16Verifier_1x2 | `0xC53c8E05661450919951f51E4da829a3AABD76A2` |
+| Groth16Verifier_2x2 | `0xE77ad940291c97Ae4dC43a6b9Ffb43a3AdCd4769` |
+| PoseidonHasher | `0x70Aa742C113218a12A6582f60155c2B299551A43` |
 
 All contracts verified on Blockscout. Deploy block: `38347380`.
 
@@ -343,7 +360,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | x402 facilitator | Yes (V4.4) | No | No | No |
 | No ETH required | Yes (V4.4) | No | No | No |
 | Field-range validation | Yes (V4.4) | Yes | N/A | Yes |
-| Audit score | 9.0/10 (V4.4) | N/A | N/A | N/A |
+| Audit score | 7.6/10 (V4.4) | N/A | N/A | N/A |
 
 **PrivAgent is the only privacy protocol on Base with x402 and ERC-8004 integration.**
 
@@ -361,7 +378,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | Risk | Mitigation |
 |------|-----------|
 | Regulatory (Tornado Cash precedent) | POI roadmap, deposit screening planned, BSL license |
-| Smart contract vulnerability | 3 deep audits (28 findings fixed, 9.0/10), 226 tests, professional audit planned |
+| Smart contract vulnerability | 3 deep audits (28 findings fixed, 7.6/10), 226 tests, professional audit planned |
 | Market timing (early) | First-mover advantage, no competition on Base |
 | Solo developer | 80+ PRs in major projects, proven execution, team expansion planned |
 
@@ -369,8 +386,8 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 
 | Phase | Timeline | Deliverables |
 |-------|----------|-------------|
-| **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, stealth addresses, protocol fees, Base Sepolia deployment |
-| **V4.4** | ✅ Complete | Circuit-level fee, view tags (50x speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1, security hardening (28 findings fixed, 9.0/10), 226 tests |
+| **V4.3** | ✅ Complete | ZK-UTXO pool, x402 middleware, ECDH note encryption, protocol fees, Base Sepolia deployment |
+| **V4.4** | ✅ Complete | Circuit-level fee, view tags (50x speedup), hybrid relayer, PrivAgent facilitator, ERC-8004 Level 1, security hardening (28 findings fixed, 7.6/10), 226 tests |
 | **V4.5** | Weeks 1-8 (Program) | PrivAgent Facilitator deploy, ERC-8004 Level 2 (reputation + sybil resistance), POI implementation, multi-party trusted setup ceremony, professional security audit, Base mainnet deployment |
 | **V5** | Months 6-12 | Decentralized relayer network (stake + slash), ZK reputation proofs (ERC-8004 Level 3), multi-token support |
 | **V5+** | Year 2+ | Rapidsnark integration (optional faster proofs), facilitator network expansion, governance |
@@ -394,7 +411,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 | PrivAgent development time | ~80 hours (V3 → V4.4) |
 | Test coverage | 226 tests (117 Foundry + 109 SDK) |
 | Internal audits completed | 3 deep audits (28 critical/high findings fixed) |
-| Audit score | 7.5 → 9.0/10 after security hardening |
+| Audit score | 7.5 → 7.6/10 after security hardening |
 | Lines of Solidity | ~900+ |
 | Lines of TypeScript | ~4000+ |
 | Circom circuits | 2 (1x2 + 2x2 JoinSplit with protocolFee) |
@@ -411,7 +428,7 @@ For context: x402 already processes 140M+ cumulative transactions in its first 8
 - x402-compatible PrivAgent Facilitator
 - ERC-8004 Level 1 integration (registration + payment proof)
 - Security hardening: 28 findings fixed (TX verification, race conditions, field-range validation, auth, rate limiting)
-- 226 tests passing (117 Foundry + 109 SDK), 3 deep audits, score 9.0/10
+- 226 tests passing (117 Foundry + 109 SDK), 3 deep audits, score 7.6/10
 
 **What we'll build in the program (V4.5):**
 

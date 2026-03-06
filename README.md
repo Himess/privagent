@@ -7,10 +7,10 @@
 *The missing privacy layer for x402 payments and ERC-8004 agents on Base*
 
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-195%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen)](https://github.com/Himess/privagent/actions)
 [![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)]()
 
 [Light Paper](docs/LIGHTPAPER.md) · [Documentation](docs/) · [Examples](examples/)
 
@@ -75,7 +75,7 @@ await wallet.deposit(10_000_000n);  // 10 USDC -> shielded
 | What | Visible? |
 |------|----------|
 | Payment amount | Hidden (encrypted + ZK) |
-| Payment recipient | Hidden (stealth addresses) |
+| Payment recipient | Hidden (ECDH encrypted notes) |
 | Payment sender | Hidden (nullifier-based) |
 | Transaction links | Broken (UTXO model) |
 | Agent identity | Public (ERC-8004) |
@@ -89,14 +89,20 @@ Add private payments to your x402 API with the V4 middleware:
 ```typescript
 import express from 'express';
 import { privAgentPaywallV4 } from 'privagent-sdk/x402';
+import vkey1x2 from './circuits/build/v4/1x2/verification_key.json';
+import vkey2x2 from './circuits/build/v4/2x2/verification_key.json';
 
 const app = express();
 
 app.use('/api/weather', privAgentPaywallV4({
+  price: '1000000',              // 1 USDC (6 decimals)
+  asset: 'USDC',
   poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
-  usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  signer,          // ethers.Signer for on-chain relay
-  price: '1000000' // 1 USDC (6 decimals)
+  signer,                         // ethers.Signer for on-chain relay
+  poseidonPubkey: POSEIDON_PUB,   // server's Poseidon public key (bigint string)
+  ecdhPrivateKey,                  // secp256k1 private key (Uint8Array)
+  ecdhPublicKey,                   // secp256k1 public key (Uint8Array)
+  verificationKeys: { '1x2': vkey1x2, '2x2': vkey2x2 },
 }));
 
 app.get('/api/weather', (req, res) => {
@@ -104,22 +110,12 @@ app.get('/api/weather', (req, res) => {
 });
 ```
 
-```typescript
-// External relay mode — server doesn't pay gas, no ETH needed
-app.use('/api/weather', privAgentPaywallV4({
-  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
-  usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  mode: 'external-relay',
-  relayerUrl: 'https://relay.privagent.xyz',
-  price: '1000000'
-}));
-```
-
 ### For Agent Developers (Client)
 
 ```typescript
 import { ShieldedWallet } from 'privagent-sdk';
-import { privAgentFetchV4, createPrivAgentFetchV4 } from 'privagent-sdk/x402';
+import { createPrivAgentFetchV4 } from 'privagent-sdk/x402';
+import { secp256k1 } from '@noble/curves/secp256k1';
 
 // Initialize wallet
 const wallet = new ShieldedWallet({ provider, signer, poolAddress, usdcAddress, circuitDir });
@@ -129,8 +125,12 @@ await wallet.syncTree();
 // Deposit once
 await wallet.deposit(10_000_000n);  // 10 USDC
 
+// ECDH keypair for note encryption
+const ecdhPrivateKey = secp256k1.utils.randomPrivateKey();
+const ecdhPublicKey = secp256k1.getPublicKey(ecdhPrivateKey, true);
+
 // Private API payment (x402 flow: 402 -> ZK proof -> private payment -> 200)
-const fetch = createPrivAgentFetchV4(wallet);
+const fetch = createPrivAgentFetchV4(wallet, ecdhPrivateKey, ecdhPublicKey);
 const response = await fetch('https://api.example.com/weather');
 ```
 
@@ -140,12 +140,12 @@ const response = await fetch('https://api.example.com/weather');
 privagent/
 ├── contracts/          # Solidity — ShieldedPoolV4, Verifiers, PoseidonHasher, StealthRegistry
 │   ├── src/            # Contract source files
-│   └── test/           # Foundry tests (111 tests)
+│   └── test/           # Foundry tests (117 tests)
 ├── circuits/           # Circom — JoinSplit (1x2, 2x2) with protocolFee
 │   ├── src/            # Circuit source
 │   └── build/          # Compiled circuits + verification keys
 ├── sdk/                # TypeScript SDK
-│   ├── src/v4/         # UTXO engine, encryption, stealth, view tags
+│   ├── src/v4/         # UTXO engine, encryption, note store, view tags
 │   ├── src/x402/       # x402 middleware + client + relayer + facilitator
 │   ├── src/erc8004/    # ERC-8004 integration helpers
 │   └── src/utils/      # Logger, crypto utilities
@@ -181,7 +181,7 @@ Deploy block: `38347380`
 ## Testing
 
 ```bash
-# Foundry tests (contracts — 86 tests)
+# Foundry tests (contracts — 117 tests)
 cd contracts && forge test -vvv
 
 # SDK tests (TypeScript — 109 tests)
@@ -191,7 +191,7 @@ cd sdk && pnpm test
 PRIVATE_KEY=0x... npx ts-node scripts/e2e-base-sepolia.ts
 ```
 
-**Total: 195 tests** (86 Foundry + 109 SDK)
+**Total: 226 tests** (117 Foundry + 109 SDK)
 
 ## Fee Structure
 
@@ -207,7 +207,7 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 
 | Phase | Status | Features |
 |-------|--------|----------|
-| V4.3 | ✅ Complete | ZK-UTXO, x402 middleware, stealth, protocol fees, BSL-1.1 |
+| V4.3 | ✅ Complete | ZK-UTXO, x402 middleware, ECDH note encryption, protocol fees, BSL-1.1 |
 | V4.4 | ✅ Complete | Circuit-level fee, view tags, hybrid relayer, facilitator, ERC-8004 L1 |
 | V4.5 | 🔨 Building | Facilitator deploy, ERC-8004 L2, POI, ceremony, audit, mainnet |
 | V5 | 📋 Planned | Decentralized relayers, ZK reputation, multi-token |
@@ -240,8 +240,8 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 
 ## Security
 
-- 3 internal security audits completed (46+ findings resolved)
-- 195 tests passing (86 Foundry + 109 SDK)
+- 3 internal security audits completed (46+ findings resolved, score 7.6/10)
+- 226 tests passing (117 Foundry + 109 SDK)
 - Professional audit planned pre-mainnet
 - Bug reports: security@privagent.xyz
 

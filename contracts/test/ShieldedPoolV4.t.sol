@@ -703,7 +703,7 @@ contract ShieldedPoolV4Test is Test {
         // Use a real contract (mock verifier) for setVerifier [SC-M3]
         MockVerifier1x2 newVerifier = new MockVerifier1x2();
         pool.setVerifier(4, 2, address(newVerifier));
-        assertEq(pool.verifiers(42), address(newVerifier)); // 4*10+2 = 42
+        assertEq(pool.verifiers(1026), address(newVerifier)); // 4*256+2 = 1026
     }
 
     function test_setVerifier_onlyOwner() public {
@@ -829,13 +829,13 @@ contract ShieldedPoolV4Test is Test {
     }
 
     function test_verifier_configKeys() public view {
-        // 1x2 = 1*10+2 = 12
-        assertTrue(pool.verifiers(12) != address(0));
-        // 2x2 = 2*10+2 = 22
-        assertTrue(pool.verifiers(22) != address(0));
+        // 1x2 = 1*256+2 = 258
+        assertTrue(pool.verifiers(258) != address(0));
+        // 2x2 = 2*256+2 = 514
+        assertTrue(pool.verifiers(514) != address(0));
         // Unregistered = 0
-        assertEq(pool.verifiers(32), address(0));
-        assertEq(pool.verifiers(42), address(0));
+        assertEq(pool.verifiers(768), address(0));
+        assertEq(pool.verifiers(1024), address(0));
     }
 
     function test_ownership() public view {
@@ -884,7 +884,7 @@ contract ShieldedPoolV4Test is Test {
     function test_setVerifier_zeroAddress_allowed() public {
         // Setting to zero removes the verifier
         pool.setVerifier(1, 2, address(0));
-        assertEq(pool.verifiers(12), address(0));
+        assertEq(pool.verifiers(258), address(0));
     }
 
     // [SC-M4] Emergency withdrawal

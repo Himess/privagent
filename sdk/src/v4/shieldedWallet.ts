@@ -107,10 +107,20 @@ export class ShieldedWallet {
     return this.keypair.publicKey;
   }
 
-  // TODO(V4.5): Remove public getter for privateKey. Expose only sign() and prove()
-  // methods that use the key internally. Current getter exposes master secret to any
-  // code with wallet reference.
-  get privateKey(): bigint {
+  /**
+   * Generate a view tag for a given recipient pubkey and nonce.
+   * Internal method — avoids exposing private key externally.
+   */
+  generateViewTag(recipientPubkey: bigint, nonce: bigint): number {
+    return generateViewTag(this.keypair.privateKey, recipientPubkey, nonce);
+  }
+
+  /**
+   * Get the private key for internal proof generation.
+   * @internal — only for use by SDK proof generators, not public API.
+   */
+  /** @internal */
+  get _privateKey(): bigint {
     return this.keypair.privateKey;
   }
 

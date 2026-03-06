@@ -20,6 +20,8 @@ interface RateLimitEntry {
 const rateLimitStore: Map<string, RateLimitEntry> = new Map();
 let lastCleanup = Date.now();
 
+const MAX_RATE_LIMIT_ENTRIES = 10_000; // Cap to prevent memory exhaustion from IP spoofing
+
 function checkRateLimit(ip: string, maxRequests: number = 60, windowMs: number = 60000): boolean {
   const now = Date.now();
   // [H6] Periodic cleanup to prevent memory leak
@@ -28,6 +30,17 @@ function checkRateLimit(ip: string, maxRequests: number = 60, windowMs: number =
       if (now > entry.resetAt) rateLimitStore.delete(key);
     }
     lastCleanup = now;
+  }
+  // [O-4] Cap map size to prevent memory exhaustion from distributed attacks
+  if (rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) {
+    // Evict oldest entries when at capacity
+    const entriesToDelete: string[] = [];
+    for (const [key, entry] of rateLimitStore) {
+      if (now > entry.resetAt) entriesToDelete.push(key);
+    }
+    for (const key of entriesToDelete) rateLimitStore.delete(key);
+    // If still at capacity after cleanup, reject (safe default)
+    if (rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) return false;
   }
   const entry = rateLimitStore.get(ip);
   if (!entry || now > entry.resetAt) {
