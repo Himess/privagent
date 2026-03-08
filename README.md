@@ -21,6 +21,10 @@
 
 ## The Problem
 
+> *"Crypto privacy is needed if you want to make API calls without compromising the information of your access patterns. Even with a local AI agent, you can learn a lot about what someone is doing if you see all of their search engine calls. [...] providers will demand an anti-DoS mechanism, and realistically payment per call. By default that will be credit card or some corposlop stablecoin thing — so we need crypto privacy."*
+>
+> — [Vitalik Buterin, March 2026](https://x.com/VitalikButerin/status/2030510783134871594)
+
 AI agents transact $600M+ through 122M+ x402 payments — all publicly visible. Every agent's strategy, spending pattern, and business relationships are exposed on-chain. PrivAgent fixes this.
 
 ## The Solution

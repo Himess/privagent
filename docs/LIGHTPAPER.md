@@ -27,6 +27,10 @@ and x402 payment infrastructure.
 
 ## The Problem
 
+> *"Crypto privacy is needed if you want to make API calls without compromising the information of your access patterns. Even with a local AI agent, you can learn a lot about what someone is doing if you see all of their search engine calls. [...] The first-order solution is to make those calls through mixnet but then the providers will get DoSed, and they will demand an anti-DoS mechanism, and realistically payment per call. By default that will be credit card or some corposlop stablecoin thing — so we need crypto privacy. For privacy you have to think full stack."*
+>
+> — [Vitalik Buterin, March 2026](https://x.com/VitalikButerin/status/2030510783134871594)
+
 ### AI Agents Have No Financial Privacy
 
 The agent economy is growing rapidly on Base:
