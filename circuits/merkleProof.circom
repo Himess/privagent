@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 pragma circom 2.0.0;
 
 include "node_modules/circomlib/circuits/poseidon.circom";

@@ -6,7 +6,7 @@
 
 *The missing privacy layer for x402 payments and ERC-8004 agents on Base*
 
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-282%20passing-brightgreen)](https://github.com/Himess/privagent/actions)
 [![npm](https://img.shields.io/npm/v/privagent-sdk)](https://www.npmjs.com/package/privagent-sdk)
 [![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
@@ -272,24 +272,13 @@ Protocol fees apply to ALL transactions including private transfers (circuit-lev
 - Professional audit planned pre-mainnet
 - Bug reports: https://github.com/Himess/privagent/issues
 
+### Trusted Setup
+
+> **Important:** The Groth16 trusted setup Phase 2 was performed by a single contributor. This is sufficient for testnet and beta usage, but does not meet production-grade multi-party ceremony standards. A multi-party ceremony with independent contributors is planned for a future release. See [Trusted Setup](circuits/CEREMONY.md) for details.
+
 ## License
 
-Licensed under [Business Source License 1.1](LICENSE).
-
-| Use | Allowed? |
-|-----|----------|
-| Read and audit code | Yes |
-| Deploy on testnets | Yes |
-| Personal/non-commercial | Yes |
-| Academic research | Yes |
-| Security research | Yes |
-| Contribute | Yes |
-| Commercial mainnet deployment | License required |
-| Commercial hosted service | License required |
-
-Converts to GPL-2.0 on **March 1, 2028**.
-
-For commercial licensing: https://github.com/Himess/privagent/issues
+Licensed under the [MIT License](LICENSE).
 
 ---
 

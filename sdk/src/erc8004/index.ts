@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 
 /**
  * ERC-8004 integration helpers for PrivAgent.

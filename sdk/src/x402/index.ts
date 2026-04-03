@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 
 // V4 (JoinSplit UTXO model — hidden amounts)
 export { ZkPaymentHandlerV4, decodePaymentHeaderV4 } from "./zkExactSchemeV2.js";

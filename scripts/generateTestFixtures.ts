@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 /**
  * Generate Groth16 proof fixtures for Foundry integration tests.
  *
@@ -427,9 +427,8 @@ function buildCircuitInputRaw(
     if (utxo.amount === 0n || utxo.leafIndex === undefined) {
       inPathIndices.push("0");
       inPathElements.push(Array(levels).fill("0"));
-      const dummyPubkey = derivePublicKey(0n);
-      const dummyCommitment = computeCommitmentV4(0n, dummyPubkey, 0n);
-      inputNullifiers.push(computeNullifierV4(dummyCommitment, 0, 0n).toString());
+      // Use the UTXO's actual commitment (includes random blinding) — matches SDK prover
+      inputNullifiers.push(computeNullifierV4(utxo.commitment, 0, 0n).toString());
     } else {
       const proof = tree.getProof(utxo.leafIndex);
       inPathIndices.push(utxo.leafIndex.toString());

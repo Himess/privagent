@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { Provider, Signer, Contract, ethers } from "ethers";
 import { MerkleTree } from "../merkle.js";
 import { initPoseidon } from "../poseidon.js";
@@ -267,8 +267,9 @@ export class ShieldedWallet {
       this.config.signer
     );
 
-    // Approve USDC: deposit amount + protocol fee (contract does 2 transferFrom calls)
-    const totalApproval = amount + protocolFee;
+    // Approve USDC: contract does transferFrom(sender, pool, amount - fee) + transferFrom(sender, treasury, fee)
+    // Total taken from sender = amount (not amount + fee)
+    const totalApproval = amount;
     const signerAddr = await this.config.signer.getAddress();
     const allowance = await usdcContract.allowance(
       signerAddr,

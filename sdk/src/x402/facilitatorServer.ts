@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 
 /**
  * [C3] PrivAgent Facilitator Server — x402-compatible privacy wrapper.

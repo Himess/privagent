@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { Contract } from "ethers";
 import { getWallet, getProvider, getSigner, ok, fail } from "./_wallet.js";
 import { BASE_SEPOLIA_USDC } from "privagent-sdk";

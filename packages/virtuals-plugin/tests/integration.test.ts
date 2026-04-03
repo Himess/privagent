@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 /**
  * Integration test — runs against real Base Sepolia contracts.
  *

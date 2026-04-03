@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
@@ -59,6 +59,11 @@ export function encryptNote(
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
 
+  // [AUDIT-FIX] Zero key material after use to minimize exposure in heap memory
+  sharedPoint.fill(0);
+  key.fill(0);
+  plaintext.fill(0);
+
   // Output: iv(12) + tag(16) + ciphertext(72) = 100 bytes
   return Buffer.concat([iv, tag, encrypted]);
 }
@@ -98,6 +103,11 @@ export function decryptNote(
 
     const pubkey = readBigInt(plaintext, 8);
     const blinding = readBigInt(plaintext, 40);
+
+    // [AUDIT-FIX] Zero key material after use
+    sharedPoint.fill(0);
+    key.fill(0);
+    plaintext.fill(0);
 
     return { amount, pubkey, blinding };
   } catch {

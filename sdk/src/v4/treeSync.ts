@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { Provider, Contract } from "ethers";
 import { MerkleTree } from "../merkle.js";
 import { V4_MERKLE_DEPTH } from "./utxo.js";

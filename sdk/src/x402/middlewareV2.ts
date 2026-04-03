@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { Contract, ethers } from "ethers";
 import * as snarkjs from "snarkjs";

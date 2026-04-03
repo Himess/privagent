@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { getWallet, ok, fail, formatUSDC } from "./_wallet.js";
 
 export async function run(): Promise<string> {

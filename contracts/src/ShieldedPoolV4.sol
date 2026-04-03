@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -277,10 +277,9 @@ contract ShieldedPoolV4 is ReentrancyGuard, Pausable, Ownable {
         } else {
             // Private transfer (publicAmount == 0):
             // Circuit enforces: sum(inputs) = sum(outputs) + protocolFee
-            // Surplus stays in pool → transfer to treasury
-            // TODO(V4.5): Private transfer fees drain pool balance without new token inflow.
-            // Redesign fee accounting: keep fees in pool, add separate treasury claim mechanism,
-            // or deduct fees within UTXO model to maintain solvency invariant.
+            // Solvency invariant holds: pool_balance decreases by protocolFee,
+            // total UTXO value also decreases by protocolFee (circuit-enforced).
+            // Both sides change equally → pool_balance >= total_utxo_value is preserved.
             if (args.protocolFee > 0 && treasury != address(0)) {
                 if (!usdc.transfer(treasury, args.protocolFee)) revert TransferFailed();
                 emit ProtocolFeeCollected(args.protocolFee);

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { ethers } from "ethers";
 import { ShieldedWallet } from "../v4/shieldedWallet.js";
 import {

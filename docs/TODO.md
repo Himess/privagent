@@ -214,15 +214,15 @@
 
 ### Critical
 - [ ] Multi-party trusted setup ceremony (3+ contributors)
-- [ ] Fix change UTXO privacy leak (encrypt to buyer, not server)
-- [ ] Remove ShieldedWallet privateKey public getter
+- [x] Fix change UTXO privacy leak (encrypt to buyer, not server) ✅ (V4.4 — encrypts to buyer's ECDH pubkey)
+- [x] Remove ShieldedWallet privateKey public getter ✅ (V4.4 — renamed to _privateKey @internal)
 - [ ] Add TimelockController + multisig for admin functions
 
 ### High
-- [ ] Fix pool insolvency from private transfer fees
-- [ ] Make off-chain proof verification mandatory ✅ (done in V4.4.1)
-- [ ] Encrypt FileNoteStore at rest (AES-256-GCM)
-- [ ] Zero ECDH key material after use
+- [x] Fix pool insolvency from private transfer fees ✅ (FALSE POSITIVE — circuit deducts fee from UTXO tree, pool_balance tracks total_utxo_value correctly)
+- [x] Make off-chain proof verification mandatory ✅ (done in V4.4.1)
+- [x] Encrypt FileNoteStore at rest (AES-256-GCM) ✅ (V4.4 — HKDF-derived key, atomic write)
+- [x] Zero ECDH key material after use ✅ (V4.4.2 — sharedPoint/key/plaintext zeroed in noteEncryption.ts)
 - [ ] Add protocolFee circuit test coverage
 
 ### Medium

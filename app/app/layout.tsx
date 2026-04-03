@@ -5,6 +5,9 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "PrivAgent V4 Demo",
   description: "Private AI Agent Payments on Base",
+  other: {
+    "base:app_id": "69ab34f349645da9eb55ad6f",
+  },
 };
 
 export default function RootLayout({

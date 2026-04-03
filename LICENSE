@@ -1,47 +1,21 @@
-Business Source License 1.1
+MIT License
 
-License text copyright (c) 2017 MariaDB Corporation Ab,
-All Rights Reserved. "Business Source License" is a trademark
-of MariaDB Corporation Ab.
+Copyright (c) 2026 PrivAgent Contributors
 
-Parameters
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-Licensor:             PrivAgent Contributors
-Licensed Work:        PrivAgent V4
-                      The Licensed Work is (c) 2026 PrivAgent Contributors
-Additional Use Grant: You may make use of the Licensed Work, provided that
-                      you do not use the Licensed Work for a Commercial
-                      Purpose.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-                      A "Commercial Purpose" means using the Licensed Work
-                      in a production environment to provide a commercial
-                      service or product, including but not limited to:
-                      (a) deploying the Licensed Work's smart contracts on
-                          any blockchain mainnet for commercial use
-                      (b) offering a hosted service that uses the Licensed
-                          Work to process transactions for third parties
-                      (c) integrating the Licensed Work into a commercial
-                          product or service
-
-                      The following uses are explicitly permitted without
-                      a commercial license:
-                      (a) deploying on any testnet for development/testing
-                      (b) personal, non-commercial use
-                      (c) academic research and education
-                      (d) security auditing and vulnerability research
-                      (e) contributing to the Licensed Work itself
-
-Change Date:          March 1, 2028
-Change License:       GNU General Public License v2.0 or later
-
-For information about alternative licensing arrangements for the
-Licensed Work, please contact: https://github.com/Himess/privagent/issues
-
-Notice
-
-The Business Source License (this document, or the "License") is not
-an Open Source license. However, the Licensed Work will eventually be
-made available under an Open Source License, as stated in this License.
-
-The full text of the Business Source License 1.1 is available at:
-https://mariadb.com/bsl11/
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

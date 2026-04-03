@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 export { initPoseidon, hash1, hash2, hash3, computeCommitment, computeNullifierHash, isInitialized, getF } from "./poseidon.js";
 export { MerkleTree } from "./merkle.js";
 export * from "./types.js";

@@ -1,2 +1,2 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
 export { default, PrivAgentPlugin, type IPrivAgentPluginOptions } from "./privagentPlugin";

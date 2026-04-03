@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PrivAgent Contributors — BUSL-1.1
+// Copyright (c) 2026 PrivAgent Contributors — MIT
 import { getWallet, ok, fail, parseAmount, formatUSDC, parseCliArgs } from "./_wallet.js";
 
 export async function run(args: Record<string, string>): Promise<string> {
