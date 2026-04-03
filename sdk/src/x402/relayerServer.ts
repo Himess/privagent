@@ -12,6 +12,7 @@
  */
 
 import crypto from "crypto";
+import { PRIVAGENT_BUILDER_SUFFIX } from "../v4/builderCode.js";
 
 /** [AUDIT-FIX] Constant-time string comparison to prevent timing attacks */
 function timingSafeCompare(a: string, b: string): boolean {
@@ -255,8 +256,11 @@ export async function createRelayerServer(config: RelayerConfig): Promise<any> {
           .json({ success: false, message: `TX would fail: ${reason}` });
       }
 
-      // Submit TX with 20% gas buffer
-      const tx = await pool.transact(args, extData, {
+      // ERC-8021: Append builder code suffix for Base attribution
+      const calldata = pool.interface.encodeFunctionData("transact", [args, extData]);
+      const tx = await _wallet.sendTransaction({
+        to: config.poolAddress,
+        data: calldata + PRIVAGENT_BUILDER_SUFFIX,
         gasLimit: (gasEstimate * 120n) / 100n,
       });
 

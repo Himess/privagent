@@ -23,6 +23,7 @@ import { ExtData, computeExtDataHash } from "./extData.js";
 import { syncTreeFromEvents } from "./treeSync.js";
 import { NoteStore, MemoryNoteStore, StoredNote } from "./noteStore.js";
 import { generateViewTag } from "./viewTag.js";
+import { PRIVAGENT_BUILDER_SUFFIX } from "./builderCode.js";
 
 // ============================================================================
 // Pool ABI (V4)
@@ -297,27 +298,32 @@ export class ShieldedWallet {
       generateViewTag(this.keypair.privateKey, u.pubkey, u.blinding)
     );
 
-    const tx = await poolContract.transact(
-      {
-        pA: [proofResult.proofData.pA[0], proofResult.proofData.pA[1]],
-        pB: proofResult.proofData.pB,
-        pC: [proofResult.proofData.pC[0], proofResult.proofData.pC[1]],
-        root: toBytes32(ps[0]),
-        publicAmount: amount,
-        extDataHash: toBytes32(extDataHash),
-        protocolFee,
-        inputNullifiers: nullifiers,
-        outputCommitments: commitments,
-        viewTags,
-      },
-      {
-        recipient: extData.recipient,
-        relayer: extData.relayer,
-        fee: extData.fee,
-        encryptedOutput1: extData.encryptedOutput1,
-        encryptedOutput2: extData.encryptedOutput2,
-      }
-    );
+    const txArgs = {
+      pA: [proofResult.proofData.pA[0], proofResult.proofData.pA[1]],
+      pB: proofResult.proofData.pB,
+      pC: [proofResult.proofData.pC[0], proofResult.proofData.pC[1]],
+      root: toBytes32(ps[0]),
+      publicAmount: amount,
+      extDataHash: toBytes32(extDataHash),
+      protocolFee,
+      inputNullifiers: nullifiers,
+      outputCommitments: commitments,
+      viewTags,
+    };
+    const txExtData = {
+      recipient: extData.recipient,
+      relayer: extData.relayer,
+      fee: extData.fee,
+      encryptedOutput1: extData.encryptedOutput1,
+      encryptedOutput2: extData.encryptedOutput2,
+    };
+
+    // ERC-8021: Append builder code suffix for Base attribution
+    const calldata = poolContract.interface.encodeFunctionData("transact", [txArgs, txExtData]);
+    const tx = await this.config.signer.sendTransaction({
+      to: this.config.poolAddress,
+      data: calldata + PRIVAGENT_BUILDER_SUFFIX,
+    });
 
     const receipt = await tx.wait();
 
@@ -501,27 +507,32 @@ export class ShieldedWallet {
       generateViewTag(this.keypair.privateKey, u.pubkey, u.blinding)
     );
 
-    const tx = await poolContract.transact(
-      {
-        pA: [proofResult.proofData.pA[0], proofResult.proofData.pA[1]],
-        pB: proofResult.proofData.pB,
-        pC: [proofResult.proofData.pC[0], proofResult.proofData.pC[1]],
-        root: toBytes32(ps[0]),
-        publicAmount: publicAmount,
-        extDataHash: toBytes32(proof.extDataHash),
-        protocolFee,
-        inputNullifiers: nullifiers,
-        outputCommitments: commitments,
-        viewTags,
-      },
-      {
-        recipient: extData.recipient,
-        relayer: extData.relayer,
-        fee: extData.fee,
-        encryptedOutput1: extData.encryptedOutput1,
-        encryptedOutput2: extData.encryptedOutput2,
-      }
-    );
+    const txArgs = {
+      pA: [proofResult.proofData.pA[0], proofResult.proofData.pA[1]],
+      pB: proofResult.proofData.pB,
+      pC: [proofResult.proofData.pC[0], proofResult.proofData.pC[1]],
+      root: toBytes32(ps[0]),
+      publicAmount: publicAmount,
+      extDataHash: toBytes32(proof.extDataHash),
+      protocolFee,
+      inputNullifiers: nullifiers,
+      outputCommitments: commitments,
+      viewTags,
+    };
+    const txExtData = {
+      recipient: extData.recipient,
+      relayer: extData.relayer,
+      fee: extData.fee,
+      encryptedOutput1: extData.encryptedOutput1,
+      encryptedOutput2: extData.encryptedOutput2,
+    };
+
+    // ERC-8021: Append builder code suffix for Base attribution
+    const calldata = poolContract.interface.encodeFunctionData("transact", [txArgs, txExtData]);
+    const tx = await this.config.signer!.sendTransaction({
+      to: this.config.poolAddress,
+      data: calldata + PRIVAGENT_BUILDER_SUFFIX,
+    });
 
     const receipt = await tx.wait();
 

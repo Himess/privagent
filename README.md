@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-282%20passing-brightgreen)](https://github.com/Himess/privagent/actions)
 [![npm](https://img.shields.io/npm/v/privagent-sdk)](https://www.npmjs.com/package/privagent-sdk)
-[![Base Sepolia](https://img.shields.io/badge/Base%20Sepolia-Live-blue)]()
+[![Base Mainnet](https://img.shields.io/badge/Base%20Mainnet-Live-green)](https://basescan.org/address/0x02Ee3eCDb9791dad9a169A5C4F52Fc53318bEf2D)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)]()
 
@@ -49,8 +49,8 @@ const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 const wallet = new ShieldedWallet({
   provider,
   signer,
-  poolAddress: '0x8F1ae8209156C22dFD972352A415880040fB0b0c',
-  usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  poolAddress: '0x02Ee3eCDb9791dad9a169A5C4F52Fc53318bEf2D',
+  usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   circuitDir: './circuits/build',
 });
 await wallet.initialize();
@@ -188,16 +188,97 @@ privagent/
     └── POI-ROADMAP.md
 ```
 
-## Contracts (Base Sepolia)
+## Contracts (Base Mainnet)
 
 | Contract | Address | Verified |
 |----------|---------|----------|
-| ShieldedPoolV4 | `0x8F1ae8209156C22dFD972352A415880040fB0b0c` | Yes |
-| Groth16Verifier_1x2 | `0xC53c8E05661450919951f51E4da829a3AABD76A2` | Yes |
-| Groth16Verifier_2x2 | `0xE77ad940291c97Ae4dC43a6b9Ffb43a3AdCd4769` | Yes |
-| PoseidonHasher | `0x70Aa742C113218a12A6582f60155c2B299551A43` | Yes |
+| ShieldedPoolV4 | [`0x02Ee3eCDb9791dad9a169A5C4F52Fc53318bEf2D`](https://basescan.org/address/0x02Ee3eCDb9791dad9a169A5C4F52Fc53318bEf2D) | Sourcify |
+| Groth16Verifier_1x2 | [`0xB6d04ed112eC6Ff12a366f8EC5d74C083769F164`](https://basescan.org/address/0xB6d04ed112eC6Ff12a366f8EC5d74C083769F164) | Sourcify |
+| Groth16Verifier_2x2 | [`0xD5F84f3B9CF18c6de4c459751fb914b8aF111096`](https://basescan.org/address/0xD5F84f3B9CF18c6de4c459751fb914b8aF111096) | Sourcify |
+| PoseidonHasher | [`0x42f45448514C1d8a1b0B2fDc2043Aba07062d9f6`](https://basescan.org/address/0x42f45448514C1d8a1b0B2fDc2043Aba07062d9f6) | Sourcify |
 
-Deploy block: `38347380`
+- **Chain:** Base Mainnet (8453)
+- **USDC:** `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+- **Deploy block:** `44230980`
+
+<details>
+<summary>Base Sepolia (Testnet)</summary>
+
+| Contract | Address |
+|----------|---------|
+| ShieldedPoolV4 | `0x8F1ae8209156C22dFD972352A415880040fB0b0c` |
+| Groth16Verifier_1x2 | `0xC53c8E05661450919951f51E4da829a3AABD76A2` |
+| Groth16Verifier_2x2 | `0xE77ad940291c97Ae4dC43a6b9Ffb43a3AdCd4769` |
+| PoseidonHasher | `0x70Aa742C113218a12A6582f60155c2B299551A43` |
+
+USDC: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Deploy block: `38347380`
+</details>
+
+## Usage
+
+### Important Notes
+
+- **Poseidon Key Persistence:** The `ShieldedWallet` generates a random Poseidon keypair by default. If you lose this key, your shielded funds are **unrecoverable**. Always pass a deterministic key or use `FileNoteStore` for persistence.
+- **Tree Sync:** Call `wallet.syncTree()` before generating proofs to ensure your local Merkle tree matches the on-chain state.
+- **Protocol Fee:** All transactions incur a fee of max(0.1%, $0.01 USDC). This is enforced at the ZK circuit level and cannot be bypassed.
+
+### Deposit + Withdraw (Mainnet)
+
+```typescript
+import { ethers } from 'ethers';
+import { ShieldedWallet, initPoseidon } from 'privagent-sdk';
+
+await initPoseidon();
+
+const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+const signer = new ethers.Wallet(PRIVATE_KEY, provider);
+
+// Derive a deterministic Poseidon key from your ETH key (recommended)
+const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+const poseidonKey = BigInt(ethers.keccak256(
+  ethers.toUtf8Bytes('privagent:' + PRIVATE_KEY)
+)) % FIELD_SIZE;
+
+const wallet = new ShieldedWallet(
+  {
+    provider,
+    signer,
+    poolAddress: '0x02Ee3eCDb9791dad9a169A5C4F52Fc53318bEf2D',
+    usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    circuitDir: './circuits/build',
+    deployBlock: 44230980,
+  },
+  poseidonKey
+);
+
+await wallet.initialize();
+await wallet.syncTree(); // sync Merkle tree with on-chain state
+
+// Deposit 1 USDC (6 decimals)
+await wallet.deposit(1_000_000n);
+console.log('Shielded balance:', wallet.getBalance()); // 990000 (after 0.1% fee)
+
+// Withdraw 0.5 USDC to your address
+await wallet.withdraw(500_000n, signer.address);
+```
+
+### Persistent Wallet (Recommended for Production)
+
+```typescript
+import { ShieldedWallet, FileNoteStore } from 'privagent-sdk';
+
+// FileNoteStore encrypts UTXOs at rest with AES-256-GCM
+const noteStore = new FileNoteStore(
+  './data/notes.json',
+  PRIVATE_KEY // encryption key derived via HKDF
+);
+
+const wallet = new ShieldedWallet(
+  { provider, signer, poolAddress, usdcAddress, circuitDir, deployBlock, noteStore },
+  poseidonKey
+);
+await wallet.initialize(); // loads persisted UTXOs automatically
+```
 
 ## Testing
 
@@ -214,8 +295,8 @@ cd packages/virtuals-plugin && pnpm test
 # OpenClaw Skill tests (38 tests)
 cd packages/openclaw-skill && pnpm test
 
-# Run E2E on Base Sepolia
-PRIVATE_KEY=0x... npx tsx demo/agent-privacy-demo.ts
+# Mainnet E2E (requires PRIVATE_KEY with Base mainnet ETH + USDC)
+cd sdk && PRIVATE_KEY=0x... npx tsx ../scripts/mainnet-full-e2e.ts
 ```
 
 **Total: 282 tests** (106 Foundry + 109 SDK + 29 Virtuals + 38 OpenClaw)

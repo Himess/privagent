@@ -65,3 +65,8 @@ export {
   TransactResult,
   GenerateTransactProofResult,
 } from "./shieldedWallet.js";
+
+export {
+  buildERC8021Suffix,
+  PRIVAGENT_BUILDER_SUFFIX,
+} from "./builderCode.js";
