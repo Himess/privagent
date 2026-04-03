@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="base:app_id" content="69ab34f349645da9eb55ad6f">
+  <title>PrivAgent - Privacy Infrastructure for the Agent Economy</title>
+  <meta name="description" content="ZK-UTXO privacy layer for x402 payments and ERC-8004 agents on Base">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    .gradient-text { background: linear-gradient(135deg, #60a5fa, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .code-block { background: #0d1117; border: 1px solid #21262d; }
+    .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+    .card:hover { border-color: rgba(99,102,241,0.3); }
+  </style>
+</head>
+<body class="bg-[#09090b] text-gray-300 antialiased">
+
+  <!-- Nav -->
+  <nav class="border-b border-white/5 px-6 py-4">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <span class="text-white font-bold text-xl tracking-tight">PrivAgent</span>
+      <div class="flex items-center gap-6 text-sm">
+        <a href="#install" class="hover:text-white transition">Install</a>
+        <a href="#architecture" class="hover:text-white transition">Architecture</a>
+        <a href="#privacy" class="hover:text-white transition">Privacy</a>
+        <a href="https://github.com/Himess/privagent" target="_blank" class="hover:text-white transition">GitHub</a>
+        <a href="https://www.npmjs.com/package/privagent-sdk" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md transition text-xs font-medium">npm</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="max-w-5xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-indigo-400 text-sm font-medium mb-4">Privacy Infrastructure for Base</p>
+    <h1 class="text-5xl font-bold text-white leading-tight mb-6">
+      Private payments for<br><span class="gradient-text">autonomous agents</span>
+    </h1>
+    <p class="text-lg text-gray-400 max-w-2xl mb-10">
+      ZK-UTXO privacy layer for x402 payments and ERC-8004 agents.
+      Hidden amounts, hidden recipients, hidden links &mdash; on Base.
+    </p>
+    <div class="flex gap-3">
+      <a href="#install" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition text-sm">Get Started</a>
+      <a href="https://github.com/Himess/privagent" target="_blank" class="border border-white/10 hover:border-white/20 text-white px-5 py-2.5 rounded-lg font-medium transition text-sm">View Source</a>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="max-w-5xl mx-auto px-6 py-12">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="card rounded-xl p-5 text-center transition">
+        <div class="text-2xl font-bold text-white">282</div>
+        <div class="text-sm text-gray-500 mt-1">Tests Passing</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center transition">
+        <div class="text-2xl font-bold text-white">4</div>
+        <div class="text-sm text-gray-500 mt-1">Smart Contracts</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center transition">
+        <div class="text-2xl font-bold text-white">2</div>
+        <div class="text-sm text-gray-500 mt-1">Agent Integrations</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center transition">
+        <div class="text-2xl font-bold text-white">3</div>
+        <div class="text-sm text-gray-500 mt-1">Security Audits</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install" class="max-w-5xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-white mb-8">Quick Start</h2>
+
+    <div class="code-block rounded-xl p-5 mb-6">
+      <div class="text-xs text-gray-500 mb-3">Install</div>
+      <pre class="text-green-400 text-sm">npm install privagent-sdk</pre>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <h3 class="text-white font-semibold mb-3 text-sm">Agent (Buyer)</h3>
+        <div class="code-block rounded-xl p-5">
+<pre class="text-sm leading-relaxed"><span class="text-purple-400">import</span> { ShieldedWallet } <span class="text-purple-400">from</span> <span class="text-green-400">'privagent-sdk'</span>;
+
+<span class="text-gray-500">// Initialize + deposit</span>
+<span class="text-purple-400">const</span> wallet = <span class="text-purple-400">new</span> <span class="text-blue-400">ShieldedWallet</span>({
+  provider, signer,
+  poolAddress, usdcAddress, circuitDir
+});
+<span class="text-purple-400">await</span> wallet.<span class="text-yellow-300">initialize</span>();
+<span class="text-purple-400">await</span> wallet.<span class="text-yellow-300">deposit</span>(<span class="text-orange-300">10_000_000n</span>);</pre>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-white font-semibold mb-3 text-sm">API Provider (Seller)</h3>
+        <div class="code-block rounded-xl p-5">
+<pre class="text-sm leading-relaxed"><span class="text-purple-400">import</span> { privAgentPaywallV4 } <span class="text-purple-400">from</span> <span class="text-green-400">'privagent-sdk/x402'</span>;
+
+<span class="text-gray-500">// Add privacy paywall</span>
+app.<span class="text-yellow-300">use</span>(<span class="text-green-400">'/api/data'</span>, <span class="text-blue-400">privAgentPaywallV4</span>({
+  price: <span class="text-green-400">'1000000'</span>,
+  poolAddress, signer,
+  poseidonPubkey, ecdhPrivateKey,
+  ecdhPublicKey, verificationKeys
+}));</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture" class="max-w-5xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-white mb-8">Architecture</h2>
+    <div class="code-block rounded-xl p-8 text-center">
+<pre class="text-sm inline-block text-left">
+<span class="text-blue-400">Agent Frameworks</span>
+<span class="text-gray-600">Virtuals GAME  &#183;  OpenClaw  &#183;  ElizaOS</span>
+<span class="text-gray-700">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
+<span class="text-purple-400">ERC-8004</span>: Identity + Trust
+<span class="text-gray-700">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
+<span class="text-indigo-400">PrivAgent</span>: Privacy Layer
+<span class="text-gray-600">ZK-UTXO  &#183;  Groth16  &#183;  Poseidon  &#183;  Facilitator</span>
+<span class="text-gray-700">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
+<span class="text-cyan-400">x402</span>: Payment Protocol
+<span class="text-gray-700">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
+<span class="text-blue-300">Base L2</span>
+</pre>
+    </div>
+  </section>
+
+  <!-- Privacy Model -->
+  <section id="privacy" class="max-w-5xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-white mb-8">Privacy Model</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-green-400 text-lg">&#10003;</span>
+          <span class="text-white font-medium">Payment Amount</span>
+        </div>
+        <p class="text-sm text-gray-500">Hidden via ZK proofs + encrypted UTXO notes</p>
+      </div>
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-green-400 text-lg">&#10003;</span>
+          <span class="text-white font-medium">Sender Identity</span>
+        </div>
+        <p class="text-sm text-gray-500">Hidden via nullifier-based spending</p>
+      </div>
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-green-400 text-lg">&#10003;</span>
+          <span class="text-white font-medium">Recipient Identity</span>
+        </div>
+        <p class="text-sm text-gray-500">Hidden via ECDH encrypted notes</p>
+      </div>
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-green-400 text-lg">&#10003;</span>
+          <span class="text-white font-medium">Transaction Links</span>
+        </div>
+        <p class="text-sm text-gray-500">Broken via UTXO model with JoinSplit</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="max-w-5xl mx-auto px-6 py-16">
+    <h2 class="text-2xl font-bold text-white mb-8">Agent Integrations</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-white font-semibold">Virtuals GAME</span>
+          <span class="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Shipped</span>
+        </div>
+        <p class="text-sm text-gray-500">5 GameFunctions for autonomous agents. 29 tests.</p>
+      </div>
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-white font-semibold">OpenClaw</span>
+          <span class="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Shipped</span>
+        </div>
+        <p class="text-sm text-gray-500">Declarative skill with auto-discovery. 38 tests.</p>
+      </div>
+      <div class="card rounded-xl p-5 transition">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-white font-semibold">ElizaOS</span>
+          <span class="text-xs bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full">Planned</span>
+        </div>
+        <p class="text-sm text-gray-500">Action plugin for ElizaOS agents.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5 px-6 py-8 mt-12">
+    <div class="max-w-5xl mx-auto flex items-center justify-between text-sm text-gray-600">
+      <span>PrivAgent &mdash; MIT License</span>
+      <div class="flex gap-4">
+        <a href="https://github.com/Himess/privagent" target="_blank" class="hover:text-gray-400 transition">GitHub</a>
+        <a href="https://www.npmjs.com/package/privagent-sdk" target="_blank" class="hover:text-gray-400 transition">npm</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
